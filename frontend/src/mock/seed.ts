@@ -15,7 +15,7 @@ import type { DB } from './db';
 import { DEMO_PASSWORD } from '../config';
 import { addDaysStr, dateOf, minutesBetween, pad } from '../utils/format';
 
-function qrToken(id: number) {
+export function qrToken(id: number) {
   let h = (id * 2654435761) >>> 0;
   let out = '';
   for (let i = 0; i < 3; i++) {
