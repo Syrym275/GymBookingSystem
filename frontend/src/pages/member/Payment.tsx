@@ -98,7 +98,7 @@ export default function Payment() {
       <PageHeader title="Complete your payment" subtitle="Your slot is held while you pay." />
       <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <div className="card space-y-5">
-          <div className={`flex items-center gap-3 rounded-xl border-2 border-ink p-3 ${secondsLeft < 120 ? 'bg-berry-soft' : 'bg-sun-soft'}`}>
+          <div className={`flex items-center gap-3 rounded-xl border border-line p-3 ${secondsLeft < 120 ? 'bg-berry-soft' : 'bg-sun-soft'}`}>
             <Timer className="h-6 w-6" />
             <div>
               <p className="font-display text-2xl font-extrabold tabular-nums">
@@ -116,8 +116,8 @@ export default function Payment() {
                   key={m.id}
                   onClick={() => setMethod(m.id)}
                   aria-pressed={method === m.id}
-                  className={`rounded-xl border-2 p-3 text-left transition ${
-                    method === m.id ? 'border-ink bg-mint-soft shadow-hard-sm' : 'border-ink/20 bg-white hover:border-ink'
+                  className={`rounded-xl border p-3 text-left transition ${
+                    method === m.id ? 'border-line bg-mint-soft shadow-hard-sm' : 'border-ink/20 bg-white hover:border-line'
                   }`}
                 >
                   {m.icon}
@@ -170,7 +170,7 @@ export default function Payment() {
                 {timeOf(b.start_time)} – {timeOf(b.end_time)}
               </dd>
             </div>
-            <div className="flex justify-between gap-3 border-t-2 border-dashed border-ink/20 pt-2 text-base">
+            <div className="flex justify-between gap-3 border-t border-dashed border-ink/20 pt-2 text-base">
               <dt className="font-bold">Total</dt>
               <dd className="font-display text-xl font-extrabold text-brand-dark">{kzt(b.price_kzt)}</dd>
             </div>

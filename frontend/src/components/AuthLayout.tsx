@@ -1,43 +1,59 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Dumbbell } from 'lucide-react';
+import { ThemeToggle } from '../theme/ThemeContext';
+import { GYM_NAME } from '../data/gymData';
+import { Barbell } from './GymIcons';
+import HeroScene from './HeroScene';
 
-/** Two-column shell shared by the Login and Register pages: brand panel (lg+) + form column. */
-export function AuthLayout({ children }: { children: ReactNode }) {
+function Logo() {
   return (
-    <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
-      <div className="relative hidden overflow-hidden bg-brand p-12 text-white lg:flex lg:flex-col lg:justify-between">
-        <div className="absolute -right-20 -top-20 h-80 w-80 rounded-full bg-sun" />
-        <div className="absolute -bottom-24 left-10 h-72 w-72 rounded-full bg-mint" />
-        <div className="absolute bottom-40 right-16 h-24 w-24 rounded-3xl border-4 border-ink bg-berry" />
-        <div className="relative flex items-center gap-3">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-ink bg-white text-ink shadow-hard">
-            <Dumbbell className="h-6 w-6" />
-          </span>
-          <span className="font-display text-2xl font-extrabold">Gym Booking System</span>
+    <Link to="/" className="flex min-h-[44px] items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60">
+      <span className="flex h-10 w-10 items-center justify-center rounded-md bg-brand text-onaccent">
+        <Barbell className="h-6 w-6" />
+      </span>
+      <span className="font-display text-xl font-bold uppercase tracking-wide">{GYM_NAME}</span>
+    </Link>
+  );
+}
+
+/**
+ * Shell shared by the Login and Register pages, in the landing page's style:
+ * gym-floor illustration panel (lg+) + form column.
+ */
+export function AuthLayout({ aside, children }: { aside: { title: ReactNode; text: string }; children: ReactNode }) {
+  return (
+    <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
+      <aside className="relative hidden flex-col justify-between gap-10 border-r border-line bg-white p-10 lg:flex xl:p-12">
+        <Logo />
+        <HeroScene ticket={false} />
+        <div>
+          <p className="font-display text-5xl font-bold uppercase leading-[0.95] xl:text-6xl">{aside.title}</p>
+          <p className="mt-4 max-w-md text-ink/70">{aside.text}</p>
         </div>
-        <div className="relative">
-          <h1 className="font-display text-5xl font-extrabold leading-tight drop-shadow-[3px_3px_0_#1E2235]">
-            Book it.
-            <br />
-            Pay it.
-            <br />
-            Show up.
-          </h1>
-          <p className="mt-5 max-w-md text-lg font-medium">
-            Personal training and hall rental in one place — one trainer or hall is never booked twice for the same time.
+      </aside>
+
+      <main className="flex justify-center px-4 py-6 sm:p-10 lg:items-center">
+        <div className="w-full max-w-md space-y-8">
+          <div className="flex items-center justify-between gap-3">
+            <span className="lg:hidden">
+              <Logo />
+            </span>
+            <Link
+              to="/"
+              className="hidden min-h-[44px] items-center text-sm font-semibold text-ink/70 hover:text-brand-dark lg:inline-flex"
+            >
+              ← Back to home
+            </Link>
+            <ThemeToggle className="min-h-[44px] min-w-[44px]" />
+          </div>
+          {children}
+          <p className="text-center lg:hidden">
+            <Link to="/" className="inline-flex min-h-[44px] items-center text-sm font-semibold text-ink/70 hover:text-brand-dark">
+              ← Back to home
+            </Link>
           </p>
         </div>
-      </div>
-
-      <div className="flex items-center justify-center p-6 sm:p-10">
-        <div className="w-full max-w-md space-y-8">
-          <Link to="/" className="inline-flex items-center gap-1.5 text-sm font-bold text-ink/60 hover:text-brand">
-            <ArrowLeft className="h-4 w-4" /> Back to home
-          </Link>
-          {children}
-        </div>
-      </div>
+      </main>
     </div>
   );
 }

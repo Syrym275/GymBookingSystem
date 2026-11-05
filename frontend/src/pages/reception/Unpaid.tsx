@@ -38,13 +38,13 @@ export default function ReceptionUnpaid() {
                       <Phone className="h-3 w-3" /> {g.phone}
                     </a>
                   </div>
-                  <span className={`chip ${atLimit ? 'border-ink bg-berry text-white' : 'border-ink/20 bg-white'}`}>
+                  <span className={`chip ${atLimit ? 'border-line bg-berry text-onaccent' : 'border-ink/20 bg-white'}`}>
                     {g.bookings.length} of {MAX_PENDING} unpaid{atLimit ? ' · at limit' : ''}
                   </span>
                 </div>
                 <div className="space-y-2">
                   {g.bookings.map((b) => (
-                    <div key={b.booking_id} className="flex flex-wrap items-center gap-2 rounded-xl border-2 border-ink/15 bg-white p-3 text-sm">
+                    <div key={b.booking_id} className="flex flex-wrap items-center gap-2 rounded-xl border border-ink/15 bg-white p-3 text-sm">
                       <div className="min-w-0 flex-1">
                         <p className="font-bold">
                           <span className="mr-2 font-mono text-xs text-ink/50">{bkNumber(b.booking_id)}</span>

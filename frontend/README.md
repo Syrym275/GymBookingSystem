@@ -2,7 +2,13 @@
 
 A bright, mobile-friendly front end for a gym where members book a **60-minute personal training session** or **rent a hall/studio**, pay, and get a confirmation. Its core promise: *one trainer or one hall is never booked twice for the same time.*
 
-This folder is the **front end**; the backend will live next to it in `../backend/`. All data comes from a mock API layer (`src/api` + `src/mock`) that mirrors the real PostgreSQL schema, so it can later be swapped for real HTTP calls.
+Week 10 update: the latest PulseGym design is imported from frontend branch commit
+`b9fd75d59fb4b1e8c72e4c63c5ddababc494fd8b`. The landing page now fetches its trainers
+and halls from FastAPI via `/api/public/catalog`. Run the backend on port 8000 and
+the frontend in a separate terminal. Other flows still use the mock API.
+See `../backend/README.md` for the current beginner setup and scope.
+
+This folder is the **front end**; the backend lives next to it in `../backend/`. Except for the public catalogue, data comes from a mock API layer (`src/api` + `src/mock`) that mirrors the real PostgreSQL schema, so it can later be swapped for real HTTP calls.
 
 **Stack:** React 18 · TypeScript (strict) · Vite · React Router 6 · Tailwind CSS · lucide-react · date-fns · recharts
 

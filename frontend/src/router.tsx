@@ -1,7 +1,8 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import { RequireRole } from './auth/RequireRole';
 import { AppLayout } from './layouts/AppLayout';
 import Landing from './pages/Landing';
+import NotFound from './pages/NotFound';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import MemberDashboard from './pages/member/Dashboard';
@@ -85,5 +86,5 @@ export const router = createBrowserRouter([
       { path: 'staff', element: <AdminStaff /> },
     ],
   },
-  { path: '*', element: <Navigate to="/" replace /> },
+  { path: '*', element: <NotFound /> },
 ]);

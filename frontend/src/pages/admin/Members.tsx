@@ -112,7 +112,7 @@ export default function AdminMembers() {
               </div>
             </div>
             <div className="text-center">
-              <div className="rounded-2xl border-2 border-ink bg-white p-2">
+              <div className="rounded-xl border border-line bg-white p-2">
                 <QrCode token={selected.qr_code_token ?? ''} size={140} />
               </div>
               <p className="mt-2 font-mono text-[11px] font-bold">{selected.qr_code_token}</p>

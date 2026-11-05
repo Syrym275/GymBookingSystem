@@ -20,7 +20,7 @@ export function BookingError({ error, onPick }: { error: unknown; onPick?: (s: S
   }
 
   return (
-    <div role="alert" className="rounded-xl border-2 border-berry bg-berry-soft p-4 text-sm">
+    <div role="alert" className="rounded-xl border border-berry bg-berry-soft p-4 text-sm">
       <p className="flex items-center gap-2 font-bold">
         <AlertTriangle className="h-4 w-4 text-berry" /> {title}
       </p>
@@ -28,7 +28,7 @@ export function BookingError({ error, onPick }: { error: unknown; onPick?: (s: S
       {err && err.suggestions.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {err.suggestions.map((s) => (
-            <button key={s.start_time} className="chip border-ink bg-white hover:bg-sun" onClick={() => onPick?.(s)}>
+            <button key={s.start_time} className="chip border-line bg-white hover:bg-sun" onClick={() => onPick?.(s)}>
               {timeOf(s.start_time)}–{timeOf(s.end_time)}
             </button>
           ))}

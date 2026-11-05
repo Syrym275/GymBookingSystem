@@ -21,8 +21,8 @@ export function SlotPicker({ date, hours, taken, selected, range, onSelect }: Pr
         const isSel = selected === h || inRange;
         const disabled = isTaken || isPast || !onSelect;
         let style = 'border-ink/20 bg-white hover:border-brand hover:bg-brand-soft';
-        if (isSel) style = 'border-ink bg-brand text-white shadow-hard-sm';
-        else if (isTaken) style = 'border-ink/10 bg-[repeating-linear-gradient(45deg,#f3ece0,#f3ece0_6px,#fff_6px,#fff_12px)] text-ink/40 line-through';
+        if (isSel) style = 'border-line bg-brand text-onaccent shadow-hard-sm';
+        else if (isTaken) style = 'border-ink/10 bg-[repeating-linear-gradient(45deg,rgb(var(--ink)/0.06),rgb(var(--ink)/0.06)_6px,transparent_6px,transparent_12px)] text-ink/40 line-through';
         else if (isPast) style = 'border-ink/10 bg-slate-100 text-ink/30';
         else if (!onSelect) style = 'border-mint/50 bg-mint-soft text-mint-dark';
         return (
@@ -32,7 +32,7 @@ export function SlotPicker({ date, hours, taken, selected, range, onSelect }: Pr
             disabled={disabled && !isSel}
             onClick={() => onSelect?.(h)}
             title={isTaken ? 'Already booked' : isPast ? 'Time has passed' : 'Free'}
-            className={`rounded-xl border-2 px-2 py-2 text-sm font-bold transition ${style} ${
+            className={`rounded-xl border px-2 py-2 text-sm font-bold transition ${style} ${
               disabled && !isSel ? 'cursor-not-allowed' : ''
             }`}
           >

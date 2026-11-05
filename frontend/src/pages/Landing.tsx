@@ -1,352 +1,488 @@
-import { Link, Navigate } from 'react-router-dom';
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import {
-  ArrowRight,
-  CalendarCheck,
   Clock,
-  CreditCard,
-  Dumbbell,
+  Facebook,
+  Instagram,
+  LayoutDashboard,
   LogIn,
-  QrCode,
-  ShieldCheck,
-  Users,
-  Warehouse,
-} from 'lucide-react';
-import type { ReactNode } from 'react';
-import { getPublicCatalog } from '../api/publicApi';
-import { useAuth } from '../auth/AuthContext';
-import { PLAN_MONTHS } from '../auth/mockUsers';
-import { HOME } from '../auth/RequireRole';
-import { CLOSE_HOUR, HOLD_MINUTES, OPEN_HOUR } from '../config';
-import { useAsync } from '../hooks/useAsync';
-import type { MembershipPlan } from '../types';
-import { hourLabel, kzt, PLAN_LABEL } from '../utils/format';
+  LogOut,
+  Mail,
+  MapPin,
+  Phone,
+  Youtube,
+} from "lucide-react";
+import { useAuth } from "../auth/AuthContext";
+import { getPublicCatalog } from "../api/publicApi";
+import { useAsync } from "../hooks/useAsync";
+import { HOME } from "../auth/RequireRole";
+import { Barbell, Glove, Group, Kettlebell, Mat } from "../components/GymIcons";
+import { CLOSE_HOUR, OPEN_HOUR, TODAY_DATE } from "../config";
+import {
+  CONTACT,
+  GYM_NAME,
+  PLANS,
+  SERVICES,
+  SOCIALS,
+  STEPS,
+  TESTIMONIALS,
+  type ServiceIcon,
+} from "../data/gymData";
+import { hourLabel, kzt } from "../utils/format";
+import { ThemeToggle } from "../theme/ThemeContext";
+import HeroScene from "../components/HeroScene";
 
-const ACCENTS = ['bg-brand text-white', 'bg-mint text-white', 'bg-sun text-ink', 'bg-berry text-white'];
+const SERVICE_ICON: Record<
+  ServiceIcon,
+  (p: { className?: string }) => ReactNode
+> = {
+  barbell: Barbell,
+  group: Group,
+  mat: Mat,
+  glove: Glove,
+  kettlebell: Kettlebell,
+};
 
-const FEATURES: { icon: ReactNode; title: string; text: string; accent: string }[] = [
-  {
-    icon: <Dumbbell className="h-6 w-6" />,
-    title: 'Personal training',
-    text: 'Pick a coach and book a 60-minute one-on-one session that starts on the hour.',
-    accent: 'bg-brand-soft',
-  },
-  {
-    icon: <Warehouse className="h-6 w-6" />,
-    title: 'Rent a hall',
-    text: 'Need space for a class or team? Rent a hall or studio by the hour.',
-    accent: 'bg-mint-soft',
-  },
-  {
-    icon: <CreditCard className="h-6 w-6" />,
-    title: 'Pay in seconds',
-    text: `Card, NFC or app. Your slot is held for ${HOLD_MINUTES} minutes while you pay.`,
-    accent: 'bg-sun-soft',
-  },
-  {
-    icon: <ShieldCheck className="h-6 w-6" />,
-    title: 'Never double-booked',
-    text: 'A trainer or hall is never booked twice for the same hour. Your slot is yours.',
-    accent: 'bg-berry-soft',
-  },
+const SOCIAL_ICON = { Instagram, Facebook, YouTube: Youtube };
+
+const NAV = [
+  { href: "#services", label: "Services" },
+  { href: "#trainers", label: "Trainers" },
+  { href: "#halls", label: "Halls" },
+  { href: "#pricing", label: "Pricing" },
+  { href: "#contact", label: "Contact" },
 ];
 
-const STEPS = [
-  { title: 'Create an account', text: 'Sign up in a minute and choose your membership plan.' },
-  { title: 'Book a slot', text: 'Choose a trainer or a hall, then a free time that suits you.' },
-  { title: 'Pay & show up', text: 'Pay online, get your booking slip, and show your QR code at the desk.' },
-];
-
-const PLANS: { plan: MembershipPlan; blurb: string; highlight?: boolean }[] = [
-  { plan: 'monthly', blurb: 'Try us out, no long commitment.' },
-  { plan: 'quarterly', blurb: 'Build a habit over a full season.', highlight: true },
-  { plan: 'annual', blurb: 'The whole year, for the committed.' },
-];
+const HOURS_TEXT = `${hourLabel(OPEN_HOUR)}–${hourLabel(CLOSE_HOUR)}`;
 
 export default function Landing() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const catalog = useAsync(getPublicCatalog, []);
-
-  if (user) return <Navigate to={HOME[user.role]} replace />;
-
   const trainers = catalog.data?.trainers ?? [];
   const halls = catalog.data?.halls ?? [];
-  const minTrainer = trainers.length ? Math.min(...trainers.map((t) => t.session_price_kzt)) : null;
+
+  // Logged out -> sign up; logged in -> the user's own dashboard.
+  const target = user ? HOME[user.role] : "/register";
 
   return (
-    <div className="min-h-screen overflow-x-hidden">
-      {/* ---- Top bar ---- */}
-      <header className="sticky top-0 z-20 border-b-2 border-ink bg-cream/90 backdrop-blur">
+    <div className="relative min-h-screen overflow-x-hidden">
+      {/* ---- Sticky navbar ---- */}
+      <header className="sticky top-0 z-30 border-b border-line bg-cream/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink bg-brand text-white shadow-hard-sm">
-              <Dumbbell className="h-5 w-5" />
+          <a
+            href="#top"
+            className="flex min-h-[44px] items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-md bg-brand text-onaccent">
+              <Barbell className="h-6 w-6" />
             </span>
-            <span className="font-display text-lg font-extrabold leading-tight sm:text-xl">Gym Booking</span>
-          </Link>
-          <nav className="hidden items-center gap-6 text-sm font-bold md:flex">
-            <a href="#features" className="hover:text-brand">Features</a>
-            <a href="#trainers" className="hover:text-brand">Trainers</a>
-            <a href="#halls" className="hover:text-brand">Halls</a>
-            <a href="#plans" className="hover:text-brand">Plans</a>
+            <span className="font-display text-xl font-bold uppercase tracking-wide">
+              {GYM_NAME}
+            </span>
+          </a>
+          <nav
+            className="hidden items-center gap-6 text-sm font-semibold lg:flex"
+            aria-label="Sections"
+          >
+            {NAV.map((n) => (
+              <a key={n.href} href={n.href} className="hover:text-brand-dark">
+                {n.label}
+              </a>
+            ))}
           </nav>
           <div className="flex items-center gap-2">
-            <Link to="/login" className="btn-ghost">
-              <LogIn className="h-4 w-4" /> <span className="hidden sm:inline">Sign in</span>
-            </Link>
-            <Link to="/register" className="btn-primary">
-              Join now
-            </Link>
+            <ThemeToggle className="min-h-[44px] min-w-[44px]" />
+            {user ? (
+              <>
+                <span
+                  className="hidden max-w-[10rem] truncate text-sm font-semibold md:inline"
+                  title={user.full_name}
+                >
+                  {user.full_name}
+                </span>
+                <Link
+                  to={HOME[user.role]}
+                  className="btn-primary min-h-[44px]"
+                  aria-label="Dashboard"
+                >
+                  <LayoutDashboard className="h-4 w-4 sm:hidden" />
+                  <span className="hidden sm:inline">Dashboard</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="btn-ghost min-h-[44px]"
+                  aria-label="Log out"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="hidden sm:inline">Log out</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="btn-ghost min-h-[44px]"
+                  aria-label="Log in"
+                >
+                  <LogIn className="h-4 w-4 sm:hidden" />
+                  <span className="hidden sm:inline">Log in</span>
+                </Link>
+                <Link to="/register" className="btn-primary min-h-[44px]">
+                  Sign up
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
 
-      {/* ---- Hero ---- */}
-      <section className="relative">
-        <div className="pointer-events-none absolute -right-24 -top-10 h-72 w-72 rounded-full bg-sun sm:h-96 sm:w-96" />
-        <div className="pointer-events-none absolute -left-20 bottom-0 h-48 w-48 rounded-full bg-mint/70" />
-        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-14 sm:px-6 lg:grid-cols-[1.15fr_1fr] lg:py-24">
+      <main id="top">
+        {/* ---- Hero ---- */}
+        <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-10 sm:px-6 lg:grid-cols-[1fr_1.05fr] lg:pb-20 lg:pt-14">
           <div>
-            <span className="chip border-ink bg-white">
-              <Clock className="mr-1.5 h-3.5 w-3.5" /> Open daily {hourLabel(OPEN_HOUR)} – {hourLabel(CLOSE_HOUR)}
-            </span>
-            <h1 className="mt-5 font-display text-5xl font-extrabold leading-[1.05] sm:text-6xl">
-              Book it. <span className="text-brand">Pay it.</span>
-              <br />
-              Show up.
+            <h1 className="font-display text-[2.6rem] font-bold uppercase leading-[0.95] sm:text-6xl xl:text-7xl">
+              Book your workout.{" "}
+              <span className="block text-brand-dark">Rent the hall.</span>
             </h1>
-            <p className="mt-5 max-w-xl text-lg text-ink/70">
-              Personal training and hall rental in one place. Pick a coach or a studio, grab a free hour, pay online — done.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/register" className="btn-primary px-6 py-3 text-base">
-                Create free account <ArrowRight className="h-4 w-4" />
-              </Link>
-              <a href="#trainers" className="btn-secondary px-6 py-3 text-base">
-                Meet the trainers
-              </a>
+            <div className="mt-5 flex flex-col gap-6">
+              <p className="max-w-xl text-base text-ink/75 sm:text-lg">
+                Personal training and hall rental by the hour, open {HOURS_TEXT}{" "}
+                every day. Pick a free hour, pay online, check in with a QR
+                code.
+              </p>
+              <div className="flex shrink-0 flex-wrap gap-3">
+                <Link
+                  to={target}
+                  className="btn-primary min-h-[48px] px-6 text-base"
+                >
+                  Book a session
+                </Link>
+                <Link
+                  to={target}
+                  className="btn-ghost min-h-[48px] px-6 text-base"
+                >
+                  Rent a hall
+                </Link>
+              </div>
             </div>
-            <p className="mt-4 text-sm text-ink/60">
-              Already a member?{' '}
-              <Link to="/login" className="font-bold text-brand hover:underline">
-                Sign in
-              </Link>
-            </p>
           </div>
 
-          <HeroSlip trainerName={trainers[0]?.full_name} trainerSpec={trainers[0]?.specialization} price={trainers[0]?.session_price_kzt} />
-        </div>
-      </section>
+          <HeroScene />
+        </section>
 
-      {/* ---- Stats strip ---- */}
-      <section className="border-y-2 border-ink bg-ink text-cream">
-        <div className="mx-auto grid max-w-6xl grid-cols-2 gap-6 px-4 py-6 text-center sm:px-6 md:grid-cols-4">
-          <Stat value={catalog.data ? String(trainers.length) : '–'} label="Expert trainers" />
-          <Stat value={catalog.data ? String(halls.length) : '–'} label="Halls & studios" />
-          <Stat value={`${CLOSE_HOUR - OPEN_HOUR} h`} label="Open every day" />
-          <Stat value={minTrainer !== null ? `from ${kzt(minTrainer)}` : '–'} label="Per session" />
-        </div>
-      </section>
+        {/* ---- Services ---- */}
+        <section
+          id="services"
+          className="scroll-mt-20 border-y border-line bg-white"
+        >
+          <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:py-20">
+            <SectionHead
+              title="Services"
+              note="Every session is one hour and starts on the hour."
+            />
+            <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              {SERVICES.map((s) => {
+                const Icon = SERVICE_ICON[s.icon];
+                return (
+                  <li
+                    key={s.title}
+                    className="flex flex-col rounded-xl border border-line bg-cream p-5"
+                  >
+                    <span className="flex h-11 w-11 items-center justify-center rounded-md bg-brand text-onaccent">
+                      <Icon className="h-6 w-6" />
+                    </span>
+                    <h3 className="mt-4 text-lg font-bold">{s.title}</h3>
+                    <p className="mt-1 text-sm text-ink/70">{s.text}</p>
+                    <p className="mt-auto flex items-center gap-1.5 pt-4 text-sm font-semibold">
+                      <Clock
+                        className="h-4 w-4 text-ink/60"
+                        aria-hidden="true"
+                      />{" "}
+                      {s.duration}
+                    </p>
+                    <Link
+                      to={target}
+                      className="btn-ghost mt-4 min-h-[44px]"
+                      aria-label={`Book ${s.title.toLowerCase()}`}
+                    >
+                      Book
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </section>
 
-      {/* ---- Features ---- */}
-      <section id="features" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6 lg:py-20">
-        <SectionTitle kicker="Why us" title="Everything you need, nothing you don't" />
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="card transition hover:-translate-y-1">
-              <span className={`flex h-12 w-12 items-center justify-center rounded-xl border-2 border-ink ${f.accent}`}>{f.icon}</span>
-              <h3 className="mt-4 text-lg font-extrabold">{f.title}</h3>
-              <p className="mt-1 text-sm text-ink/70">{f.text}</p>
+        <section
+          id="trainers"
+          className="mx-auto max-w-6xl scroll-mt-20 px-4 py-14 sm:px-6 lg:py-20"
+        >
+          <SectionHead title="Personal trainers" note="Choose your coach for a one-hour session." />
+          {catalog.loading && <p className="mt-6 text-ink/70" role="status">Loading trainers and halls...</p>}
+          {catalog.error && (
+            <div className="mt-6" role="alert">
+              <p className="text-berry">{catalog.error}</p>
+              <button type="button" className="btn-ghost mt-3" onClick={catalog.reload}>Try again</button>
             </div>
-          ))}
-        </div>
-      </section>
+          )}
+          {!catalog.loading && !catalog.error && trainers.length === 0 && (
+            <p className="mt-6 text-ink/70">No trainers are available at the moment.</p>
+          )}
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {trainers.map((trainer) => (
+              <article key={trainer.trainer_id} className="flex flex-col rounded-xl border border-line bg-white p-5">
+                <h3 className="text-lg font-bold">{trainer.full_name}</h3>
+                <p className="mt-2 text-sm text-ink/70">{trainer.specialization}</p>
+                <p className="mt-auto pt-4 font-display text-2xl font-bold">
+                  {kzt(trainer.session_price_kzt)} <span className="font-body text-sm font-normal text-ink/60">/ session</span>
+                </p>
+                <Link to={target} className="btn-primary mt-4 min-h-[44px]">Book a session</Link>
+              </article>
+            ))}
+          </div>
+        </section>
 
-      {/* ---- How it works ---- */}
-      <section className="border-y-2 border-ink bg-brand-soft">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
-          <SectionTitle kicker="How it works" title="Three steps to your next workout" />
-          <ol className="mt-10 grid gap-5 md:grid-cols-3">
-            {STEPS.map((s, i) => (
-              <li key={s.title} className="card relative">
-                <span className="absolute -top-4 left-5 flex h-9 w-9 items-center justify-center rounded-full border-2 border-ink bg-sun font-display font-extrabold shadow-hard-sm">
-                  {i + 1}
-                </span>
-                <h3 className="mt-3 text-lg font-extrabold">{s.title}</h3>
-                <p className="mt-1 text-sm text-ink/70">{s.text}</p>
+        {/* ---- Hall rental: drawn to scale by capacity ---- */}
+        <section
+          id="halls"
+          className="mx-auto max-w-6xl scroll-mt-20 px-4 py-14 sm:px-6 lg:py-20"
+        >
+          <SectionHead
+            title="Hall rental"
+            note="For your class, team or group. Each block is drawn to scale by how many people the hall holds."
+          />
+          {catalog.loading && <p className="mt-6 text-ink/70" role="status">Loading halls...</p>}
+          {catalog.error && (
+            <div className="mt-6" role="alert">
+              <p className="text-berry">{catalog.error}</p>
+              <button type="button" className="btn-ghost mt-3" onClick={catalog.reload}>Try again</button>
+            </div>
+          )}
+          {!catalog.loading && !catalog.error && halls.length === 0 && (
+            <p className="mt-6 text-ink/70">No halls are available at the moment.</p>
+          )}
+          <div className="mt-8 flex flex-col gap-3 md:h-80 md:flex-row">
+            {halls.map((h) => (
+              <div
+                key={h.hall_id}
+                style={{ flexGrow: h.capacity }}
+                className="relative flex min-h-[12rem] basis-0 flex-col justify-between overflow-hidden rounded-lg border-2 border-dashed border-ink/25 bg-white p-5"
+              >
+                <h3 className="relative text-xl font-bold">{h.hall_name}</h3>
+                <dl className="relative grid grid-cols-[auto_1fr] gap-x-3 text-sm">
+                  <dt className="text-ink/60">Capacity</dt>
+                  <dd className="font-semibold">up to {h.capacity} people</dd>
+                  <dt className="sr-only">Price</dt>
+                  <dd className="col-span-2 mt-2 font-display text-2xl font-bold">
+                    {kzt(h.hourly_rate_kzt)}{" "}
+                    <span className="font-body text-sm font-normal text-ink/60">
+                      / hour
+                    </span>
+                  </dd>
+                </dl>
+                <Link
+                  to={target}
+                  className="btn-primary mt-4 min-h-[44px] self-start"
+                  aria-label={`Rent the ${h.hall_name}`}
+                >
+                  Rent this hall
+                </Link>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ---- How it works ---- */}
+        <section className="border-y border-line bg-white">
+          <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:py-20">
+            <SectionHead title="How it works" />
+            <ol className="mt-10 grid gap-x-6 gap-y-8 md:grid-cols-3">
+              {STEPS.map((s, i) => (
+                <li key={s.title} className="flex gap-4">
+                  <span
+                    className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-[5px] border-ink bg-brand font-display text-xl font-bold text-onaccent ring-2 ring-inset ring-onaccent/20"
+                    aria-hidden="true"
+                  >
+                    {i + 1}
+                  </span>
+                  <div>
+                    <p className="sr-only">Step {i + 1}</p>
+                    <h3 className="text-xl font-bold">{s.title}</h3>
+                    <p className="mt-1 text-sm text-ink/70">{s.text}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        {/* ---- Pricing ---- */}
+        <section
+          id="pricing"
+          className="mx-auto max-w-6xl scroll-mt-20 px-4 py-14 sm:px-6 lg:py-20"
+        >
+          <SectionHead
+            title="Pricing"
+            note="A membership lets you book on the days it covers. Trainer sessions and hall hours are paid per booking."
+          />
+          <ul className="mt-8 grid gap-4 md:grid-cols-3">
+            {PLANS.map((p) => (
+              <li
+                key={p.plan}
+                className={`flex flex-col rounded-xl border p-6 ${p.featured ? "border-brand bg-brand/10 ring-1 ring-brand" : "border-line bg-white"}`}
+              >
+                <h3 className="text-xl font-bold">{p.name}</h3>
+                <p className="mt-3">
+                  <span className="font-display text-4xl font-bold">
+                    {kzt(p.priceKzt)}
+                  </span>{" "}
+                  <span className="text-sm text-ink/60">{p.period}</span>
+                </p>
+                <ul className="mt-4 space-y-2 text-sm">
+                  {p.perks.map((perk) => (
+                    <li key={perk} className="flex gap-2">
+                      <span
+                        className="mt-1.5 h-2 w-3 shrink-0 rounded-[2px] border border-brand-dark/50 bg-brand/40"
+                        aria-hidden="true"
+                      />
+                      {perk}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  to={user ? HOME[user.role] : `/register?plan=${p.plan}`}
+                  className={`${p.featured ? "btn-primary" : "btn-ghost"} mt-6 min-h-[44px]`}
+                  aria-label={
+                    user ? "Dashboard" : `Sign up with the ${p.name} plan`
+                  }
+                >
+                  {user ? "Dashboard" : `Choose ${p.name}`}
+                </Link>
               </li>
             ))}
-          </ol>
-        </div>
-      </section>
+          </ul>
+          <p className="mt-4 text-xs text-ink/60">
+            Prices shown are demo values.
+          </p>
+        </section>
 
-      {/* ---- Trainers ---- */}
-      <section id="trainers" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6 lg:py-20">
-        <SectionTitle kicker="Our team" title="Train with the best" />
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {catalog.loading && !catalog.data
-            ? [0, 1, 2, 3].map((i) => <div key={i} className="card h-44 animate-pulse bg-white/60" />)
-            : trainers.map((t, i) => (
-                <div key={t.trainer_id} className="card flex flex-col transition hover:-translate-y-1">
-                  <span
-                    className={`flex h-14 w-14 items-center justify-center rounded-full border-2 border-ink font-display text-xl font-extrabold ${ACCENTS[i % ACCENTS.length]}`}
-                  >
-                    {initials(t.full_name)}
-                  </span>
-                  <h3 className="mt-4 text-lg font-extrabold">{t.full_name}</h3>
-                  <p className="text-sm text-ink/60">{t.specialization}</p>
-                  <p className="mt-auto pt-4 text-sm">
-                    <b className="font-display text-xl font-extrabold">{kzt(t.session_price_kzt)}</b>
-                    <span className="text-ink/60"> / 60 min</span>
-                  </p>
-                </div>
+        {/* ---- Testimonials ---- */}
+        <section className="border-y border-line bg-white">
+          <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:py-20">
+            <SectionHead
+              title="What members say"
+              note="Sample reviews with fictional names, for this demo."
+            />
+            <ul className="mt-8 grid gap-4 md:grid-cols-3">
+              {TESTIMONIALS.map((t) => (
+                <li key={t.name}>
+                  <figure className="flex h-full flex-col rounded-xl border border-line bg-cream p-6">
+                    <blockquote className="text-ink/85">“{t.text}”</blockquote>
+                    <figcaption className="mt-auto pt-5 text-sm">
+                      <span className="block font-semibold">{t.name}</span>
+                      <span className="text-ink/60">{t.role}</span>
+                    </figcaption>
+                  </figure>
+                </li>
               ))}
-        </div>
-        {catalog.error && <p className="mt-4 text-sm text-berry">Could not load trainers right now.</p>}
-      </section>
+            </ul>
+          </div>
+        </section>
+      </main>
 
-      {/* ---- Halls ---- */}
-      <section id="halls" className="scroll-mt-20 border-y-2 border-ink bg-mint-soft">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
-          <SectionTitle kicker="Spaces" title="Halls & studios for rent" />
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
-            {catalog.loading && !catalog.data
-              ? [0, 1, 2].map((i) => <div key={i} className="card h-36 animate-pulse bg-white/60" />)
-              : halls.map((h) => (
-                  <div key={h.hall_id} className="card transition hover:-translate-y-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="text-lg font-extrabold">{h.hall_name}</h3>
-                      <Warehouse className="h-6 w-6 shrink-0 text-mint-dark" />
-                    </div>
-                    <p className="mt-1 flex items-center gap-1.5 text-sm text-ink/60">
-                      <Users className="h-4 w-4" /> Up to {h.capacity} people
-                    </p>
-                    <p className="mt-4 text-sm">
-                      <b className="font-display text-xl font-extrabold">{kzt(h.hourly_rate_kzt)}</b>
-                      <span className="text-ink/60"> / hour</span>
-                    </p>
-                  </div>
-                ))}
+      {/* ---- Footer / contact ---- */}
+      <footer id="contact" className="scroll-mt-20">
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-3">
+          <div>
+            <p className="flex items-center gap-2 font-display text-xl font-bold uppercase tracking-wide">
+              <Barbell className="h-5 w-5" /> {GYM_NAME}
+            </p>
+            <p className="mt-2 text-sm text-ink/70">
+              Personal training and hall rental by the hour.
+            </p>
+            <ul className="mt-4 flex gap-2">
+              {SOCIALS.map((s) => {
+                const Icon = SOCIAL_ICON[s.name];
+                return (
+                  <li key={s.name}>
+                    <a
+                      href={s.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${GYM_NAME} on ${s.name}`}
+                      className="flex h-11 w-11 items-center justify-center rounded-md border border-line text-ink/80 transition hover:border-ink/40 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
+                    >
+                      <Icon className="h-5 w-5" />
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
+          <div>
+            <h2 className="text-lg font-bold">Contact</h2>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li className="flex items-start gap-2">
+                <MapPin
+                  className="mt-0.5 h-4 w-4 shrink-0 text-ink/60"
+                  aria-hidden="true"
+                />{" "}
+                {CONTACT.address}
+              </li>
+              <li>
+                <a
+                  href={`tel:${CONTACT.phone.replace(/[^+\d]/g, "")}`}
+                  className="inline-flex min-h-[44px] items-center gap-2 hover:text-brand-dark"
+                >
+                  <Phone
+                    className="h-4 w-4 shrink-0 text-ink/60"
+                    aria-hidden="true"
+                  />{" "}
+                  {CONTACT.phone}
+                </a>
+              </li>
+              <li>
+                <a
+                  href={`mailto:${CONTACT.email}`}
+                  className="inline-flex min-h-[44px] items-center gap-2 hover:text-brand-dark"
+                >
+                  <Mail
+                    className="h-4 w-4 shrink-0 text-ink/60"
+                    aria-hidden="true"
+                  />{" "}
+                  {CONTACT.email}
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h2 className="text-lg font-bold">Opening hours</h2>
+            <p className="mt-3 flex items-center gap-2 text-sm">
+              <Clock className="h-4 w-4 text-ink/60" aria-hidden="true" /> Every
+              day, {HOURS_TEXT}
+            </p>
           </div>
         </div>
-      </section>
-
-      {/* ---- Plans ---- */}
-      <section id="plans" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6 lg:py-20">
-        <SectionTitle kicker="Membership" title="Choose your plan" />
-        <p className="mx-auto mt-3 max-w-xl text-center text-ink/70">
-          A valid membership lets you book trainers and halls any day it covers.
-        </p>
-        <div className="mt-10 grid gap-5 md:grid-cols-3">
-          {PLANS.map(({ plan, blurb, highlight }) => (
-            <div key={plan} className={`card relative flex flex-col ${highlight ? 'bg-sun-soft md:-translate-y-2' : ''}`}>
-              {highlight && (
-                <span className="chip absolute -top-3 right-5 border-ink bg-berry text-white">Most popular</span>
-              )}
-              <h3 className="text-xl font-extrabold">{PLAN_LABEL[plan]}</h3>
-              <p className="mt-1 font-display text-4xl font-extrabold">
-                {PLAN_MONTHS[plan]} <span className="text-lg font-bold text-ink/60">{PLAN_MONTHS[plan] === 1 ? 'month' : 'months'}</span>
-              </p>
-              <p className="mt-2 text-sm text-ink/70">{blurb}</p>
-              <Link to={`/register?plan=${plan}`} className={`${highlight ? 'btn-primary' : 'btn-ghost'} mt-6`}>
-                Choose {PLAN_LABEL[plan].toLowerCase()}
-              </Link>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ---- CTA ---- */}
-      <section className="px-4 pb-16 sm:px-6 lg:pb-20">
-        <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl border-2 border-ink bg-brand p-8 text-white shadow-hard sm:p-12">
-          <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-sun" />
-          <div className="pointer-events-none absolute -bottom-10 right-40 h-24 w-24 rounded-2xl border-4 border-ink bg-berry" />
-          <div className="relative max-w-xl">
-            <h2 className="text-3xl font-extrabold sm:text-4xl">Ready for your first session?</h2>
-            <p className="mt-3 text-lg text-white/90">Create an account and book your first hour today.</p>
-            <Link to="/register" className="btn mt-6 bg-white px-6 py-3 text-base text-ink shadow-hard hover:bg-cream">
-              Join now <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ---- Footer ---- */}
-      <footer className="border-t-2 border-ink">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 text-sm text-ink/60 sm:flex-row sm:px-6">
-          <span className="flex items-center gap-2 font-bold text-ink">
-            <Dumbbell className="h-4 w-4" /> Gym Booking System
-          </span>
-          <span>
-            Open daily {hourLabel(OPEN_HOUR)} – {hourLabel(CLOSE_HOUR)}
-          </span>
-          <Link to="/login" className="font-bold hover:text-brand">
-            Staff & member sign in
-          </Link>
+        <div className="border-t border-line">
+          <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-ink/60 sm:px-6">
+            © {TODAY_DATE.slice(0, 4)} {GYM_NAME} (placeholder name). Demo
+            contact details.
+          </p>
         </div>
       </footer>
     </div>
   );
 }
 
-function SectionTitle({ kicker, title }: { kicker: string; title: string }) {
+function SectionHead({ title, note }: { title: string; note?: string }) {
   return (
-    <div className="text-center">
-      <p className="text-xs font-bold uppercase tracking-widest text-brand">{kicker}</p>
-      <h2 className="mt-2 text-3xl font-extrabold sm:text-4xl">{title}</h2>
+    <div className="max-w-3xl">
+      <h2 className="text-3xl font-bold sm:text-4xl">{title}</h2>
+      {note && <p className="mt-2 text-ink/70">{note}</p>}
     </div>
   );
-}
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <div>
-      <p className="font-display text-2xl font-extrabold text-sun sm:text-3xl">{value}</p>
-      <p className="text-xs font-bold uppercase tracking-wide text-cream/70">{label}</p>
-    </div>
-  );
-}
-
-/** Decorative booking slip in the hero; uses the first real trainer when loaded. */
-function HeroSlip({ trainerName, trainerSpec, price }: { trainerName?: string; trainerSpec?: string; price?: number }) {
-  return (
-    <div className="relative mx-auto w-full max-w-sm" aria-hidden="true">
-      <div className="absolute -left-4 top-6 h-full w-full rotate-[-5deg] rounded-2xl border-2 border-ink bg-mint" />
-      <div className="relative rotate-[2deg] rounded-2xl border-2 border-ink bg-white p-6 shadow-hard">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wide text-ink/60">Booking slip</span>
-          <span className="chip border-mint-dark bg-mint-soft text-mint-dark">
-            <CalendarCheck className="mr-1 h-3.5 w-3.5" /> Confirmed
-          </span>
-        </div>
-        <p className="mt-4 font-display text-3xl font-extrabold">BK-0042</p>
-        <div className="mt-4 space-y-2 text-sm">
-          <Row label="Trainer" value={trainerName ?? 'Your coach'} />
-          <Row label="Session" value={trainerSpec ?? 'Personal training'} />
-          <Row label="When" value="Tomorrow, 18:00 – 19:00" />
-          <Row label="Paid" value={price ? kzt(price) : '—'} />
-        </div>
-        <div className="mt-5 flex items-center gap-3 rounded-xl border-2 border-dashed border-ink/30 p-3">
-          <QrCode className="h-10 w-10" />
-          <span className="text-xs text-ink/60">Show this QR code at the front desk to check in.</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-4">
-      <span className="text-ink/60">{label}</span>
-      <span className="text-right font-bold">{value}</span>
-    </div>
-  );
-}
-
-function initials(name: string) {
-  return name
-    .split(' ')
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join('');
 }

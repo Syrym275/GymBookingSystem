@@ -123,7 +123,7 @@ export function BookingsTable({ mode }: { mode: 'reception' | 'admin' }) {
         mode === 'admin' ? (
           <select
             aria-label={`Status of ${bkNumber(b.booking_id)}`}
-            className="rounded-lg border-2 border-ink/20 bg-white px-2 py-1 text-xs font-bold"
+            className="rounded-lg border border-ink/20 bg-white px-2 py-1 text-xs font-bold"
             value={b.status}
             onClick={(e) => e.stopPropagation()}
             onChange={(e) => changeStatus(b, e.target.value as BookingStatus)}
@@ -254,7 +254,7 @@ export function BookingsTable({ mode }: { mode: 'reception' | 'admin' }) {
               key={s}
               onClick={() => toggleStatus(s)}
               aria-pressed={statuses.includes(s)}
-              className={`chip ${statuses.includes(s) ? `${CHIP_ON[s]} border-ink` : 'border-ink/15 bg-white text-ink/60 hover:border-ink'}`}
+              className={`chip ${statuses.includes(s) ? `${CHIP_ON[s]} border-line` : 'border-ink/15 bg-white text-ink/60 hover:border-line'}`}
             >
               {STATUS_LABEL[s]}
             </button>

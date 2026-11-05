@@ -1,9 +1,11 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useChartColors } from '../../theme/ThemeContext';
 import { trainerStats } from '../../api/reportsApi';
 import { ErrorNote, KpiCard, Loading, PageHeader } from '../../components/ui';
 import { useAsync } from '../../hooks/useAsync';
 
 export default function TrainerStats() {
+  const cc = useChartColors();
   const { data, error } = useAsync(trainerStats, []);
   if (error) return <ErrorNote message={error} />;
   if (!data) return <Loading />;
@@ -27,11 +29,11 @@ export default function TrainerStats() {
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data.hours}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-              <Tooltip cursor={{ fill: '#FFF0BF' }} />
-              <Bar dataKey="count" name="Sessions" fill="#FF6B35" radius={[6, 6, 0, 0]} stroke="#1E2235" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={cc.grid} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: cc.axis }} stroke={cc.grid} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: cc.axis }} stroke={cc.grid} />
+              <Tooltip cursor={{ fill: cc.cursor }} contentStyle={{ background: 'rgb(var(--surface))', border: '1px solid rgb(var(--line))', borderRadius: 8, color: 'rgb(var(--ink))' }} />
+              <Bar dataKey="count" name="Sessions" fill={cc.primary} radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
