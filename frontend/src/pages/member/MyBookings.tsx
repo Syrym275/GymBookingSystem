@@ -33,12 +33,12 @@ export default function MyBookings() {
     <div>
       <PageHeader title="My bookings" />
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="inline-flex rounded-xl border-2 border-ink bg-white p-1">
+        <div className="inline-flex rounded-xl border border-line bg-white p-1">
           {(['upcoming', 'past'] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`rounded-lg px-4 py-1.5 text-sm font-bold capitalize ${tab === t ? 'bg-brand text-white' : 'hover:bg-sun-soft'}`}
+              className={`rounded-lg px-4 py-1.5 text-sm font-bold capitalize ${tab === t ? 'bg-brand text-onaccent' : 'hover:bg-sun-soft'}`}
             >
               {t}
             </button>

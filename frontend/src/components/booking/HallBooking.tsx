@@ -79,11 +79,11 @@ export function HallBooking({ memberId, onBooked }: { memberId?: number; onBooke
                 setHallId(h.hall_id);
                 setError(null);
               }}
-              className={`flex w-full items-center gap-3 rounded-2xl border-2 p-4 text-left transition ${
-                hallId === h.hall_id ? 'border-ink bg-sun shadow-hard' : 'border-ink/20 bg-white hover:border-ink'
+              className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition ${
+                hallId === h.hall_id ? 'border-line bg-sun shadow-hard' : 'border-ink/20 bg-white hover:border-line'
               }`}
             >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-mint text-white">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-mint text-onaccent">
                 <Building2 className="h-5 w-5" />
               </span>
               <span className="min-w-0 flex-1">

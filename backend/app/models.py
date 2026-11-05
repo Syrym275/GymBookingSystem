@@ -1,0 +1,38 @@
+"""Public response shapes matching frontend/src/api/publicApi.ts."""
+
+from decimal import Decimal
+from typing import Annotated
+
+from pydantic import BaseModel, Field, PlainSerializer
+
+
+# PostgreSQL NUMERIC(10,2) in Python; JSON numbers keep the React contract.
+Money = Annotated[
+    Decimal,
+    Field(gt=0, max_digits=10, decimal_places=2),
+    PlainSerializer(lambda value: float(value), return_type=float, when_used="json"),
+]
+
+
+class PublicTrainer(BaseModel):
+    trainer_id: int = Field(gt=0)
+    full_name: str = Field(min_length=1, max_length=100)
+    specialization: str = Field(min_length=1, max_length=60)
+    session_price_kzt: Money
+
+
+class PublicHall(BaseModel):
+    hall_id: int = Field(gt=0)
+    hall_name: str = Field(min_length=1, max_length=60)
+    capacity: int = Field(ge=1, le=200)
+    hourly_rate_kzt: Money
+
+
+class PublicCatalog(BaseModel):
+    trainers: list[PublicTrainer]
+    halls: list[PublicHall]
+
+
+class HealthResponse(BaseModel):
+    status: str
+    service: str

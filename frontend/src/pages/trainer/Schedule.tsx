@@ -47,9 +47,9 @@ export default function TrainerSchedule() {
         title="My schedule"
         subtitle="Only your own training sessions. Click a session to open it."
         actions={
-          <div className="inline-flex rounded-xl border-2 border-ink bg-white p-1">
+          <div className="inline-flex rounded-xl border border-line bg-white p-1">
             {(['week', 'day'] as const).map((v) => (
-              <button key={v} onClick={() => setView(v)} className={`rounded-lg px-4 py-1.5 text-sm font-bold capitalize ${view === v ? 'bg-brand text-white' : 'hover:bg-sun-soft'}`}>
+              <button key={v} onClick={() => setView(v)} className={`rounded-lg px-4 py-1.5 text-sm font-bold capitalize ${view === v ? 'bg-brand text-onaccent' : 'hover:bg-sun-soft'}`}>
                 {v}
               </button>
             ))}
@@ -74,14 +74,14 @@ export default function TrainerSchedule() {
             </span>
             {loading && <span className="text-xs text-ink/50">updating…</span>}
           </div>
-          <div className="overflow-x-auto rounded-2xl border-2 border-ink bg-white shadow-hard">
+          <div className="overflow-x-auto rounded-xl border border-line bg-white shadow-hard">
             <div className="grid min-w-[860px]" style={{ gridTemplateColumns: '56px repeat(7, minmax(0, 1fr))' }}>
-              <div className="border-b-2 border-ink bg-sun-soft" />
+              <div className="border-b border-line bg-sun-soft" />
               {days.map((d) => (
                 <div
                   key={d}
-                  className={`border-b-2 border-l border-ink border-l-ink/10 px-2 py-2 text-center text-xs font-extrabold uppercase ${
-                    d === TODAY_DATE ? 'bg-brand text-white' : 'bg-sun-soft'
+                  className={`border-b border-l border-line border-l-ink/10 px-2 py-2 text-center text-xs font-extrabold uppercase ${
+                    d === TODAY_DATE ? 'bg-brand text-onaccent' : 'bg-sun-soft'
                   }`}
                 >
                   {fmtDay(d)}
@@ -98,7 +98,7 @@ export default function TrainerSchedule() {
                           <button
                             key={b.booking_id}
                             onClick={() => setSlip(b)}
-                            className={`w-full rounded-lg border-2 px-1.5 py-1 text-left text-[11px] font-bold leading-tight ${BLOCK[b.status]}`}
+                            className={`w-full rounded-lg border px-1.5 py-1 text-left text-[11px] font-bold leading-tight ${BLOCK[b.status]}`}
                           >
                             {b.member.full_name}
                             <span className="block font-normal text-ink/60">

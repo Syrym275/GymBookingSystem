@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { addMonths } from 'date-fns';
-import { UserPlus } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { normalizePhone, PLAN_MONTHS } from '../auth/mockUsers';
 import { HOME } from '../auth/RequireRole';
@@ -9,10 +8,17 @@ import { AuthLayout } from '../components/AuthLayout';
 import { useToast } from '../components/Toast';
 import { ErrorNote } from '../components/ui';
 import { TODAY_DATE } from '../config';
+import { PLANS as PLAN_INFO } from '../data/gymData';
 import type { MembershipPlan } from '../types';
-import { fmtDate, PLAN_LABEL, toDate } from '../utils/format';
+import { fmtDate, kzt, PLAN_LABEL, toDate } from '../utils/format';
 
 const PLANS: MembershipPlan[] = ['monthly', 'quarterly', 'annual'];
+
+// Demo prices shared with the landing page's pricing section.
+const price = (p: MembershipPlan) => {
+  const info = PLAN_INFO.find((x) => x.plan === p);
+  return info ? kzt(info.priceKzt) : '';
+};
 
 const expiryFor = (plan: MembershipPlan) => toDate(addMonths(new Date(`${TODAY_DATE}T00:00`), PLAN_MONTHS[plan]));
 
@@ -53,24 +59,33 @@ export default function Register() {
   };
 
   return (
-    <AuthLayout>
+    <AuthLayout
+      aside={{
+        title: (
+          <>
+            Join PulseGym. <span className="block text-brand-dark">Book your first hour.</span>
+          </>
+        ),
+        text: 'Create an account, choose a coach or a hall, pick a free hour and pay online. Your QR code gets you in at the desk.',
+      }}
+    >
       <div>
-        <h2 className="text-3xl font-extrabold">Create your account</h2>
-        <p className="mt-1 text-sm text-ink/60">Join the gym and start booking trainers and halls.</p>
+        <h1 className="text-4xl font-bold">Sign up</h1>
+        <p className="mt-1 text-ink/70">Takes a minute. You are logged in straight away.</p>
       </div>
 
-      <form onSubmit={onSubmit} className="card space-y-4">
+      <form onSubmit={onSubmit} className="space-y-4 rounded-xl border border-line bg-white p-6">
         <div>
           <label className="label" htmlFor="full_name">
             Full name
           </label>
-          <input id="full_name" required className="input" value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" />
+          <input id="full_name" required className="input min-h-[44px]" value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" />
         </div>
         <div>
           <label className="label" htmlFor="email">
             Email
           </label>
-          <input id="email" type="email" required className="input" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+          <input id="email" type="email" required className="input min-h-[44px]" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
         </div>
         <div>
           <label className="label" htmlFor="phone">
@@ -80,7 +95,7 @@ export default function Register() {
             id="phone"
             type="tel"
             required
-            className="input"
+            className="input min-h-[44px]"
             placeholder="+7 701 123 45 67"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
@@ -97,7 +112,7 @@ export default function Register() {
               type="password"
               required
               minLength={6}
-              className="input"
+              className="input min-h-[44px]"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
@@ -111,7 +126,7 @@ export default function Register() {
               id="confirm"
               type="password"
               required
-              className="input"
+              className="input min-h-[44px]"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               autoComplete="new-password"
@@ -127,13 +142,14 @@ export default function Register() {
               return (
                 <label
                   key={p}
-                  className={`cursor-pointer rounded-xl border-2 border-ink p-3 transition has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-brand/40 ${
-                    active ? 'bg-brand text-white shadow-hard-sm' : 'bg-white hover:-translate-y-0.5'
+                  className={`cursor-pointer rounded-xl border p-3 transition has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-brand/40 ${
+                    active ? 'border-brand bg-brand text-onaccent' : 'border-line bg-cream hover:border-ink/40'
                   }`}
                 >
                   <input type="radio" name="plan" value={p} checked={active} onChange={() => setPlan(p)} className="sr-only" />
-                  <span className="block text-sm font-extrabold">{PLAN_LABEL[p]}</span>
-                  <span className={`block text-xs ${active ? 'text-white/80' : 'text-ink/60'}`}>
+                  <span className="block font-display text-base font-bold uppercase tracking-wide">{PLAN_LABEL[p]}</span>
+                  <span className="block font-display text-lg font-bold">{price(p)}</span>
+                  <span className={`block text-xs ${active ? 'text-onaccent/80' : 'text-ink/60'}`}>
                     {PLAN_MONTHS[p]} {PLAN_MONTHS[p] === 1 ? 'month' : 'months'}
                   </span>
                 </label>
@@ -141,18 +157,18 @@ export default function Register() {
             })}
           </div>
           <p className="mt-2 text-xs text-ink/60">
-            Valid until <b>{fmtDate(expiryFor(plan))}</b>.
+            Valid until <b>{fmtDate(expiryFor(plan))}</b>. Demo prices; sessions and hall hours are paid per booking.
           </p>
         </fieldset>
 
         {error && <ErrorNote message={error} />}
-        <button className="btn-primary w-full" disabled={busy}>
-          <UserPlus className="h-4 w-4" /> {busy ? 'Creating account…' : 'Create account'}
+        <button className="btn-primary min-h-[48px] w-full text-base" disabled={busy}>
+          {busy ? 'Creating account…' : 'Create account'}
         </button>
         <p className="text-center text-sm text-ink/60">
           Already a member?{' '}
-          <Link to="/login" className="font-bold text-brand underline-offset-2 hover:underline">
-            Sign in
+          <Link to="/login" className="inline-flex min-h-[44px] items-center font-semibold text-brand-dark underline-offset-2 hover:underline">
+            Log in
           </Link>
         </p>
       </form>

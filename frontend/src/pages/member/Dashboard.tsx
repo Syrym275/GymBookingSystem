@@ -30,7 +30,7 @@ export default function MemberDashboard() {
       {ms.state !== 'active' && (
         <div
           role="alert"
-          className={`mb-5 flex items-start gap-3 rounded-2xl border-2 border-ink p-4 shadow-hard ${ms.state === 'expired' ? 'bg-berry-soft' : 'bg-sun-soft'}`}
+          className={`mb-5 flex items-start gap-3 rounded-xl border border-line p-4 shadow-hard ${ms.state === 'expired' ? 'bg-berry-soft' : 'bg-sun-soft'}`}
         >
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
           <div className="text-sm">
@@ -64,7 +64,7 @@ export default function MemberDashboard() {
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
         <Link to="/member/trainers" className="card flex items-center gap-3 transition hover:-translate-y-0.5">
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand text-white">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand text-onaccent">
             <Dumbbell className="h-5 w-5" />
           </span>
           <span className="flex-1">
@@ -74,7 +74,7 @@ export default function MemberDashboard() {
           <ArrowRight className="h-5 w-5" />
         </Link>
         <Link to="/member/halls" className="card flex items-center gap-3 transition hover:-translate-y-0.5">
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-mint text-white">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-mint text-onaccent">
             <Building2 className="h-5 w-5" />
           </span>
           <span className="flex-1">
