@@ -1,7 +1,9 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import { HomeRedirect, RequireRole } from './auth/RequireRole';
+import { RequireRole } from './auth/RequireRole';
 import { AppLayout } from './layouts/AppLayout';
+import Landing from './pages/Landing';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import MemberDashboard from './pages/member/Dashboard';
 import BookTrainer from './pages/member/BookTrainer';
 import RentHall from './pages/member/RentHall';
@@ -33,8 +35,9 @@ const guarded = (role: 'member' | 'trainer' | 'receptionist' | 'admin') => (
 );
 
 export const router = createBrowserRouter([
-  { path: '/', element: <HomeRedirect /> },
+  { path: '/', element: <Landing /> }, // logged-in users are sent to their dashboard
   { path: '/login', element: <Login /> },
+  { path: '/register', element: <Register /> },
   {
     path: '/member',
     element: guarded('member'),

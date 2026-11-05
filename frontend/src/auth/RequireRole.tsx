@@ -24,8 +24,3 @@ export function RequireRole({ role, children }: { role: Role; children: ReactNod
   if (user.role !== role) return <Navigate to={HOME[user.role]} replace />;
   return <>{children}</>;
 }
-
-export function HomeRedirect() {
-  const { user } = useAuth();
-  return <Navigate to={user ? HOME[user.role] : '/login'} replace />;
-}

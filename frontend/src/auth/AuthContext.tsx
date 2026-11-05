@@ -8,11 +8,13 @@
  *      user : CurrentUser | null
  *             { user_id, full_name, email, role, member_id?, trainer_id? }
  *      login(email, password) : Promise<CurrentUser>   (throws ApiError('AUTH', msg) on failure)
+ *      register(input) : Promise<CurrentUser>  (member self sign-up; signs the new member in)
  *      logout() : void
  *
  *  To connect the real backend replace ONLY the marked parts below:
  *   1. login():     replace the `authenticate(...)` call (mock list in ./mockUsers.ts)
  *                   with e.g. POST /auth/login and map the response to CurrentUser.
+ *   1b. register(): replace the `registerMember(...)` call with e.g. POST /auth/register.
  *   2. Storage:     the user is kept in localStorage under STORAGE_KEY. With real auth keep the
  *                   token in an httpOnly cookie (or memory) and load the user from GET /me on start.
  *   3. Session:     `setSessionUser(...)` tells the MOCK api who is calling. Delete it once the
@@ -26,13 +28,14 @@ import { ApiError } from '../api/ApiError';
 import { delay } from '../api/helpers';
 import { setSessionUser } from '../api/session';
 import type { CurrentUser } from '../types';
-import { authenticate } from './mockUsers';
+import { authenticate, registerMember, type RegisterInput } from './mockUsers';
 
 const STORAGE_KEY = 'gbs_current_user';
 
 interface AuthValue {
   user: CurrentUser | null;
   login: (email: string, password: string) => Promise<CurrentUser>;
+  register: (input: RegisterInput) => Promise<CurrentUser>;
   logout: () => void;
 }
 
@@ -73,13 +76,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return found;
   }, []);
 
+  const register = useCallback(async (input: RegisterInput) => {
+    await delay();
+    const created = registerMember(input); // (1b) REPLACE with the real sign-up request
+    setSessionUser(created); // (3) mock-only
+    writeStored(created); // (2)
+    setUser(created);
+    return created;
+  }, []);
+
   const logout = useCallback(() => {
     setSessionUser(null);
     writeStored(null);
     setUser(null);
   }, []);
 
-  const value = useMemo(() => ({ user, login, logout }), [user, login, logout]);
+  const value = useMemo(() => ({ user, login, register, logout }), [user, login, register, logout]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
