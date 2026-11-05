@@ -1,0 +1,60 @@
+import type { Trainer } from '../types';
+import { getDb, nextId, saveDb } from '../mock/db';
+import { ApiError } from './ApiError';
+import { clone, delay } from './helpers';
+import { requireUser } from './session';
+
+/** Booking pages only ever see active trainers; staff may ask for inactive ones too (filters, admin). */
+export async function listTrainers(opts: { includeInactive?: boolean } = {}): Promise<Trainer[]> {
+  await delay();
+  const viewer = requireUser();
+  const staff = viewer.role === 'admin' || viewer.role === 'receptionist';
+  const all = getDb().trainers;
+  const rows = opts.includeInactive && staff ? all : all.filter((t) => t.is_active);
+  return clone(rows);
+}
+
+export interface TrainerInput {
+  full_name: string;
+  specialization: string;
+  session_price_kzt: number;
+}
+
+function validate(input: TrainerInput) {
+  if (!input.full_name.trim()) throw new ApiError('VALIDATION', 'Name is required.');
+  if (!input.specialization.trim()) throw new ApiError('VALIDATION', 'Specialization is required.');
+  if (!(input.session_price_kzt > 0)) throw new ApiError('VALIDATION', 'Price must be greater than 0.');
+}
+
+export async function createTrainer(input: TrainerInput): Promise<Trainer> {
+  await delay();
+  requireUser(['admin']);
+  validate(input);
+  const t: Trainer = { trainer_id: nextId('trainer'), ...input, is_active: true };
+  getDb().trainers.push(t);
+  saveDb();
+  return clone(t);
+}
+
+/** Price changes only affect future bookings: old bookings keep their own price_kzt. */
+export async function updateTrainer(id: number, input: TrainerInput): Promise<Trainer> {
+  await delay();
+  requireUser(['admin']);
+  validate(input);
+  const t = getDb().trainers.find((x) => x.trainer_id === id);
+  if (!t) throw new ApiError('NOT_FOUND', 'Trainer not found.');
+  Object.assign(t, input);
+  saveDb();
+  return clone(t);
+}
+
+/** Trainers are never deleted, only deactivated. */
+export async function setTrainerActive(id: number, active: boolean): Promise<Trainer> {
+  await delay();
+  requireUser(['admin']);
+  const t = getDb().trainers.find((x) => x.trainer_id === id);
+  if (!t) throw new ApiError('NOT_FOUND', 'Trainer not found.');
+  t.is_active = active;
+  saveDb();
+  return clone(t);
+}
