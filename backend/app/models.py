@@ -1,7 +1,7 @@
 """Public response shapes matching frontend/src/api/publicApi.ts."""
 
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, PlainSerializer
 
@@ -36,3 +36,23 @@ class PublicCatalog(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     service: str
+
+class RegisterRequest(BaseModel):
+    full_name: str = Field(min_length=2, max_length=100)
+    email: str = Field(min_length=5, max_length=255)
+    phone: str = Field(min_length=10, max_length=20)
+    password: str = Field(min_length=6, max_length=72)
+    membership_plan: Literal["monthly", "quarterly", "annual"]
+
+
+class CurrentUserResponse(BaseModel):
+    user_id: int
+    full_name: str
+    email: str
+    role: Literal["member", "trainer", "receptionist", "admin"]
+    member_id: int | None = None
+    trainer_id: int | None = None
+
+class LoginRequest(BaseModel):
+    email: str = Field(min_length=5, max_length=255)
+    password: str = Field(min_length=6, max_length=72)
