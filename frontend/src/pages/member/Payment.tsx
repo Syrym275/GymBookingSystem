@@ -7,7 +7,6 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { StatusBadge } from '../../components/StatusBadge';
 import { useToast } from '../../components/Toast';
 import { EmptyState, ErrorNote, Loading, PageHeader } from '../../components/ui';
-import { HOLD_MINUTES } from '../../config';
 import { useAsync } from '../../hooks/useAsync';
 import type { PaymentMethod } from '../../types';
 import { bkNumber, fmtDate, kzt, pad, timeOf } from '../../utils/format';
@@ -32,22 +31,33 @@ export default function Payment() {
   const [error, setError] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
   // Hold countdown. (Demo: starts at 15:00 whenever this page opens.)
-  const [secondsLeft, setSecondsLeft] = useState(HOLD_MINUTES * 60);
-
+  const [secondsLeft, setSecondsLeft] = useState(0);
   const pending = booking.data?.status === 'pending';
 
   useEffect(() => {
-    if (!pending) return;
-    const t = setInterval(() => setSecondsLeft((s) => Math.max(0, s - 1)), 1000);
-    return () => clearInterval(t);
-  }, [pending]);
+  const deadline = booking.data?.payment_expires_at;
 
-  useEffect(() => {
-    if (pending && secondsLeft === 0) {
+  if (!pending || !deadline) return;
+
+  const updateCountdown = () => {
+    const remaining = Math.max(
+      0,
+      Math.ceil((new Date(deadline).getTime() - Date.now()) / 1000),
+    );
+
+    setSecondsLeft(remaining);
+
+    if (remaining === 0) {
       void expireBooking(id).then(booking.reload);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [secondsLeft, pending, id]);
+  };
+
+  updateCountdown();
+
+  const timer = setInterval(updateCountdown, 1000);
+
+  return () => clearInterval(timer);
+}, [pending, booking.data?.payment_expires_at, id]);
 
   if (booking.error) return <ErrorNote message={booking.error} />;
   if (!booking.data) return <Loading />;

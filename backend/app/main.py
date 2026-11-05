@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from psycopg import Error as DatabaseError
 from pydantic import ValidationError
 from .auth import router as auth_router
+from .bookings import router as bookings_router
+from .payments import router as payments_router
 
 from .catalog import data_source, get_catalog
 from .models import HealthResponse, PublicCatalog, PublicHall, PublicTrainer
@@ -20,6 +22,8 @@ app = FastAPI(
     ),
 )
 app.include_router(auth_router)
+app.include_router(bookings_router)
+app.include_router(payments_router)
 
 # For the React dev server. This is browser configuration, not authentication.
 app.add_middleware(

@@ -1,11 +1,13 @@
 import type { BookingView, Payment, PaymentMethod, PaymentStatus, PaymentView } from '../types';
-import { TODAY } from '../config';
-import { getDb, nextId, saveDb } from '../mock/db';
-import { bkNumber, dateOf, pad } from '../utils/format';
+import { getDb } from '../mock/db';
+import { bkNumber, dateOf } from '../utils/format';
 import { ApiError } from './ApiError';
 import { clone, delay } from './helpers';
 import { requireUser } from './session';
-import { toView } from './views';
+import {
+  backendBookingToView,
+  type BackendBooking,
+} from './bookingsApi';
 
 export interface PaymentFilters {
   status?: PaymentStatus | '';
@@ -30,33 +32,43 @@ export async function payBooking(
   method: PaymentMethod,
   outcome: 'approve' | 'decline',
 ): Promise<PayResult> {
-  await delay();
-  const viewer = requireUser(['member', 'admin']);
-  const db = getDb();
-  const b = db.bookings.find((x) => x.booking_id === booking_id);
-  if (!b) throw new ApiError('NOT_FOUND', 'Booking not found.');
-  if (viewer.role === 'member' && b.member_id !== viewer.member_id) throw new ApiError('FORBIDDEN', 'This is not your booking.');
-  if (method === 'cash') throw new ApiError('VALIDATION', 'Online payment supports card, NFC or app.');
-  if (b.status !== 'pending') throw new ApiError('GB003', 'This booking is no longer waiting for payment.');
-  // Rule 9: at most one approved payment per booking
-  if (db.payments.some((p) => p.booking_id === b.booking_id && p.payment_status === 'approved')) {
-    throw new ApiError('GB003', 'This booking has already been paid.');
+  requireUser(['member', 'admin']);
+
+  const response = await fetch(
+    `/api/bookings/${booking_id}/payment`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        method,
+        outcome,
+      }),
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new ApiError(
+      response.status === 404
+        ? 'NOT_FOUND'
+        : response.status === 409
+          ? 'GB003'
+          : 'VALIDATION',
+      typeof data.detail === 'string'
+        ? data.detail
+        : 'Payment failed.',
+    );
   }
 
-  const id = nextId('payment');
-  const payment: Payment = {
-    payment_id: id,
-    booking_id: b.booking_id,
-    amount_kzt: b.price_kzt,
-    method,
-    payment_status: outcome === 'approve' ? 'approved' : 'declined',
-    provider_txn_ref: `TXN-${dateOf(TODAY).replace(/-/g, '')}-${pad(id, 4)}`,
-    created_at: TODAY,
+  return {
+    payment: data.payment as Payment,
+    booking: backendBookingToView(
+      data.booking as BackendBooking,
+    ),
   };
-  db.payments.push(payment);
-  if (outcome === 'approve') b.status = 'confirmed';
-  saveDb();
-  return clone({ payment, booking: toView(b, viewer) });
 }
 
 /** Payment attempts for one booking: the owner (member) and admin only. Never reception/trainer. */

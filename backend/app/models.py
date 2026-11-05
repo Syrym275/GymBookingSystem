@@ -2,6 +2,7 @@
 
 from decimal import Decimal
 from typing import Annotated, Literal
+from datetime import datetime
 
 from pydantic import BaseModel, Field, PlainSerializer
 
@@ -56,3 +57,44 @@ class CurrentUserResponse(BaseModel):
 class LoginRequest(BaseModel):
     email: str = Field(min_length=5, max_length=255)
     password: str = Field(min_length=6, max_length=72)
+
+class BookingCreateRequest(BaseModel):
+    member_id: int = Field(gt=0)
+    booking_type: Literal["training", "hall_rental"]
+    trainer_id: int | None = None
+    hall_id: int | None = None
+    start_time: datetime
+    end_time: datetime
+
+
+class BookingResponse(BaseModel):
+    booking_id: int
+    member_id: int
+    booking_type: Literal["training", "hall_rental"]
+    trainer_id: int | None
+    hall_id: int | None
+    start_time: datetime
+    end_time: datetime
+    status: str
+    price_kzt: Money
+    created_at: datetime
+    payment_expires_at: datetime | None
+
+class PaymentRequest(BaseModel):
+    method: Literal["card", "nfc", "app"]
+    outcome: Literal["approve", "decline"] = "approve"
+
+
+class PaymentResponse(BaseModel):
+    payment_id: int
+    booking_id: int
+    amount_kzt: Money
+    method: str
+    payment_status: str
+    provider_txn_ref: str
+    created_at: datetime
+
+
+class PayResultResponse(BaseModel):
+    payment: PaymentResponse
+    booking: BookingResponse
