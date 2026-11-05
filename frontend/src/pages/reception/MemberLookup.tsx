@@ -56,7 +56,7 @@ function MemberDetail({ member }: { member: MemberView }) {
           <button
             key={b.booking_id}
             onClick={() => setSlip(b)}
-            className="flex w-full flex-wrap items-center gap-2 rounded-xl border-2 border-ink/15 bg-white p-3 text-left text-sm hover:border-ink"
+            className="flex w-full flex-wrap items-center gap-2 rounded-xl border border-ink/15 bg-white p-3 text-left text-sm hover:border-line"
           >
             <span className="font-mono text-xs text-ink/50">{bkNumber(b.booking_id)}</span>
             <span className="min-w-0 flex-1">
@@ -97,8 +97,8 @@ export default function MemberLookup() {
               <button
                 key={m.member_id}
                 onClick={() => setSelected(m)}
-                className={`flex w-full items-center justify-between gap-2 rounded-xl border-2 p-3 text-left transition ${
-                  selected?.member_id === m.member_id ? 'border-ink bg-sun shadow-hard-sm' : 'border-ink/15 bg-white hover:border-ink'
+                className={`flex w-full items-center justify-between gap-2 rounded-xl border p-3 text-left transition ${
+                  selected?.member_id === m.member_id ? 'border-line bg-sun shadow-hard-sm' : 'border-ink/15 bg-white hover:border-line'
                 }`}
               >
                 <span>

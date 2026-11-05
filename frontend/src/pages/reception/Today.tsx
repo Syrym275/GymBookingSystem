@@ -14,7 +14,7 @@ const HOURS = Array.from({ length: CLOSE_HOUR - OPEN_HOUR }, (_, i) => OPEN_HOUR
 
 function Item({ b, onOpen, onDone }: { b: BookingView; onOpen: () => void; onDone: () => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl border-2 border-ink/15 bg-white p-3">
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-ink/15 bg-white p-3">
       <span className={`h-10 w-1.5 rounded-full ${b.booking_type === 'training' ? 'bg-brand' : 'bg-mint'}`} />
       <button className="min-w-0 flex-1 text-left" onClick={onOpen}>
         <p className="font-bold">
@@ -68,7 +68,7 @@ export default function ReceptionToday() {
       {data.length === 0 ? (
         <EmptyState title="No bookings today" />
       ) : (
-        <div className="overflow-hidden rounded-2xl border-2 border-ink bg-white shadow-hard">
+        <div className="overflow-hidden rounded-xl border border-line bg-white shadow-hard">
           {HOURS.map((h) => {
             const here = data.filter((b) => hourOf(b.start_time) === h);
             return (

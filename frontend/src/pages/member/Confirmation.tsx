@@ -33,7 +33,7 @@ export default function Confirmation() {
   return (
     <div className="mx-auto max-w-xl">
       <div className="mb-6 text-center">
-        <span className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full border-2 border-ink bg-mint text-white shadow-hard">
+        <span className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full border border-line bg-mint text-onaccent shadow-hard">
           <CheckCircle2 className="h-9 w-9" />
         </span>
         <h1 className="text-3xl font-extrabold">You are booked!</h1>
@@ -41,7 +41,7 @@ export default function Confirmation() {
       </div>
 
       <div className="card overflow-hidden p-0">
-        <div className="flex items-center justify-between bg-brand px-5 py-3 text-white">
+        <div className="flex items-center justify-between bg-brand px-5 py-3 text-onaccent">
           <span className="font-display text-2xl font-extrabold">{bkNumber(b.booking_id)}</span>
           <StatusBadge status={b.status} />
         </div>

@@ -2,14 +2,57 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme tokens (RGB triples so Tailwind opacity modifiers work). Light is the base; .dark overrides. */
 @layer base {
+  :root {
+    --bg: 244 245 247;
+    --surface: 255 255 255;
+    --ink: 14 15 18;
+    --line: 222 225 230;
+    --onaccent: 14 15 18;
+    --brand: 198 255 61;
+    --brand-dark: 63 98 18;
+    --brand-soft: 236 252 203;
+    --sun: 228 231 236;
+    --sun-soft: 238 240 243;
+    --mint: 20 184 166;
+    --mint-dark: 15 118 110;
+    --mint-soft: 204 251 241;
+    --berry: 244 63 94;
+    --berry-soft: 255 228 230;
+    --shadow: 0 1px 2px rgb(14 15 18 / 0.06), 0 4px 16px rgb(14 15 18 / 0.06);
+    --shadow-sm: 0 1px 2px rgb(14 15 18 / 0.08);
+  }
+  .dark {
+    --bg: 14 15 18;
+    --surface: 23 25 30;
+    --ink: 242 243 245;
+    --line: 42 45 53;
+    --onaccent: 14 15 18;
+    --brand: 198 255 61;
+    --brand-dark: 214 255 120;
+    --brand-soft: 36 44 18;
+    --sun: 40 43 51;
+    --sun-soft: 30 33 40;
+    --mint: 45 212 191;
+    --mint-dark: 94 234 212;
+    --mint-soft: 16 46 43;
+    --berry: 251 113 133;
+    --berry-soft: 58 22 32;
+    --shadow: none;
+    --shadow-sm: none;
+  }
+
   body {
     @apply bg-cream font-body text-ink antialiased;
   }
   h1,
   h2,
   h3 {
-    @apply font-display tracking-tight;
+    @apply font-display uppercase tracking-wide;
+  }
+  ::selection {
+    @apply bg-brand text-onaccent;
   }
 }
 
@@ -19,37 +62,37 @@
   .btn-secondary,
   .btn-ghost,
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border-2 border-ink px-4 py-2 text-sm font-bold transition
-      active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-4 py-2 text-sm font-semibold uppercase tracking-wide transition
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply bg-brand text-white shadow-hard hover:bg-brand-dark;
+    @apply bg-brand text-onaccent hover:brightness-95 dark:hover:brightness-110;
   }
   .btn-secondary {
-    @apply bg-sun text-ink shadow-hard hover:brightness-95;
+    @apply border-line bg-sun text-ink hover:border-ink/30;
   }
   .btn-ghost {
-    @apply border-ink/20 bg-white text-ink hover:border-ink;
+    @apply border-line bg-transparent text-ink hover:border-ink/40 hover:bg-sun-soft;
   }
   .btn-danger {
-    @apply bg-white text-berry shadow-hard-sm hover:bg-berry-soft;
+    @apply border-berry/50 bg-transparent text-berry hover:bg-berry-soft;
   }
   .btn-sm {
     @apply px-3 py-1 text-xs;
   }
   .card {
-    @apply rounded-2xl border-2 border-ink bg-white p-5 shadow-hard;
+    @apply rounded-xl border border-line bg-white p-5 shadow-hard;
   }
   .card-flat {
-    @apply rounded-2xl border border-ink/15 bg-white p-5;
+    @apply rounded-xl border border-line bg-white p-5;
   }
   .label {
-    @apply mb-1 block text-xs font-bold uppercase tracking-wide text-ink/60;
+    @apply mb-1 block text-xs font-semibold uppercase tracking-wider text-ink/60;
   }
   .input {
-    @apply w-full rounded-xl border-2 border-ink/20 bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20;
+    @apply w-full rounded-md border border-line bg-cream px-3 py-2 text-sm text-ink outline-none transition placeholder:text-ink/40 focus:border-brand focus:ring-2 focus:ring-brand/20;
   }
   .chip {
-    @apply inline-flex items-center rounded-full border-2 px-3 py-1 text-xs font-bold transition;
+    @apply inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide transition;
   }
 }

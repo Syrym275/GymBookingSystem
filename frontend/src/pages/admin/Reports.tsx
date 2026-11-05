@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useChartColors } from '../../theme/ThemeContext';
 import { popularHours, popularTrainers, unpaidMembers } from '../../api/reportsApi';
 import { DataTable, type Column } from '../../components/DataTable';
 import { EmptyState, ErrorNote, Loading, PageHeader } from '../../components/ui';
@@ -9,6 +10,7 @@ import type { TrainerReportRow, UnpaidGroup } from '../../api/reportsApi';
 import { bkNumber, kzt } from '../../utils/format';
 
 export default function AdminReports() {
+  const cc = useChartColors();
   // Default range = the two past weeks of sample data (12-25 Oct 2026).
   const [from, setFrom] = useState('2026-10-12');
   const [to, setTo] = useState('2026-10-25');
@@ -70,13 +72,13 @@ export default function AdminReports() {
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={trainers.data}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="trainer_name" tick={{ fontSize: 11 }} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                    <Tooltip cursor={{ fill: '#FFF0BF' }} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={cc.grid} />
+                    <XAxis dataKey="trainer_name" tick={{ fontSize: 11, fill: cc.axis }} stroke={cc.grid} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: cc.axis }} stroke={cc.grid} />
+                    <Tooltip cursor={{ fill: cc.cursor }} contentStyle={{ background: 'rgb(var(--surface))', border: '1px solid rgb(var(--line))', borderRadius: 8, color: 'rgb(var(--ink))' }} />
                     <Legend />
-                    <Bar dataKey="before_17" name="Before 17:00" stackId="a" fill="#FFC93C" stroke="#1E2235" />
-                    <Bar dataKey="evening" name="Evening" stackId="a" fill="#FF6B35" stroke="#1E2235" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="before_17" name="Before 17:00" stackId="a" fill={cc.tertiary} />
+                    <Bar dataKey="evening" name="Evening" stackId="a" fill={cc.primary} radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -95,11 +97,11 @@ export default function AdminReports() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={hours.data}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={1} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip cursor={{ fill: '#FFF0BF' }} />
-                  <Bar dataKey="count" name="Bookings" fill="#12B5A6" stroke="#1E2235" radius={[6, 6, 0, 0]} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={cc.grid} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: cc.axis }} stroke={cc.grid} interval={1} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: cc.axis }} stroke={cc.grid} />
+                  <Tooltip cursor={{ fill: cc.cursor }} contentStyle={{ background: 'rgb(var(--surface))', border: '1px solid rgb(var(--line))', borderRadius: 8, color: 'rgb(var(--ink))' }} />
+                  <Bar dataKey="count" name="Bookings" fill={cc.secondary} radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

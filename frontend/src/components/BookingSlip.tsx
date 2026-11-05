@@ -19,7 +19,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 function Payments({ bookingId }: { bookingId: number }) {
   const { data, loading } = useAsync(() => listPaymentsForBooking(bookingId), [bookingId]);
   return (
-    <div className="mt-4 border-t-2 border-dashed border-ink/20 pt-3">
+    <div className="mt-4 border-t border-dashed border-ink/20 pt-3">
       <p className="label">Payment attempts</p>
       {loading && !data && <p className="text-sm text-ink/50">Loading…</p>}
       {data && data.length === 0 && <p className="text-sm text-ink/50">No payment attempts yet.</p>}
@@ -49,7 +49,7 @@ export function BookingSlip({ booking, onClose, footer }: { booking: BookingView
             <StatusBadge status={booking.status} />
             <PaidBadge status={booking.status} />
           </div>
-          <div className="rounded-2xl border-2 border-ink bg-sun-soft/60 px-4 py-2">
+          <div className="rounded-xl border border-line bg-sun-soft/60 px-4 py-2">
             <Row label="Type">{booking.booking_type === 'training' ? 'Personal training (60 min)' : 'Hall rental'}</Row>
             <Row label={booking.booking_type === 'training' ? 'Trainer' : 'Hall'}>
               {booking.trainer_name ?? booking.hall_name}

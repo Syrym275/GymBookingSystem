@@ -23,7 +23,7 @@ export function Loading({ text = 'Loading…' }: { text?: string }) {
 
 export function ErrorNote({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-xl border-2 border-berry bg-berry-soft p-3 text-sm">
+    <div className="flex items-start gap-2 rounded-xl border border-berry bg-berry-soft p-3 text-sm">
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-berry" /> {message}
     </div>
   );
@@ -31,7 +31,7 @@ export function ErrorNote({ message }: { message: string }) {
 
 export function EmptyState({ title, text, action, icon }: { title: string; text?: string; action?: ReactNode; icon?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center rounded-2xl border-2 border-dashed border-ink/20 bg-white/60 px-6 py-10 text-center">
+    <div className="flex flex-col items-center rounded-xl border border-dashed border-ink/20 bg-white/60 px-6 py-10 text-center">
       <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-sun-soft text-ink">
         {icon ?? <Inbox className="h-6 w-6" />}
       </div>
@@ -64,7 +64,7 @@ export function KpiCard({
   icon?: ReactNode;
 }) {
   return (
-    <div className={`rounded-2xl border-2 border-ink p-4 shadow-hard ${TONES[tone]}`}>
+    <div className={`rounded-xl border border-line p-4 shadow-hard ${TONES[tone]}`}>
       <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wide text-ink/60">
         {label}
         {icon}
