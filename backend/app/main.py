@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from psycopg import Error as DatabaseError
 from pydantic import ValidationError
+from .auth import router as auth_router
 
 from .catalog import data_source, get_catalog
 from .models import HealthResponse, PublicCatalog, PublicHall, PublicTrainer
@@ -18,12 +19,13 @@ app = FastAPI(
         "Authentication, bookings and payments remain future work."
     ),
 )
+app.include_router(auth_router)
 
 # For the React dev server. This is browser configuration, not authentication.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
 )
 
 
