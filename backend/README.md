@@ -1,4 +1,4 @@
-# FastAPI backend for Week 10
+# FastAPI backend
 
 This first backend milestone serves fictional trainer and hall records over HTTP.
 It matches the existing frontend public catalogue fields. The updated PulseGym landing page loads this public catalogue over HTTP.
@@ -16,7 +16,7 @@ Implemented routes:
 | GET | `/docs` | Interactive API documentation |
 
 Sample mode works without PostgreSQL. An optional read-only PostgreSQL catalogue
-connection uses the existing Task 9 trainers and halls tables. Real login, booking
+connection uses the existing trainers and halls tables. Real login, booking
 writes, payment processing, and the audit log are later work. Sample records come
 from code and match the public rows in sql/task09_reference.sql.
 The health check proves only that the server responds. Public endpoints require
@@ -32,7 +32,6 @@ The commands below use `python`; replace the first two `python` commands with
 `py` if that is the command available on your computer.
 
 ```powershell
-cd "C:\Users\Alkhaidar\Desktop\BIS\GymBookingSystem\backend"
 python --version
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
@@ -62,7 +61,6 @@ not the React website. Press **Ctrl+C** in the terminal to stop the backend.
 Setup and installation are only needed once per environment (or when requirements change).
 
 ```powershell
-cd "C:\Users\Alkhaidar\Desktop\BIS\GymBookingSystem\backend"
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
@@ -123,32 +121,3 @@ not prove a live PostgreSQL connection, booking conflicts, or authentication.
 | Port 8000 is already in use | Stop the old server with Ctrl+C, or start with `--port 8001` and open port 8001 in the browser. |
 | Browser cannot connect | Keep the server terminal running and check it for errors; use `http://127.0.0.1:8000/docs`. |
 | Package installation fails | Check the terminal error and internet connection; share the error before changing project files. |
-
-## Task 10 evidence and next task
-
-Once you have run and explained the server, demonstrate `/health` and the public
-catalogue in `/docs`. Explain how the request reaches a Python function and
-returns validated JSON, why inactive resources are omitted, and why private
-member data is outside this public API.
-
-Describe AI assistance honestly: this initial implementation was AI-assisted;
-you still need to read it, run the checks, understand it, and explain what you
-reviewed or changed yourself. A generated file alone does not prove your understanding.
-
-Completed integration: the latest frontend branch design is imported and its
-landing catalogue calls FastAPI, with loading/error/retry states.
-Next measurable task: prepare a dedicated test PostgreSQL database with the team
-and demonstrate the public catalogue reading its trainers and halls tables.
-Owner: Keneskhan Alkhaidar, backend developer. Agree a deadline before the next
-practical lesson with your team. Database and authentication are later milestones.
-
-Reference: [FastAPI first steps](https://fastapi.tiangolo.com/tutorial/first-steps/).
-
-## Use the existing PostgreSQL catalogue later
-
-Sample mode is the default and needs no database setup. Optional database mode
-reads the existing Task 9 trainers and halls tables. See [SQL compatibility and
-connection instructions](sql/README.md) before enabling it. The supplied SQL
-reference drops and recreates tables; the app does not execute it automatically.
-The adapter is tested with mocked connections; a live PostgreSQL connection still
-needs verification with the team. The API root `/` shows the configured data source.
