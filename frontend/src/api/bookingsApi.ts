@@ -1,19 +1,15 @@
 import type { Booking, BookingStatus, BookingType, BookingView } from '../types';
-import { CLOSE_HOUR, MAX_PENDING, OPEN_HOUR, TODAY, TODAY_DATE } from '../config';
-import { getDb, nextId, saveDb } from '../mock/db';
+import { CLOSE_HOUR, OPEN_HOUR, TODAY_DATE } from '../config';
+import { getDb, saveDb } from '../mock/db';
 import {
-  addMinutesStr,
   bkNumber,
   dateOf,
-  fmtDate,
   isBlocking,
   isPaidStatus,
-  minutesBetween,
   mk,
   overlaps,
-  timeOf,
 } from '../utils/format';
-import { ApiError, type Suggestion } from './ApiError';
+import { ApiError } from './ApiError';
 import { clone, delay } from './helpers';
 import { requireUser } from './session';
 import { toView } from './views';
@@ -39,7 +35,92 @@ export interface NewBookingInput {
   end_time: string;
 }
 
+export interface BackendBooking extends Booking {
+  payment_expires_at: string | null;
+}
+
+export function backendBookingToView(booking: BackendBooking): BookingView {
+  const db = getDb();
+  const member = db.members.find(
+    (item) => item.member_id === booking.member_id,
+  );
+  const trainer = db.trainers.find(
+    (item) => item.trainer_id === booking.trainer_id,
+  );
+  const hall = db.halls.find(
+    (item) => item.hall_id === booking.hall_id,
+  );
+
+  return {
+    ...booking,
+    member_id: booking.member_id,
+    member: {
+      member_id: booking.member_id,
+      full_name: member?.full_name ?? 'Member',
+    },
+    trainer_name: trainer?.full_name ?? null,
+    hall_name: hall?.hall_name ?? null,
+    paid: ['confirmed', 'completed', 'no_show'].includes(booking.status),
+  };
+}
+
 export async function listBookings(f: BookingFilters = {}): Promise<BookingView[]> {
+    const current = requireUser();
+
+  if (current.role === 'member' && current.member_id) {
+    const response = await fetch(
+      `/api/bookings?member_id=${current.member_id}`,
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new ApiError(
+        'VALIDATION',
+        typeof data.detail === 'string'
+          ? data.detail
+          : 'Could not load bookings.',
+      );
+    }
+
+    let rows = (data as BackendBooking[]).map(backendBookingToView);
+
+    if (f.from) {
+      rows = rows.filter((booking) => dateOf(booking.start_time) >= f.from!);
+    }
+
+    if (f.to) {
+      rows = rows.filter((booking) => dateOf(booking.start_time) <= f.to!);
+    }
+
+    if (f.statuses?.length) {
+      rows = rows.filter((booking) =>
+        f.statuses!.includes(booking.status),
+      );
+    }
+
+    if (f.type) {
+      rows = rows.filter(
+        (booking) => booking.booking_type === f.type,
+      );
+    }
+
+    if (f.paid === 'paid') {
+      rows = rows.filter((booking) => booking.paid);
+    }
+
+    if (f.paid === 'unpaid') {
+      rows = rows.filter((booking) => booking.status === 'pending');
+    }
+
+    rows.sort(
+      (a, b) =>
+        a.start_time.localeCompare(b.start_time) ||
+        a.booking_id - b.booking_id,
+    );
+
+    return rows;
+  }
   await delay();
   const viewer = requireUser();
   const db = getDb();
@@ -75,13 +156,19 @@ export async function listBookings(f: BookingFilters = {}): Promise<BookingView[
 }
 
 export async function getBooking(id: number): Promise<BookingView> {
-  await delay();
-  const viewer = requireUser();
-  const b = getDb().bookings.find((x) => x.booking_id === id);
-  if (!b) throw new ApiError('NOT_FOUND', 'Booking not found.');
-  if (viewer.role === 'member' && b.member_id !== viewer.member_id) throw new ApiError('FORBIDDEN', 'This is not your booking.');
-  if (viewer.role === 'trainer' && b.trainer_id !== viewer.trainer_id) throw new ApiError('FORBIDDEN', 'This is not your session.');
-  return clone(toView(b, viewer));
+  const response = await fetch(`/api/bookings/${id}`);
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new ApiError(
+      response.status === 404 ? 'NOT_FOUND' : 'VALIDATION',
+      typeof data.detail === 'string'
+        ? data.detail
+        : 'Could not load booking.',
+    );
+  }
+
+  return backendBookingToView(data as BackendBooking);
 }
 
 /** Hours (07..21) whose [h, h+1) window is blocked for a trainer or hall on a date. */
@@ -132,134 +219,74 @@ function memberBusy(memberId: number, start: string, end: string, ignoreId?: num
   );
 }
 
-function freeWindows(
-  type: BookingType,
-  resourceId: number,
-  memberId: number,
-  date: string,
-  durationMin: number,
-  limit = 4,
-): Suggestion[] {
-  const out: Suggestion[] = [];
-  for (let h = OPEN_HOUR; h < CLOSE_HOUR && out.length < limit; h++) {
-    const start = mk(date, h);
-    const end = addMinutesStr(start, durationMin);
-    if (dateOf(end) !== date || timeOf(end) > `${CLOSE_HOUR}:00`) break;
-    if (start < TODAY) continue;
-    if (resourceBusy(type, resourceId, start, end) || memberBusy(memberId, start, end)) continue;
-    out.push({ start_time: start, end_time: end });
-  }
-  return out;
-}
-
 // ---- writes ----------------------------------------------------------------
 
-export async function createBooking(input: NewBookingInput): Promise<BookingView> {
-  await delay();
+export async function createBooking(
+  input: NewBookingInput,
+): Promise<BookingView> {
   const viewer = requireUser(['member', 'receptionist', 'admin']);
-  const db = getDb();
 
-  const memberId = viewer.role === 'member' ? viewer.member_id : input.member_id;
-  const member = db.members.find((m) => m.member_id === memberId);
-  if (!member) throw new ApiError('NOT_FOUND', 'Please choose a member first.');
+  const memberId =
+    viewer.role === 'member'
+      ? viewer.member_id
+      : input.member_id;
 
-  const { booking_type, start_time, end_time } = input;
-  const fmt = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
-  if (!fmt.test(start_time) || !fmt.test(end_time)) throw new ApiError('VALIDATION', 'Invalid date or time.');
-
-  // Rule 1: opening hours, one day, end > start
-  const date = dateOf(start_time);
-  if (dateOf(end_time) !== date) throw new ApiError('VALIDATION', 'A booking must start and end on the same day.');
-  const mins = minutesBetween(start_time, end_time);
-  if (mins <= 0) throw new ApiError('VALIDATION', 'The end time must be after the start time.');
-  if (timeOf(start_time) < `0${OPEN_HOUR}:00` || timeOf(end_time) > `${CLOSE_HOUR}:00`) {
-    throw new ApiError('VALIDATION', `We are open ${OPEN_HOUR}:00 - ${CLOSE_HOUR}:00 only.`.replace(' 7:00', ' 07:00'));
-  }
-  if (start_time < TODAY) throw new ApiError('VALIDATION', 'That time has already passed.');
-
-  let price = 0;
-  let trainer_id: number | null = null;
-  let hall_id: number | null = null;
-  let resourceId = 0;
-
-  if (booking_type === 'training') {
-    // Rule 2: exactly 60 min, on the hour
-    if (mins !== 60 || !timeOf(start_time).endsWith(':00')) {
-      throw new ApiError('VALIDATION', 'A training session is exactly 60 minutes and starts on the hour.');
-    }
-    const t = db.trainers.find((x) => x.trainer_id === input.trainer_id);
-    if (!t) throw new ApiError('NOT_FOUND', 'Trainer not found.');
-    if (!t.is_active) throw new ApiError('VALIDATION', 'This trainer is not taking bookings.');
-    price = t.session_price_kzt; // Rule 4: price frozen at booking time
-    trainer_id = t.trainer_id;
-    resourceId = t.trainer_id;
-  } else {
-    const h = db.halls.find((x) => x.hall_id === input.hall_id);
-    if (!h) throw new ApiError('NOT_FOUND', 'Hall not found.');
-    if (!h.is_active) throw new ApiError('VALIDATION', 'This hall is not available for rent.');
-    price = Math.round((h.hourly_rate_kzt * mins) / 60); // Rule 3
-    hall_id = h.hall_id;
-    resourceId = h.hall_id;
+  if (!memberId) {
+    throw new ApiError('VALIDATION', 'Please choose a member first.');
   }
 
-  // Rule 7: membership valid on the booking date
-  if (date > member.membership_expires_on) {
+  const response = await fetch('/api/bookings', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      ...input,
+      member_id: memberId,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    const code =
+      response.status === 409
+        ? '23P01'
+        : response.status === 404
+          ? 'NOT_FOUND'
+          : 'VALIDATION';
+
     throw new ApiError(
-      'GB002',
-      `Membership is not valid on ${fmtDate(date)} (it ends ${fmtDate(member.membership_expires_on)}).`,
+      code,
+      typeof data.detail === 'string'
+        ? data.detail
+        : 'Could not create booking.',
     );
   }
 
-  // Rule 6: max 2 unpaid
-  const pendingCount = db.bookings.filter((b) => b.member_id === member.member_id && b.status === 'pending').length;
-  if (pendingCount >= MAX_PENDING) {
-    throw new ApiError('GB001', `There are already ${MAX_PENDING} unpaid bookings. Pay or cancel one before booking another.`);
-  }
-
-  // Rule 5: no overlap (trainer / hall / member), half-open ranges
-  if (resourceBusy(booking_type, resourceId, start_time, end_time) || memberBusy(member.member_id, start_time, end_time)) {
-    throw new ApiError('23P01', 'This slot was just taken', freeWindows(booking_type, resourceId, member.member_id, date, mins));
-  }
-
-  const booking: Booking = {
-    booking_id: nextId('booking'),
-    member_id: member.member_id,
-    booking_type,
-    trainer_id,
-    hall_id,
-    start_time,
-    end_time,
-    status: 'pending',
-    price_kzt: price,
-    created_at: TODAY,
-  };
-  db.bookings.push(booking);
-  saveDb();
-  return clone(toView(booking, viewer));
+  return backendBookingToView(data as BackendBooking);
 }
+
 
 export async function cancelBooking(id: number): Promise<BookingView> {
-  await delay();
-  const viewer = requireUser(['member', 'receptionist', 'admin']);
-  const db = getDb();
-  const b = db.bookings.find((x) => x.booking_id === id);
-  if (!b) throw new ApiError('NOT_FOUND', 'Booking not found.');
-  if (viewer.role === 'member' && b.member_id !== viewer.member_id) throw new ApiError('FORBIDDEN', 'This is not your booking.');
-  if (viewer.role === 'receptionist' && b.status !== 'pending') {
-    throw new ApiError('FORBIDDEN', 'Reception can only cancel unpaid (pending) bookings.');
-  }
-  if (!isBlocking(b.status)) throw new ApiError('VALIDATION', 'Only pending or confirmed bookings can be cancelled.');
-  if (b.start_time < TODAY) throw new ApiError('VALIDATION', 'Past bookings cannot be cancelled.');
+  const response = await fetch(`/api/bookings/${id}/cancel`, {
+    method: 'POST',
+  });
 
-  if (b.status === 'confirmed') {
-    db.payments.forEach((p) => {
-      if (p.booking_id === b.booking_id && p.payment_status === 'approved') p.payment_status = 'refunded';
-    });
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new ApiError(
+      response.status === 404 ? 'NOT_FOUND' : 'VALIDATION',
+      typeof data.detail === 'string'
+        ? data.detail
+        : 'Could not cancel booking.',
+    );
   }
-  b.status = 'cancelled';
-  saveDb();
-  return clone(toView(b, viewer));
+
+  return backendBookingToView(data as BackendBooking);
 }
+  
 
 export async function markAttendance(id: number, status: 'completed' | 'no_show'): Promise<BookingView> {
   await delay();
@@ -300,13 +327,18 @@ export async function setBookingStatus(id: number, status: BookingStatus): Promi
 
 /** Called when the 15-minute payment hold runs out: releases the slot. */
 export async function expireBooking(id: number): Promise<void> {
-  await delay();
-  const viewer = requireUser(['member', 'admin']);
-  const b = getDb().bookings.find((x) => x.booking_id === id);
-  if (!b) throw new ApiError('NOT_FOUND', 'Booking not found.');
-  if (viewer.role === 'member' && b.member_id !== viewer.member_id) throw new ApiError('FORBIDDEN', 'This is not your booking.');
-  if (b.status === 'pending') {
-    b.status = 'expired';
-    saveDb();
+  const response = await fetch(`/api/bookings/${id}/expire`, {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    const data = await response.json();
+
+    throw new ApiError(
+      'VALIDATION',
+      typeof data.detail === 'string'
+        ? data.detail
+        : 'Could not expire booking.',
+    );
   }
 }

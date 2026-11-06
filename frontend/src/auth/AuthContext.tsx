@@ -25,10 +25,9 @@
  */
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import { ApiError } from '../api/ApiError';
-import { delay } from '../api/helpers';
 import { setSessionUser } from '../api/session';
 import type { CurrentUser } from '../types';
-import { authenticate, ENABLED_ROLES, registerMember, type RegisterInput } from './mockUsers';
+import { ENABLED_ROLES, type RegisterInput } from './mockUsers';
 
 const STORAGE_KEY = 'gbs_current_user';
 
@@ -68,23 +67,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const login = useCallback(async (email: string, password: string) => {
-    await delay();
-    const found = authenticate(email, password); // (1) REPLACE with the real login request
-    if (!found) throw new ApiError('AUTH', 'Wrong email or password.');
-    setSessionUser(found); // (3) mock-only
-    writeStored(found); // (2)
-    setUser(found);
-    return found;
-  }, []);
+  const response = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new ApiError(
+      'AUTH',
+      typeof data.detail === 'string'
+        ? data.detail
+        : 'Wrong email or password.',
+    );
+  }
+
+  const found = data as CurrentUser;
+
+  setSessionUser(found);
+  writeStored(found);
+  setUser(found);
+
+  return found;
+}, []);
 
   const register = useCallback(async (input: RegisterInput) => {
-    await delay();
-    const created = registerMember(input); // (1b) REPLACE with the real sign-up request
-    setSessionUser(created); // (3) mock-only
-    writeStored(created); // (2)
-    setUser(created);
-    return created;
-  }, []);
+  const response = await fetch('/api/auth/register', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new ApiError(
+      'VALIDATION',
+      typeof data.detail === 'string'
+        ? data.detail
+        : 'Registration failed.',
+    );
+  }
+
+  const created = data as CurrentUser;
+
+  setSessionUser(created);
+  writeStored(created);
+  setUser(created);
+
+  return created;
+}, []);
 
   const logout = useCallback(() => {
     setSessionUser(null);
