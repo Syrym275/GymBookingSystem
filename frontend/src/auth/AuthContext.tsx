@@ -27,7 +27,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { ApiError } from '../api/ApiError';
 import { setSessionUser } from '../api/session';
 import type { CurrentUser } from '../types';
-import type { RegisterInput } from './mockUsers';
+import { authenticate, type RegisterInput } from './mockUsers';
 
 const STORAGE_KEY = 'gbs_current_user';
 
@@ -74,24 +74,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     body: JSON.stringify({ email, password }),
   });
 
-  const data = await response.json();
+  if (response.ok) {
+    const found = (await response.json()) as CurrentUser;
 
-  if (!response.ok) {
-    throw new ApiError(
-      'AUTH',
-      typeof data.detail === 'string'
-        ? data.detail
-        : 'Wrong email or password.',
-    );
+    setSessionUser(found);
+    writeStored(found);
+    setUser(found);
+
+    return found;
   }
 
-  const found = data as CurrentUser;
+  // Development-only fallback for the original demo accounts.
+  if (import.meta.env.DEV) {
+    const demoUser = authenticate(email, password);
 
-  setSessionUser(found);
-  writeStored(found);
-  setUser(found);
+    if (demoUser) {
+      setSessionUser(demoUser);
+      writeStored(demoUser);
+      setUser(demoUser);
 
-  return found;
+      return demoUser;
+    }
+  }
+
+  const data = await response.json().catch(() => null);
+
+  throw new ApiError(
+    'AUTH',
+    typeof data?.detail === 'string'
+      ? data.detail
+      : 'Wrong email or password.',
+  );
 }, []);
 
   const register = useCallback(async (input: RegisterInput) => {
