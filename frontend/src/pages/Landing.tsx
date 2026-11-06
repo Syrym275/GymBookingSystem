@@ -13,13 +13,14 @@ import {
   Youtube,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
+import { getPublicCatalog } from "../api/publicApi";
+import { useAsync } from "../hooks/useAsync";
 import { HOME } from "../auth/RequireRole";
 import { Barbell, Glove, Group, Kettlebell, Mat } from "../components/GymIcons";
 import { CLOSE_HOUR, OPEN_HOUR, TODAY_DATE } from "../config";
 import {
   CONTACT,
   GYM_NAME,
-  HALLS,
   PLANS,
   SERVICES,
   SOCIALS,
@@ -46,6 +47,7 @@ const SOCIAL_ICON = { Instagram, Facebook, YouTube: Youtube };
 
 const NAV = [
   { href: "#services", label: "Services" },
+  { href: "#trainers", label: "Trainers" },
   { href: "#halls", label: "Halls" },
   { href: "#pricing", label: "Pricing" },
   { href: "#contact", label: "Contact" },
@@ -55,6 +57,9 @@ const HOURS_TEXT = `${hourLabel(OPEN_HOUR)}–${hourLabel(CLOSE_HOUR)}`;
 
 export default function Landing() {
   const { user, logout } = useAuth();
+  const catalog = useAsync(getPublicCatalog, []);
+  const trainers = catalog.data?.trainers ?? [];
+  const halls = catalog.data?.halls ?? [];
 
   // Logged out -> sign up; logged in -> the user's own dashboard.
   const target = user ? HOME[user.role] : "/register";
@@ -210,6 +215,35 @@ export default function Landing() {
           </div>
         </section>
 
+        <section
+          id="trainers"
+          className="mx-auto max-w-6xl scroll-mt-20 px-4 py-14 sm:px-6 lg:py-20"
+        >
+          <SectionHead title="Personal trainers" note="Choose your coach for a one-hour session." />
+          {catalog.loading && <p className="mt-6 text-ink/70" role="status">Loading trainers and halls...</p>}
+          {catalog.error && (
+            <div className="mt-6" role="alert">
+              <p className="text-berry">{catalog.error}</p>
+              <button type="button" className="btn-ghost mt-3" onClick={catalog.reload}>Try again</button>
+            </div>
+          )}
+          {!catalog.loading && !catalog.error && trainers.length === 0 && (
+            <p className="mt-6 text-ink/70">No trainers are available at the moment.</p>
+          )}
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {trainers.map((trainer) => (
+              <article key={trainer.trainer_id} className="flex flex-col rounded-xl border border-line bg-white p-5">
+                <h3 className="text-lg font-bold">{trainer.full_name}</h3>
+                <p className="mt-2 text-sm text-ink/70">{trainer.specialization}</p>
+                <p className="mt-auto pt-4 font-display text-2xl font-bold">
+                  {kzt(trainer.session_price_kzt)} <span className="font-body text-sm font-normal text-ink/60">/ session</span>
+                </p>
+                <Link to={target} className="btn-primary mt-4 min-h-[44px]">Book a session</Link>
+              </article>
+            ))}
+          </div>
+        </section>
+
         {/* ---- Hall rental: drawn to scale by capacity ---- */}
         <section
           id="halls"
@@ -219,22 +253,30 @@ export default function Landing() {
             title="Hall rental"
             note="For your class, team or group. Each block is drawn to scale by how many people the hall holds."
           />
+          {catalog.loading && <p className="mt-6 text-ink/70" role="status">Loading halls...</p>}
+          {catalog.error && (
+            <div className="mt-6" role="alert">
+              <p className="text-berry">{catalog.error}</p>
+              <button type="button" className="btn-ghost mt-3" onClick={catalog.reload}>Try again</button>
+            </div>
+          )}
+          {!catalog.loading && !catalog.error && halls.length === 0 && (
+            <p className="mt-6 text-ink/70">No halls are available at the moment.</p>
+          )}
           <div className="mt-8 flex flex-col gap-3 md:h-80 md:flex-row">
-            {HALLS.map((h) => (
+            {halls.map((h) => (
               <div
-                key={h.name}
+                key={h.hall_id}
                 style={{ flexGrow: h.capacity }}
                 className="relative flex min-h-[12rem] basis-0 flex-col justify-between overflow-hidden rounded-lg border-2 border-dashed border-ink/25 bg-white p-5"
               >
-                <h3 className="relative text-xl font-bold">{h.name}</h3>
+                <h3 className="relative text-xl font-bold">{h.hall_name}</h3>
                 <dl className="relative grid grid-cols-[auto_1fr] gap-x-3 text-sm">
                   <dt className="text-ink/60">Capacity</dt>
                   <dd className="font-semibold">up to {h.capacity} people</dd>
-                  <dt className="text-ink/60">Size</dt>
-                  <dd className="font-semibold">{h.sizeM2} m²</dd>
                   <dt className="sr-only">Price</dt>
                   <dd className="col-span-2 mt-2 font-display text-2xl font-bold">
-                    {kzt(h.pricePerHourKzt)}{" "}
+                    {kzt(h.hourly_rate_kzt)}{" "}
                     <span className="font-body text-sm font-normal text-ink/60">
                       / hour
                     </span>
@@ -243,7 +285,7 @@ export default function Landing() {
                 <Link
                   to={target}
                   className="btn-primary mt-4 min-h-[44px] self-start"
-                  aria-label={`Rent the ${h.name}`}
+                  aria-label={`Rent the ${h.hall_name}`}
                 >
                   Rent this hall
                 </Link>
