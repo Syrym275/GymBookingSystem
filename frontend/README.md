@@ -28,9 +28,7 @@ Password for every account: **`demo123`**. The login page has one-click buttons 
 | Role | Email | Notes |
 |---|---|---|
 | Member | `aruzhan.bekova@example.kz` | Annual plan |
-| Trainer | `aigerim.sadykova@gym.kz` | 8 past sessions + this week |
 | Receptionist | `reception@gym.kz` | |
-| Admin / Manager | `manager@gym.kz` | |
 
 Handy extras (all members use `demo123`):
 - `yerassyl.omarov@example.kz` — already has **2 unpaid bookings** → try booking a third (error `GB001`).
@@ -47,11 +45,9 @@ In development (`npm run dev`) the top bar shows a **DEV role switcher** and a *
 
 **Member** (`/member`) — Dashboard (plan, expiry warning, "X of 2 unpaid") · Book a trainer · Rent a hall · Payment (15-min hold countdown, card/NFC/app, simulate a declined payment) · Confirmation · My bookings (upcoming/past, status filter, booking slip, cancel) · Profile with QR
 
-**Trainer** (`/trainer`) — My schedule (week calendar + day list) · Sessions (date/status filters, mark attendance) · Stats (this week/month, unique students, completed vs no-show, busiest hours)
+**Trainer** and **Admin / Manager** areas are hidden for now: their pages were removed and those accounts cannot sign in (`ENABLED_ROLES` in `src/auth/mockUsers.ts`).
 
 **Receptionist** (`/reception`) — Today (timeline, check-in, next 2 hours) · All bookings (multi-filter, search, sort, pagination, filters in the URL) · Unpaid bookings (grouped by member, limit highlighted, cancel) · Member lookup · New booking for a member
-
-**Admin / Manager** (`/admin`) — Overview KPIs + charts · Bookings (with payment info and status change) · Payments log · Trainers · Halls · Members (edit plan, extend membership) · Reports (popular trainers, popular hours, unpaid members) · Staff accounts
 
 ## Business rules enforced in the mock API
 
@@ -76,7 +72,7 @@ src/
   hooks/       useAsync
   layouts/     AppLayout (role-based sidebar + top bar)
   mock/        seed data + in-memory db persisted to localStorage ← delete when the backend exists
-  pages/       member/ trainer/ reception/ admin/ Login.tsx
+  pages/       member/ reception/ Login.tsx
   types/       types mirroring the DB tables
   utils/       BK number, KZT, dates, overlap check
   config.ts · router.tsx · main.tsx · App.tsx

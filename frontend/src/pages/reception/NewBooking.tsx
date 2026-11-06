@@ -58,7 +58,7 @@ export default function NewBooking() {
       </div>
 
       {created && (
-        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-ink bg-mint-soft p-4 shadow-hard">
+        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-mint-soft p-4 shadow-hard">
           <CheckCircle2 className="h-6 w-6 text-mint-dark" />
           <p className="flex-1 text-sm">
             <b>{bkNumber(created.booking_id)}</b> created for <b>{created.member.full_name}</b> - waiting for payment (pending).
@@ -76,12 +76,12 @@ export default function NewBooking() {
         <p className="text-sm text-ink/60">Select a member to start the booking.</p>
       ) : (
         <>
-          <div className="mb-4 inline-flex rounded-xl border-2 border-ink bg-white p-1">
+          <div className="mb-4 inline-flex rounded-xl border border-line bg-white p-1">
             {(['training', 'hall'] as const).map((k) => (
               <button
                 key={k}
                 onClick={() => setKind(k)}
-                className={`rounded-lg px-4 py-1.5 text-sm font-bold ${kind === k ? 'bg-brand text-white' : 'hover:bg-sun-soft'}`}
+                className={`rounded-lg px-4 py-1.5 text-sm font-bold ${kind === k ? 'bg-brand text-onaccent' : 'hover:bg-sun-soft'}`}
               >
                 {k === 'training' ? 'Trainer session' : 'Hall rental'}
               </button>

@@ -1,24 +1,18 @@
 import { useState, type ReactNode } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
-  BarChart3,
   Building2,
   CalendarCheck,
-  CalendarDays,
-  ClipboardList,
   Dumbbell,
   LayoutDashboard,
   ListChecks,
   LogOut,
   Menu,
   PlusCircle,
-  Receipt,
   RotateCcw,
   Search,
   ShieldCheck,
   User,
-  Users,
-  UserCog,
   Wallet,
   X,
 } from 'lucide-react';
@@ -29,6 +23,7 @@ import { resetDb } from '../mock/db';
 import type { Role } from '../types';
 import { fmtDateTime } from '../utils/format';
 import { TODAY } from '../config';
+import { ThemeToggle } from '../theme/ThemeContext';
 
 interface NavItem {
   to: string;
@@ -38,7 +33,7 @@ interface NavItem {
 }
 
 const i = 'h-4 w-4';
-const NAV: Record<Role, NavItem[]> = {
+const NAV: Partial<Record<Role, NavItem[]>> = {
   member: [
     { to: '/member', label: 'Dashboard', icon: <LayoutDashboard className={i} />, end: true },
     { to: '/member/trainers', label: 'Book a trainer', icon: <Dumbbell className={i} /> },
@@ -46,27 +41,12 @@ const NAV: Record<Role, NavItem[]> = {
     { to: '/member/bookings', label: 'My bookings', icon: <ListChecks className={i} /> },
     { to: '/member/profile', label: 'Profile & QR', icon: <User className={i} /> },
   ],
-  trainer: [
-    { to: '/trainer', label: 'My schedule', icon: <CalendarDays className={i} />, end: true },
-    { to: '/trainer/sessions', label: 'Sessions', icon: <ClipboardList className={i} /> },
-    { to: '/trainer/stats', label: 'Stats', icon: <BarChart3 className={i} /> },
-  ],
   receptionist: [
     { to: '/reception', label: 'Today', icon: <CalendarCheck className={i} />, end: true },
     { to: '/reception/bookings', label: 'All bookings', icon: <ListChecks className={i} /> },
     { to: '/reception/unpaid', label: 'Unpaid bookings', icon: <Wallet className={i} /> },
     { to: '/reception/members', label: 'Member lookup', icon: <Search className={i} /> },
     { to: '/reception/new', label: 'New booking', icon: <PlusCircle className={i} /> },
-  ],
-  admin: [
-    { to: '/admin', label: 'Overview', icon: <LayoutDashboard className={i} />, end: true },
-    { to: '/admin/bookings', label: 'Bookings', icon: <ListChecks className={i} /> },
-    { to: '/admin/payments', label: 'Payments log', icon: <Receipt className={i} /> },
-    { to: '/admin/trainers', label: 'Trainers', icon: <Dumbbell className={i} /> },
-    { to: '/admin/halls', label: 'Halls', icon: <Building2 className={i} /> },
-    { to: '/admin/members', label: 'Members', icon: <Users className={i} /> },
-    { to: '/admin/reports', label: 'Reports', icon: <BarChart3 className={i} /> },
-    { to: '/admin/staff', label: 'Staff accounts', icon: <UserCog className={i} /> },
   ],
 };
 
@@ -76,7 +56,7 @@ export function AppLayout() {
   const [open, setOpen] = useState(false);
   if (!user) return null;
 
-  const items = NAV[user.role];
+  const items = NAV[user.role] ?? [];
 
   const switchRole = async (role: Role) => {
     const demo = DEMO_ACCOUNTS.find((d) => d.role === role)!;
@@ -91,13 +71,13 @@ export function AppLayout() {
 
   const sidebar = (
     <nav className="flex h-full flex-col gap-1 p-4">
-      <div className="mb-5 flex items-center gap-2 px-2 text-white">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-ink bg-sun text-ink">
+      <div className="mb-6 flex items-center gap-3 px-2">
+        <span className="flex h-9 w-9 items-center justify-center rounded-md bg-brand text-onaccent">
           <Dumbbell className="h-5 w-5" />
         </span>
-        <span className="font-display text-lg font-extrabold leading-tight">
+        <span className="font-display text-lg font-bold uppercase leading-tight tracking-wide">
           Gym Booking
-          <span className="block text-xs font-medium text-white/80">{ROLE_LABEL[user.role]} area</span>
+          <span className="block font-body text-[11px] font-medium normal-case tracking-normal text-ink/50">{ROLE_LABEL[user.role]} area</span>
         </span>
       </div>
       {items.map((it) => (
@@ -107,8 +87,8 @@ export function AppLayout() {
           end={it.end}
           onClick={() => setOpen(false)}
           className={({ isActive }) =>
-            `flex items-center gap-3 rounded-xl border-2 px-3 py-2 text-sm font-bold transition ${
-              isActive ? 'border-ink bg-sun text-ink shadow-hard-sm' : 'border-transparent text-white hover:bg-white/15'
+            `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition ${
+              isActive ? 'bg-brand text-onaccent' : 'text-ink/70 hover:bg-sun-soft hover:text-ink'
             }`
           }
         >
@@ -116,24 +96,24 @@ export function AppLayout() {
           {it.label}
         </NavLink>
       ))}
-      <div className="mt-auto rounded-xl bg-white/15 p-3 text-xs text-white">
-        <p className="flex items-center gap-1 font-bold">
-          <ShieldCheck className="h-3 w-3" /> Demo clock
+      <div className="mt-auto rounded-md border border-line bg-cream p-3 text-xs">
+        <p className="flex items-center gap-1 font-semibold uppercase tracking-wide text-ink/70">
+          <ShieldCheck className="h-3 w-3 text-brand-dark" /> Demo clock
         </p>
-        <p className="mt-0.5 text-white/90">{fmtDateTime(TODAY)} (fixed for the sample data)</p>
+        <p className="mt-0.5 text-ink/50">{fmtDateTime(TODAY)} (fixed for the sample data)</p>
       </div>
     </nav>
   );
 
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 bg-mint lg:block">{sidebar}</aside>
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-r border-line bg-white lg:block">{sidebar}</aside>
 
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-ink/50" onClick={() => setOpen(false)} />
-          <aside className="relative h-full w-64 bg-mint">
-            <button className="absolute right-3 top-3 text-white" onClick={() => setOpen(false)} aria-label="Close menu">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
+          <aside className="relative h-full w-64 border-r border-line bg-white">
+            <button className="absolute right-3 top-3 text-ink/60 hover:text-ink" onClick={() => setOpen(false)} aria-label="Close menu">
               <X className="h-5 w-5" />
             </button>
             {sidebar}
@@ -142,8 +122,8 @@ export function AppLayout() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex flex-wrap items-center gap-3 border-b-2 border-ink bg-white px-4 py-3">
-          <button className="rounded-lg border-2 border-ink p-1.5 lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu">
+        <header className="sticky top-0 z-30 flex flex-wrap items-center gap-3 border-b border-line bg-cream/80 px-4 py-3 backdrop-blur">
+          <button className="rounded-md border border-line p-1.5 lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu">
             <Menu className="h-5 w-5" />
           </button>
           <div className="mr-auto min-w-0">
@@ -152,11 +132,11 @@ export function AppLayout() {
           </div>
 
           {import.meta.env.DEV && (
-            <div className="flex items-center gap-2 rounded-xl border-2 border-dashed border-brand bg-brand-soft px-2 py-1 text-xs">
+            <div className="flex items-center gap-2 rounded-md border border-dashed border-brand/60 bg-brand-soft px-2 py-1 text-xs">
               <span className="font-bold text-brand-dark">DEV</span>
               <select
                 aria-label="Switch role (dev only)"
-                className="rounded-lg border border-ink/20 bg-white px-1 py-1 font-bold"
+                className="rounded border border-line bg-white px-1 py-1 font-semibold text-ink"
                 value={user.role}
                 onChange={(e) => switchRole(e.target.value as Role)}
               >
@@ -172,6 +152,7 @@ export function AppLayout() {
             </div>
           )}
 
+          <ThemeToggle />
           <button
             className="btn-ghost btn-sm"
             onClick={() => {

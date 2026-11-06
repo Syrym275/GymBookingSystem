@@ -19,16 +19,17 @@ export interface DemoAccount {
 
 export const DEMO_ACCOUNTS: DemoAccount[] = [
   { role: 'member', label: 'Member', name: 'Aruzhan Bekova', email: 'aruzhan.bekova@example.kz', password: DEMO_PASSWORD, note: 'Book, pay, manage bookings' },
-  { role: 'trainer', label: 'Trainer', name: 'Aigerim Sadykova', email: 'aigerim.sadykova@gym.kz', password: DEMO_PASSWORD, note: 'Schedule, attendance, stats' },
   { role: 'receptionist', label: 'Receptionist', name: 'Anel Rakhimova', email: 'reception@gym.kz', password: DEMO_PASSWORD, note: 'Today, lookups, unpaid' },
-  { role: 'admin', label: 'Admin / Manager', name: 'Madi Akhmetov', email: 'manager@gym.kz', password: DEMO_PASSWORD, note: 'Everything + reports' },
 ];
+
+// Trainer and admin areas are hidden for now, so only these roles can sign in.
+export const ENABLED_ROLES: Role[] = ['member', 'receptionist'];
 
 export function authenticate(email: string, password: string): CurrentUser | null {
   const u = getDb().users.find(
     (x) => x.is_active && x.email.toLowerCase() === email.trim().toLowerCase() && x.password === password,
   );
-  if (!u) return null;
+  if (!u || !ENABLED_ROLES.includes(u.role)) return null;
   return toCurrent(u);
 }
 

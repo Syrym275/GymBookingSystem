@@ -35,3 +35,4 @@ export async function getPublicCatalog(): Promise<PublicCatalog> {
       .map(({ hall_id, hall_name, capacity, hourly_rate_kzt }) => ({ hall_id, hall_name, capacity, hourly_rate_kzt })),
   });
 }
+
