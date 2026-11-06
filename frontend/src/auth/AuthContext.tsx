@@ -28,7 +28,7 @@ import { ApiError } from '../api/ApiError';
 import { delay } from '../api/helpers';
 import { setSessionUser } from '../api/session';
 import type { CurrentUser } from '../types';
-import { authenticate, registerMember, type RegisterInput } from './mockUsers';
+import { authenticate, ENABLED_ROLES, registerMember, type RegisterInput } from './mockUsers';
 
 const STORAGE_KEY = 'gbs_current_user';
 
@@ -44,7 +44,8 @@ const AuthContext = createContext<AuthValue | null>(null);
 function readStored(): CurrentUser | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as CurrentUser) : null;
+    const u = raw ? (JSON.parse(raw) as CurrentUser) : null;
+    return u && ENABLED_ROLES.includes(u.role) ? u : null;
   } catch {
     return null;
   }

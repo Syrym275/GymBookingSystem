@@ -50,7 +50,7 @@ export default function Profile() {
         </div>
         <div className="card flex flex-col items-center bg-sun-soft/60 text-center">
           <h2 className="mb-3 text-lg font-extrabold">Your check-in QR</h2>
-          <div className="rounded-2xl border-2 border-ink bg-white p-3 shadow-hard-sm">
+          <div className="rounded-xl border border-line bg-white p-3 shadow-hard-sm">
             <QrCode token={data.qr_code_token ?? data.member_id.toString()} size={210} />
           </div>
           <p className="mt-3 font-mono text-xs font-bold">{data.qr_code_token}</p>

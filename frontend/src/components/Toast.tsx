@@ -35,7 +35,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             role="status"
-            className={`pointer-events-auto flex items-start gap-2 rounded-xl border-2 border-ink px-4 py-3 text-sm font-medium shadow-hard ${
+            className={`pointer-events-auto flex items-start gap-2 rounded-xl border border-line px-4 py-3 text-sm font-medium shadow-hard ${
               t.type === 'success' ? 'bg-mint-soft' : 'bg-berry-soft'
             }`}
           >

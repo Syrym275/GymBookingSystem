@@ -49,7 +49,7 @@ export function DataTable<T>({ rows, columns, rowKey, pageSize = 10, initialSort
   if (!rows.length) return <>{empty}</>;
 
   return (
-    <div className={`overflow-hidden rounded-2xl border-2 border-ink bg-white shadow-hard transition-opacity ${busy ? 'opacity-60' : ''}`}>
+    <div className={`overflow-hidden rounded-xl border border-line bg-white shadow-hard transition-opacity ${busy ? 'opacity-60' : ''}`}>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="bg-sun-soft text-xs uppercase tracking-wide text-ink/70">
@@ -88,7 +88,7 @@ export function DataTable<T>({ rows, columns, rowKey, pageSize = 10, initialSort
         </table>
       </div>
       {pages > 1 && (
-        <div className="flex items-center justify-between border-t-2 border-ink/10 px-4 py-2 text-xs text-ink/70">
+        <div className="flex items-center justify-between border-t border-ink/10 px-4 py-2 text-xs text-ink/70">
           <span>
             {(cur - 1) * pageSize + 1}–{Math.min(cur * pageSize, sorted.length)} of {sorted.length}
           </span>
