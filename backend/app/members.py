@@ -1,9 +1,8 @@
-import os
-
 import psycopg
 from fastapi import APIRouter, HTTPException
 from psycopg.rows import dict_row
 
+from .db import connect
 from .models import MemberDirectoryResponse, MemberResponse
 
 
@@ -15,8 +14,7 @@ def list_members(q: str = "") -> list[MemberDirectoryResponse]:
     needle = q.strip().lower()
     digits = "".join(character for character in needle if character.isdigit())
     try:
-        with psycopg.connect(
-            os.environ["DATABASE_URL"],
+        with connect(
             row_factory=dict_row,
         ) as connection:
             with connection.cursor() as cursor:
@@ -42,8 +40,7 @@ def list_members(q: str = "") -> list[MemberDirectoryResponse]:
 @router.get("/{member_id}", response_model=MemberResponse)
 def get_member(member_id: int) -> MemberResponse:
     try:
-        with psycopg.connect(
-            os.environ["DATABASE_URL"],
+        with connect(
             row_factory=dict_row,
         ) as connection:
             with connection.cursor() as cursor:

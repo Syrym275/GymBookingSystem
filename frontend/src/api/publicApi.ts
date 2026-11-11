@@ -19,6 +19,33 @@ export interface PublicCatalog {
   halls: PublicHall[];
 }
 
+export interface TrainerRegistrationInput {
+  full_name: string;
+  email: string;
+  password: string;
+  specialization: string;
+  session_price_kzt: number;
+}
+
+/** Saves a trainer for approval. Does not sign them in. */
+export async function registerTrainer(input: TrainerRegistrationInput): Promise<void> {
+  const fallback = 'Could not send your registration. Please try again shortly.';
+  let response: Response;
+  try {
+    response = await fetch('/api/auth/register/trainer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+  } catch {
+    throw new Error(fallback);
+  }
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new Error(typeof data?.detail === 'string' ? data.detail : fallback);
+  }
+}
+
 export async function getPublicCatalog(): Promise<PublicCatalog> {
   const baseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
   let response: Response;

@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Annotated, Literal
 from datetime import date, datetime
 
-from pydantic import BaseModel, Field, PlainSerializer
+from pydantic import BaseModel, Field, PlainSerializer, model_validator
 
 
 # PostgreSQL NUMERIC(10,2) in Python; JSON numbers keep the React contract.
@@ -42,8 +42,23 @@ class RegisterRequest(BaseModel):
     full_name: str = Field(min_length=2, max_length=100)
     email: str = Field(min_length=5, max_length=255)
     phone: str = Field(min_length=10, max_length=20)
-    password: str = Field(min_length=6, max_length=72)
+    password: str = Field(min_length=8, max_length=72)
     membership_plan: Literal["monthly", "quarterly", "annual"]
+
+
+class TrainerRegisterRequest(BaseModel):
+    full_name: str = Field(min_length=2, max_length=100)
+    email: str = Field(min_length=5, max_length=255)
+    password: str = Field(min_length=8, max_length=72)
+    specialization: str = Field(min_length=2, max_length=60)
+    session_price_kzt: Money
+
+
+class TrainerRegistrationResponse(BaseModel):
+    trainer_id: int
+    full_name: str
+    email: str
+    status: Literal["pending_approval"] = "pending_approval"
 
 
 class CurrentUserResponse(BaseModel):
@@ -84,6 +99,18 @@ class BookingCreateRequest(BaseModel):
     hall_id: int | None = None
     start_time: datetime
     end_time: datetime
+
+    @model_validator(mode="after")
+    def check_resource_and_times(self) -> "BookingCreateRequest":
+        # The database enforces these too; checking here gives a clear message.
+        if self.end_time <= self.start_time:
+            raise ValueError("The end time must be after the start time.")
+        if self.booking_type == "training":
+            if self.trainer_id is None or self.hall_id is not None:
+                raise ValueError("A training booking needs a trainer and no hall.")
+        elif self.hall_id is None or self.trainer_id is not None:
+            raise ValueError("A hall booking needs a hall and no trainer.")
+        return self
 
 
 class BookingResponse(BaseModel):

@@ -122,22 +122,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(async (input: RegisterInput) => {
-  const response = await fetch('/api/auth/register', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(input),
-  });
+  let response: Response;
+  try {
+    response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    });
+  } catch {
+    throw new ApiError('VALIDATION', 'Could not reach the registration service. Check that the backend is running.');
+  }
 
-  const data = await response.json();
+  // A proxy or server crash can send an empty or non-JSON body.
+  const data = (await response.json().catch(() => ({}))) as { detail?: unknown } & Partial<CurrentUser>;
 
   if (!response.ok) {
     throw new ApiError(
       'VALIDATION',
       typeof data.detail === 'string'
         ? data.detail
-        : 'Registration failed.',
+        : response.status >= 500
+          ? 'Registration is temporarily unavailable. Check that the backend is running.'
+          : 'Registration failed.',
     );
   }
 

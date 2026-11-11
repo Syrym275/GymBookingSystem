@@ -1,10 +1,11 @@
-import os
+import logging
 import secrets
 
 import psycopg
 from fastapi import APIRouter, HTTPException
 from psycopg.rows import dict_row
 
+from .db import connect
 from .models import (
     BookingResponse,
     PaymentRequest,
@@ -14,6 +15,7 @@ from .models import (
 
 
 router = APIRouter(prefix="/bookings", tags=["Payments"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/{booking_id}/payment", response_model=PayResultResponse)
@@ -22,8 +24,7 @@ def pay_booking(
     input: PaymentRequest,
 ) -> PayResultResponse:
     try:
-        with psycopg.connect(
-            os.environ["DATABASE_URL"],
+        with connect(
             row_factory=dict_row,
         ) as connection:
             with connection.cursor() as cursor:
@@ -148,7 +149,7 @@ def pay_booking(
     except HTTPException:
         raise
     except psycopg.Error as error:
-        print("PAYMENT DATABASE ERROR:", error.sqlstate, error)
+        logger.exception("Payment database error (SQLSTATE %s)", error.sqlstate)
 
         raise HTTPException(
             status_code=503,

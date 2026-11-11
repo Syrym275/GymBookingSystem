@@ -10,3 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     CONSTRAINT chk_user_role
         CHECK (role IN ('member', 'trainer', 'receptionist', 'admin'))
 );
+
+-- Links a trainer's login to their trainers row. Safe to run on an existing database.
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS trainer_id INTEGER UNIQUE REFERENCES trainers(trainer_id);

@@ -1,4 +1,3 @@
-import os
 import re
 import secrets
 import logging
@@ -8,11 +7,49 @@ import psycopg
 from fastapi import APIRouter, HTTPException
 from psycopg.errors import UniqueViolation
 
-from .models import CurrentUserResponse, LoginRequest, RegisterRequest
+from .db import connect, is_valid_email
+from .models import (
+    CurrentUserResponse,
+    LoginRequest,
+    RegisterRequest,
+    TrainerRegisterRequest,
+    TrainerRegistrationResponse,
+)
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 logger = logging.getLogger(__name__)
+
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def check_new_password(password: str) -> None:
+    """Applies to new passwords only, so older accounts can still log in."""
+    has_capital = any(char.isupper() for char in password)
+    has_symbol = any(not char.isalnum() and not char.isspace() for char in password)
+
+    if len(password) < 8 or not has_capital or not has_symbol:
+        raise HTTPException(
+            status_code=422,
+            detail="Password must be at least 8 characters and include a capital letter and a symbol.",
+        )
+
+    # bcrypt only accepts 72 bytes; non-Latin letters take 2 or more bytes each.
+    if len(password.encode("utf-8")) > 72:
+        raise HTTPException(
+            status_code=422,
+            detail="Password is too long. Use at most 72 bytes (about 36 non-Latin letters).",
+        )
+
+
+def database_unavailable(action: str) -> HTTPException:
+    logger.exception("%s database query failed", action)
+    return HTTPException(
+        status_code=503,
+        detail=f"{action} is temporarily unavailable. Check the backend log.",
+    )
 
 
 def normalize_phone(raw: str) -> str | None:
@@ -40,7 +77,10 @@ def register(input: RegisterRequest) -> CurrentUserResponse:
     email = input.email.strip().lower()
     phone = normalize_phone(input.phone)
 
-    if not re.fullmatch(r"\S+@\S+\.\S+", email):
+    if len(full_name) < 2:
+        raise HTTPException(status_code=422, detail="Please enter your full name.")
+
+    if not is_valid_email(email):
         raise HTTPException(status_code=422, detail="Please enter a valid email.")
 
     if phone is None:
@@ -49,15 +89,13 @@ def register(input: RegisterRequest) -> CurrentUserResponse:
             detail="Phone must be a Kazakhstan number.",
         )
 
-    password_hash = bcrypt.hashpw(
-        input.password.encode("utf-8"),
-        bcrypt.gensalt(),
-    ).decode("utf-8")
+    check_new_password(input.password)
+    password_hash = hash_password(input.password)
 
     qr_code_token = secrets.token_hex(32)
 
     try:
-        with psycopg.connect(os.environ["DATABASE_URL"]) as connection:
+        with connect() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
@@ -127,6 +165,79 @@ def register(input: RegisterRequest) -> CurrentUserResponse:
             status_code=409,
             detail="An account with this email or phone already exists.",
         ) from None
+    except psycopg.Error:
+        raise database_unavailable("Registration") from None
+
+
+@router.post(
+    "/register/trainer",
+    response_model=TrainerRegistrationResponse,
+    status_code=201,
+)
+def register_trainer(input: TrainerRegisterRequest) -> TrainerRegistrationResponse:
+    full_name = " ".join(input.full_name.split())
+    specialization = " ".join(input.specialization.split())
+    email = input.email.strip().lower()
+
+    if len(full_name) < 2:
+        raise HTTPException(status_code=422, detail="Please enter your full name.")
+
+    if len(specialization) < 2:
+        raise HTTPException(status_code=422, detail="Please enter your specialization.")
+
+    if not is_valid_email(email):
+        raise HTTPException(status_code=422, detail="Please enter a valid email.")
+
+    check_new_password(input.password)
+    password_hash = hash_password(input.password)
+
+    try:
+        with connect() as connection:
+            with connection.cursor() as cursor:
+                # Inactive trainers stay off the public catalogue until approved.
+                cursor.execute(
+                    """
+                    INSERT INTO trainers (
+                        full_name,
+                        specialization,
+                        session_price_kzt,
+                        is_active
+                    )
+                    VALUES (%s, %s, %s, FALSE)
+                    RETURNING trainer_id
+                    """,
+                    (full_name, specialization, input.session_price_kzt),
+                )
+
+                trainer_id = cursor.fetchone()[0]
+
+                cursor.execute(
+                    """
+                    INSERT INTO users (
+                        email,
+                        password_hash,
+                        role,
+                        trainer_id
+                    )
+                    VALUES (%s, %s, 'trainer', %s)
+                    """,
+                    (email, password_hash, trainer_id),
+                )
+
+        return TrainerRegistrationResponse(
+            trainer_id=trainer_id,
+            full_name=full_name,
+            email=email,
+        )
+
+    except UniqueViolation:
+        raise HTTPException(
+            status_code=409,
+            detail="An account with this email already exists.",
+        ) from None
+    except psycopg.Error:
+        raise database_unavailable("Trainer registration") from None
+
 
 @router.post(
     "/login",
@@ -136,7 +247,7 @@ def login(input: LoginRequest) -> CurrentUserResponse:
     email = input.email.strip().lower()
 
     try:
-        with psycopg.connect(os.environ["DATABASE_URL"]) as connection:
+        with connect() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
@@ -159,11 +270,6 @@ def login(input: LoginRequest) -> CurrentUserResponse:
                 )
 
                 row = cursor.fetchone()
-    except KeyError:
-        raise HTTPException(
-            status_code=503,
-            detail="Login service is missing its database configuration.",
-        ) from None
     except psycopg.Error:
         logger.exception("Login database query failed")
         raise HTTPException(
@@ -187,6 +293,12 @@ def login(input: LoginRequest) -> CurrentUserResponse:
         raise HTTPException(
             status_code=401,
             detail="Wrong email or password.",
+        )
+
+    if row[3] == "trainer":
+        raise HTTPException(
+            status_code=403,
+            detail="Your trainer registration is saved, but trainer sign-in is not available yet.",
         )
 
     return CurrentUserResponse(

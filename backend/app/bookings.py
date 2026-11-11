@@ -1,4 +1,3 @@
-import os
 from decimal import Decimal
 from datetime import date, datetime, time, timedelta
 from typing import Literal
@@ -7,6 +6,7 @@ import psycopg
 from fastapi import APIRouter, HTTPException
 from psycopg.rows import dict_row
 
+from .db import connect
 from .models import BookingCreateRequest, BookingResponse
 
 
@@ -26,7 +26,7 @@ def booking_availability(
 
     start_of_day = datetime.combine(date, time.min)
     try:
-        with psycopg.connect(os.environ["DATABASE_URL"]) as connection:
+        with connect() as connection:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT expire_pending_bookings()")
                 taken: list[int] = []
@@ -88,8 +88,7 @@ def database_error(error: psycopg.Error) -> HTTPException:
 @router.post("", response_model=BookingResponse, status_code=201)
 def create_booking(input: BookingCreateRequest) -> BookingResponse:
     try:
-        with psycopg.connect(
-            os.environ["DATABASE_URL"],
+        with connect(
             row_factory=dict_row,
         ) as connection:
             with connection.cursor() as cursor:
@@ -206,8 +205,7 @@ def create_booking(input: BookingCreateRequest) -> BookingResponse:
 @router.get("", response_model=list[BookingResponse])
 def list_member_bookings(member_id: int | None = None) -> list[BookingResponse]:
     try:
-        with psycopg.connect(
-            os.environ["DATABASE_URL"],
+        with connect(
             row_factory=dict_row,
         ) as connection:
             with connection.cursor() as cursor:
@@ -268,8 +266,7 @@ def list_member_bookings(member_id: int | None = None) -> list[BookingResponse]:
 @router.post("/{booking_id}/cancel", response_model=BookingResponse)
 def cancel_booking(booking_id: int) -> BookingResponse:
     try:
-        with psycopg.connect(
-            os.environ["DATABASE_URL"],
+        with connect(
             row_factory=dict_row,
         ) as connection:
             with connection.cursor() as cursor:
@@ -336,8 +333,7 @@ def mark_booking_attendance(
     status: Literal["completed", "no_show"],
 ) -> BookingResponse:
     try:
-        with psycopg.connect(
-            os.environ["DATABASE_URL"],
+        with connect(
             row_factory=dict_row,
         ) as connection:
             with connection.cursor() as cursor:
@@ -391,8 +387,7 @@ def mark_booking_attendance(
 
 def get_booking(booking_id: int) -> BookingResponse:
     try:
-        with psycopg.connect(
-            os.environ["DATABASE_URL"],
+        with connect(
             row_factory=dict_row,
         ) as connection:
             with connection.cursor() as cursor:
@@ -434,8 +429,7 @@ def get_booking(booking_id: int) -> BookingResponse:
 @router.post("/{booking_id}/expire", response_model=BookingResponse)
 def expire_booking(booking_id: int) -> BookingResponse:
     try:
-        with psycopg.connect(
-            os.environ["DATABASE_URL"],
+        with connect(
             row_factory=dict_row,
         ) as connection:
             with connection.cursor() as cursor:
