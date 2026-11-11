@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 from typing import Annotated, Literal
-from datetime import date, datetime
+from datetime import datetime
 
 from pydantic import BaseModel, Field, PlainSerializer
 
@@ -98,13 +98,3 @@ class PaymentResponse(BaseModel):
 class PayResultResponse(BaseModel):
     payment: PaymentResponse
     booking: BookingResponse
-
-class MemberResponse(BaseModel):
-    member_id: int
-    full_name: str
-    email: str
-    phone: str
-    qr_code_token: str
-    membership_plan: Literal["monthly", "quarterly", "annual"]
-    membership_expires_on: date
-    created_at: datetime
