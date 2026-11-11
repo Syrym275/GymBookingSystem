@@ -33,16 +33,29 @@ export async function getMyProfile(): Promise<MemberView> {
 
 /** Reception: name / phone / plan only. Admin: everything. Members and trainers: no access. */
 export async function listMembers(q = ''): Promise<MemberView[]> {
-  await delay();
-  const viewer = requireUser(['receptionist', 'admin']);
-  const needle = q.trim().toLowerCase();
-  const rows = getDb()
-    .members.filter(
-      (m) => !needle || m.full_name.toLowerCase().includes(needle) || m.phone.replace(/\s/g, '').includes(needle.replace(/\s/g, '')),
-    )
-    .sort((a, b) => a.full_name.localeCompare(b.full_name))
-    .map((m) => memberViewFor(m, viewer));
-  return clone(rows);
+  requireUser(['receptionist', 'admin']);
+  const params = new URLSearchParams();
+  if (q.trim()) params.set('q', q.trim());
+  let response: Response;
+  try {
+    const query = params.toString();
+    response = await fetch(`/api/members${query ? `?${query}` : ''}`);
+  } catch {
+    throw new ApiError('VALIDATION', 'Could not load members. Check the backend connection and try again.');
+  }
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new ApiError('VALIDATION', 'The member service returned an invalid response.');
+  }
+  if (!response.ok || !Array.isArray(data)) {
+    const detail = typeof data === 'object' && data !== null && 'detail' in data && typeof data.detail === 'string'
+      ? data.detail
+      : 'Could not load members.';
+    throw new ApiError('VALIDATION', detail);
+  }
+  return data as MemberView[];
 }
 
 export async function getMember(id: number): Promise<MemberView> {

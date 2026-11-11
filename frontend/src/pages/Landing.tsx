@@ -9,6 +9,7 @@ import {
   LogOut,
   Mail,
   MapPin,
+  Navigation,
   Phone,
   Youtube,
 } from "lucide-react";
@@ -54,6 +55,8 @@ const NAV = [
 ];
 
 const HOURS_TEXT = `${hourLabel(OPEN_HOUR)}–${hourLabel(CLOSE_HOUR)}`;
+const MAP_SRC = `https://maps.google.com/maps?q=${encodeURIComponent(CONTACT.mapQuery)}&z=16&output=embed`;
+const initials = (name: string) => name.split(' ').map((part) => part[0]).join('').slice(0, 2);
 
 export default function Landing() {
   const { user, logout } = useAuth();
@@ -219,7 +222,7 @@ export default function Landing() {
           id="trainers"
           className="mx-auto max-w-6xl scroll-mt-20 px-4 py-14 sm:px-6 lg:py-20"
         >
-          <SectionHead title="Personal trainers" note="Choose your coach for a one-hour session." />
+          <SectionHead title="Our trainers" note="Choose your coach for a one-hour personal session." />
           {catalog.loading && <p className="mt-6 text-ink/70" role="status">Loading trainers and halls...</p>}
           {catalog.error && (
             <div className="mt-6" role="alert">
@@ -232,13 +235,28 @@ export default function Landing() {
           )}
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {trainers.map((trainer) => (
-              <article key={trainer.trainer_id} className="flex flex-col rounded-xl border border-line bg-white p-5">
-                <h3 className="text-lg font-bold">{trainer.full_name}</h3>
-                <p className="mt-2 text-sm text-ink/70">{trainer.specialization}</p>
-                <p className="mt-auto pt-4 font-display text-2xl font-bold">
-                  {kzt(trainer.session_price_kzt)} <span className="font-body text-sm font-normal text-ink/60">/ session</span>
-                </p>
-                <Link to={target} className="btn-primary mt-4 min-h-[44px]">Book a session</Link>
+              <article key={trainer.trainer_id} className="flex flex-col overflow-hidden rounded-xl border border-line bg-white">
+                <div className="flex flex-1 flex-col px-5 pt-6 text-center">
+                  <h3 className="font-display text-xl font-bold uppercase tracking-wide">{trainer.full_name}</h3>
+                  <p className="mt-2 text-sm text-ink/70">{trainer.specialization}</p>
+                  <p className="mt-auto pt-5 font-display text-2xl font-bold">
+                    {kzt(trainer.session_price_kzt)} <span className="font-body text-sm font-normal text-ink/60">/ session</span>
+                  </p>
+                </div>
+                <div className="relative mt-5 flex h-36 items-center justify-center overflow-hidden bg-sun-soft" aria-hidden="true">
+                  <svg viewBox="0 0 200 140" className="absolute -left-6 bottom-0 h-full text-brand" fill="none" stroke="currentColor" strokeWidth="20">
+                    <path d="M30 150 L90 80 L150 150" />
+                    <path d="M30 95 L90 25 L150 95" opacity="0.55" />
+                  </svg>
+                  <span className="relative ml-16 flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-ink font-display text-2xl font-bold text-white">
+                    {initials(trainer.full_name)}
+                  </span>
+                </div>
+                <div className="p-5 pt-4">
+                  <Link to={target} className="btn-primary min-h-[44px] w-full" aria-label={`Book a session with ${trainer.full_name}`}>
+                    Book a session
+                  </Link>
+                </div>
               </article>
             ))}
           </div>
@@ -456,6 +474,17 @@ export default function Landing() {
                   {CONTACT.email}
                 </a>
               </li>
+              <li>
+                <a
+                  href={CONTACT.twoGisUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-[44px] items-center gap-2 hover:text-brand-dark"
+                >
+                  <Navigation className="h-4 w-4 shrink-0 text-ink/60" aria-hidden="true" />
+                  Get directions in 2GIS
+                </a>
+              </li>
             </ul>
           </div>
 
@@ -465,6 +494,17 @@ export default function Landing() {
               <Clock className="h-4 w-4 text-ink/60" aria-hidden="true" /> Every
               day, {HOURS_TEXT}
             </p>
+          </div>
+        </div>
+        <div className="mx-auto max-w-6xl px-4 pb-8 sm:px-6">
+          <div className="h-72 overflow-hidden rounded-xl border border-line bg-white sm:h-96">
+            <iframe
+              title={`Google map: ${CONTACT.address}`}
+              src={MAP_SRC}
+              className="h-full w-full border-0"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
           </div>
         </div>
         <div className="border-t border-line">

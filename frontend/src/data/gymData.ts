@@ -96,6 +96,8 @@ export const CONTACT = {
   address: 'Zhk Amal, Almaty',
   phone: '+7 (700) 255-85-47',
   email: 'pulsegym@gmail.com',
+  twoGisUrl: 'https://go.2gis.com/GZIOY',
+  mapQuery: 'Zhk Amal, Almaty',
 };
 
 // Placeholder social links - point them at the real profiles.

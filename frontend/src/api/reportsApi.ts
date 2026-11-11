@@ -2,10 +2,10 @@ import { endOfMonth, endOfWeek, startOfMonth, startOfWeek } from 'date-fns';
 import type { BookingView } from '../types';
 import { OPEN_HOUR, CLOSE_HOUR, TODAY_DATE } from '../config';
 import { getDb } from '../mock/db';
-import { addDaysStr, dateOf, hourLabel, hourOf, isBlocking, isPaidStatus, parseLocal, toDate } from '../utils/format';
+import { addDaysStr, dateOf, hourLabel, hourOf, isPaidStatus, parseLocal, toDate } from '../utils/format';
 import { clone, delay } from './helpers';
 import { requireUser } from './session';
-import { toView } from './views';
+import { listBookings } from './bookingsApi';
 
 export interface HourCount {
   hour: number;
@@ -165,20 +165,23 @@ export interface UnpaidGroup {
 
 /** Pending bookings grouped by member (reception + admin). */
 export async function unpaidMembers(): Promise<UnpaidGroup[]> {
-  await delay();
-  const viewer = requireUser(['receptionist', 'admin']);
-  const db = getDb();
+  requireUser(['receptionist', 'admin']);
+  const pending = await listBookings({ paid: 'unpaid' });
   const groups = new Map<number, UnpaidGroup>();
-  db.bookings
-    .filter((b) => b.status === 'pending' && isBlocking(b.status))
+  pending
     .sort((a, b) => a.start_time.localeCompare(b.start_time))
-    .forEach((b) => {
-      const m = db.members.find((x) => x.member_id === b.member_id)!;
-      const g =
-        groups.get(m.member_id) ??
-        { member_id: m.member_id, full_name: m.full_name, phone: m.phone, membership_expires_on: m.membership_expires_on, bookings: [] };
-      g.bookings.push(toView(b, viewer));
-      groups.set(m.member_id, g);
+    .forEach((booking) => {
+      const memberId = booking.member_id ?? booking.member.member_id;
+      if (memberId === undefined) return;
+      const group = groups.get(memberId) ?? {
+        member_id: memberId,
+        full_name: booking.member.full_name,
+        phone: booking.member.phone ?? '',
+        membership_expires_on: booking.member.membership_expires_on ?? '',
+        bookings: [],
+      };
+      group.bookings.push(booking);
+      groups.set(memberId, group);
     });
   return clone([...groups.values()].sort((a, b) => b.bookings.length - a.bookings.length || a.full_name.localeCompare(b.full_name)));
 }

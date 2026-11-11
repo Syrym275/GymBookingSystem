@@ -52,6 +52,9 @@ export interface Booking {
   price_kzt: number;
   created_at: string;
   payment_expires_at?: string | null;
+  payment_status?: PaymentStatus | null;
+  payment_method?: PaymentMethod | null;
+  paid_at?: string | null;
 }
 
 export interface Payment {

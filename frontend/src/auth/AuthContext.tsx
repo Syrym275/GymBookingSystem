@@ -27,7 +27,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { ApiError } from '../api/ApiError';
 import { setSessionUser } from '../api/session';
 import type { CurrentUser } from '../types';
-import { ENABLED_ROLES, type RegisterInput } from './mockUsers';
+import { authenticate, ENABLED_ROLES, type RegisterInput } from './mockUsers';
 
 const STORAGE_KEY = 'gbs_current_user';
 
@@ -67,33 +67,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const login = useCallback(async (email: string, password: string) => {
-  const response = await fetch('/api/auth/login', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ email, password }),
-  });
+    const signIn = (found: CurrentUser) => {
+      setSessionUser(found);
+      writeStored(found);
+      setUser(found);
+      return found;
+    };
 
-  const data = await response.json();
+    let response: Response;
+    try {
+      response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+    } catch {
+      const demoUser = import.meta.env.DEV ? authenticate(email, password) : null;
+      if (demoUser) return signIn(demoUser);
+      throw new ApiError('AUTH', 'Could not reach the sign-in service. Check that the backend is running.');
+    }
 
-  if (!response.ok) {
-    throw new ApiError(
-      'AUTH',
-      typeof data.detail === 'string'
-        ? data.detail
-        : 'Wrong email or password.',
-    );
-  }
+    const responseText = await response.text();
+    // The receptionist demo exists in the local seed, not necessarily in PostgreSQL.
+    if (!response.ok && import.meta.env.DEV) {
+      const demoUser = authenticate(email, password);
+      if (demoUser) return signIn(demoUser);
+    }
 
-  const found = data as CurrentUser;
+    let data: { detail?: unknown } & Partial<CurrentUser>;
+    try {
+      data = JSON.parse(responseText) as { detail?: unknown } & Partial<CurrentUser>;
+    } catch {
+      if (!response.ok) {
+        throw new ApiError(
+          'AUTH',
+          `Sign-in failed (HTTP ${response.status}); the backend returned a non-JSON error. Check the backend terminal for the cause.`,
+        );
+      }
+      throw new ApiError('AUTH', `The sign-in service returned an invalid response (HTTP ${response.status}).`);
+    }
 
-  setSessionUser(found);
-  writeStored(found);
-  setUser(found);
+    if (!response.ok) {
+      throw new ApiError(
+        'AUTH',
+        typeof data.detail === 'string'
+          ? data.detail
+          : response.status >= 500
+            ? 'Sign-in is temporarily unavailable. Check that the backend database is configured and running.'
+            : 'Wrong email or password.',
+      );
+    }
 
-  return found;
-}, []);
+    return signIn(data as CurrentUser);
+  }, []);
 
   const register = useCallback(async (input: RegisterInput) => {
   const response = await fetch('/api/auth/register', {

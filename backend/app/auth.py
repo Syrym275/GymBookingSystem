@@ -1,6 +1,7 @@
 import os
 import re
 import secrets
+import logging
 
 import bcrypt
 import psycopg
@@ -11,6 +12,7 @@ from .models import CurrentUserResponse, LoginRequest, RegisterRequest
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+logger = logging.getLogger(__name__)
 
 
 def normalize_phone(raw: str) -> str | None:
@@ -133,31 +135,55 @@ def register(input: RegisterRequest) -> CurrentUserResponse:
 def login(input: LoginRequest) -> CurrentUserResponse:
     email = input.email.strip().lower()
 
-    with psycopg.connect(os.environ["DATABASE_URL"]) as connection:
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT
-                    u.user_id,
-                    u.email,
-                    u.password_hash,
-                    u.role,
-                    u.member_id,
-                    m.full_name
-                FROM users u
-                LEFT JOIN members m ON m.member_id = u.member_id
-                WHERE LOWER(u.email) = %s
-                  AND u.is_active = TRUE
-                """,
-                (email,),
+    try:
+        with psycopg.connect(os.environ["DATABASE_URL"]) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT
+                        u.user_id,
+                        u.email,
+                        u.password_hash,
+                        u.role,
+                        u.member_id,
+                        COALESCE(
+                            m.full_name,
+                            INITCAP(REPLACE(SPLIT_PART(u.email, '@', 1), '.', ' '))
+                        ) AS full_name
+                    FROM users u
+                    LEFT JOIN members m ON m.member_id = u.member_id
+                    WHERE LOWER(BTRIM(u.email)) = %s
+                      AND u.is_active = TRUE
+                    """,
+                    (email,),
+                )
+
+                row = cursor.fetchone()
+    except KeyError:
+        raise HTTPException(
+            status_code=503,
+            detail="Login service is missing its database configuration.",
+        ) from None
+    except psycopg.Error:
+        logger.exception("Login database query failed")
+        raise HTTPException(
+            status_code=503,
+            detail="Login service could not read the account. Check the backend log.",
+        ) from None
+
+    valid_password = False
+    if row is not None:
+        try:
+            valid_password = bcrypt.checkpw(
+                input.password.encode("utf-8"),
+                row[2].encode("utf-8"),
             )
+        except (ValueError, TypeError):
+            # Malformed or legacy hashes should fail as invalid credentials,
+            # rather than turning a login attempt into a server error.
+            valid_password = False
 
-            row = cursor.fetchone()
-
-    if row is None or not bcrypt.checkpw(
-        input.password.encode("utf-8"),
-        row[2].encode("utf-8"),
-    ):
+    if not valid_password:
         raise HTTPException(
             status_code=401,
             detail="Wrong email or password.",

@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 from typing import Annotated, Literal
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field, PlainSerializer
 
@@ -54,6 +54,25 @@ class CurrentUserResponse(BaseModel):
     member_id: int | None = None
     trainer_id: int | None = None
 
+
+class MemberResponse(BaseModel):
+    member_id: int
+    full_name: str
+    email: str
+    phone: str
+    qr_code_token: str
+    membership_plan: Literal["monthly", "quarterly", "annual"]
+    membership_expires_on: date
+    created_at: datetime
+
+
+class MemberDirectoryResponse(BaseModel):
+    member_id: int
+    full_name: str
+    phone: str
+    membership_plan: Literal["monthly", "quarterly", "annual"]
+    membership_expires_on: date
+
 class LoginRequest(BaseModel):
     email: str = Field(min_length=5, max_length=255)
     password: str = Field(min_length=6, max_length=72)
@@ -79,6 +98,15 @@ class BookingResponse(BaseModel):
     price_kzt: Money
     created_at: datetime
     payment_expires_at: datetime | None
+    member_name: str | None = None
+    member_phone: str | None = None
+    member_membership_plan: Literal["monthly", "quarterly", "annual"] | None = None
+    member_membership_expires_on: date | None = None
+    trainer_name: str | None = None
+    hall_name: str | None = None
+    payment_status: Literal["approved", "declined", "refunded"] | None = None
+    payment_method: Literal["card", "nfc", "app", "cash"] | None = None
+    paid_at: datetime | None = None
 
 class PaymentRequest(BaseModel):
     method: Literal["card", "nfc", "app"]

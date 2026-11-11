@@ -66,6 +66,17 @@ export function BookingSlip({ booking, onClose, footer }: { booking: BookingView
                 {PLAN_LABEL[booking.member.membership_plan]} · until {fmtDate(booking.member.membership_expires_on)}
               </Row>
             )}
+            {role === 'receptionist' && (
+              <>
+                <Row label="Payment">{booking.payment_status ?? (booking.paid ? 'paid' : 'unpaid')}</Row>
+                {booking.paid_at && (
+                  <Row label={booking.payment_status === 'refunded' ? 'Originally paid' : 'Paid at'}>
+                    {fmtDateTime(booking.paid_at)}
+                  </Row>
+                )}
+                {booking.payment_method && <Row label="Method">{booking.payment_method}</Row>}
+              </>
+            )}
             {booking.member.email && <Row label="Email">{booking.member.email}</Row>}
             <Row label="Created">{fmtDateTime(booking.created_at)}</Row>
           </div>

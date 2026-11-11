@@ -1,5 +1,6 @@
-// The whole app treats this moment as "now" so the sample data always looks right.
-export const TODAY = '2026-11-02T08:00';
+// Keep booking limits aligned with the user's local calendar and current time.
+const now = new Date();
+export const TODAY = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 export const TODAY_DATE = TODAY.slice(0, 10);
 
 export const OPEN_HOUR = 7; // 07:00
