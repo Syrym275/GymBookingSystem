@@ -2,15 +2,14 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   Clock,
-  Facebook,
   Instagram,
   LayoutDashboard,
   LogIn,
   LogOut,
   Mail,
-  MapPin,
+  MessageCircle,
+  Navigation,
   Phone,
-  Youtube,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { HOME } from "../auth/RequireRole";
@@ -21,10 +20,11 @@ import {
   GYM_NAME,
   HALLS,
   PLANS,
+  INSTAGRAM,
   SERVICES,
-  SOCIALS,
   STEPS,
   TESTIMONIALS,
+  TRAINERS,
   type ServiceIcon,
 } from "../data/gymData";
 import { hourLabel, kzt } from "../utils/format";
@@ -42,16 +42,26 @@ const SERVICE_ICON: Record<
   kettlebell: Kettlebell,
 };
 
-const SOCIAL_ICON = { Instagram, Facebook, YouTube: Youtube };
-
 const NAV = [
   { href: "#services", label: "Services" },
+  { href: "#trainers", label: "Trainers" },
   { href: "#halls", label: "Halls" },
   { href: "#pricing", label: "Pricing" },
   { href: "#contact", label: "Contact" },
 ];
 
 const HOURS_TEXT = `${hourLabel(OPEN_HOUR)}–${hourLabel(CLOSE_HOUR)}`;
+const PHONE_HREF = `tel:${CONTACT.phone.replace(/[^+\d]/g, "")}`;
+const MAP_SRC = `https://maps.google.com/maps?q=${encodeURIComponent(CONTACT.mapQuery)}&z=16&output=embed`;
+
+/** "Aigerim Sadykova" -> "AS" */
+const initials = (name: string) =>
+  name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2);
+const years = (n: number) => `${n} ${n === 1 ? "year" : "years"}`;
 
 export default function Landing() {
   const { user, logout } = useAuth();
@@ -210,6 +220,76 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* ---- Trainers ---- */}
+        <section
+          id="trainers"
+          className="mx-auto max-w-6xl scroll-mt-20 px-4 py-14 sm:px-6 lg:py-20"
+        >
+          <SectionHead
+            title="Our trainers"
+            note="Pick a coach for a one-hour personal session."
+          />
+          <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {TRAINERS.map((t) => (
+              <li
+                key={t.name}
+                className="flex flex-col overflow-hidden rounded-xl border border-line bg-white"
+              >
+                <div className="flex flex-1 flex-col px-5 pt-6 text-center">
+                  <h3 className="font-display text-2xl font-bold uppercase tracking-wide underline decoration-2 underline-offset-[6px]">
+                    {t.name}
+                  </h3>
+                  <p className="mt-2 text-ink/70">{t.specialization}</p>
+                  <dl className="mt-auto grid grid-cols-2 gap-2 pt-5 text-left">
+                    <div className="rounded-lg bg-cream p-3">
+                      <dt className="text-xs text-ink/60">Per session</dt>
+                      <dd className="mt-0.5 font-display text-xl font-bold">
+                        {kzt(t.priceKzt)}
+                      </dd>
+                    </div>
+                    <div className="rounded-lg bg-cream p-3">
+                      <dt className="text-xs text-ink/60">Experience</dt>
+                      <dd className="mt-0.5 font-display text-xl font-bold">
+                        {years(t.experienceYears)}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+
+                {/* Picture area: brand chevrons + initials instead of a photo */}
+                <div
+                  className="relative mt-5 flex h-36 items-center justify-center overflow-hidden bg-sun-soft"
+                  aria-hidden="true"
+                >
+                  <svg
+                    viewBox="0 0 200 140"
+                    className="absolute -left-6 bottom-0 h-full text-brand"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="20"
+                  >
+                    <path d="M30 150 L90 80 L150 150" />
+                    <path d="M30 95 L90 25 L150 95" opacity="0.55" />
+                  </svg>
+                  <span className="relative ml-16 flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-ink font-display text-3xl font-bold text-white dark:border-surface dark:bg-brand dark:text-onaccent">
+                    {initials(t.name)}
+                  </span>
+                </div>
+
+                <div className="p-5 pt-4">
+                  <Link
+                    to={target}
+                    className="btn-primary min-h-[44px] w-full"
+                    aria-label={`Book a session with ${t.name}`}
+                  >
+                    Book a session
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+
         {/* ---- Hall rental: drawn to scale by capacity ---- */}
         <section
           id="halls"
@@ -348,87 +428,81 @@ export default function Landing() {
             </ul>
           </div>
         </section>
+
+        {/* ---- Contact: address, hours, phone, map ---- */}
+        <section id="contact" className="scroll-mt-20">
+          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[1fr_1.35fr] lg:items-center lg:py-20">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-widest text-brand-dark">
+                Visit us
+              </p>
+              <h2 className="mt-2 text-4xl font-bold sm:text-5xl">
+                {CONTACT.address}
+              </h2>
+
+              <ul className="mt-6 space-y-1 text-lg">
+                <li className="flex min-h-[44px] items-center gap-3">
+                  <Clock className="h-6 w-6 shrink-0 text-brand-dark" aria-hidden="true" />
+                  Every day, {HOURS_TEXT}
+                </li>
+                <li>
+                  <a href={PHONE_HREF} className="inline-flex min-h-[44px] items-center gap-3 underline-offset-4 hover:underline">
+                    <Phone className="h-6 w-6 shrink-0 text-brand-dark" aria-hidden="true" />
+                    {CONTACT.phone}
+                  </a>
+                </li>
+                <li>
+                  <a href={`mailto:${CONTACT.email}`} className="inline-flex min-h-[44px] items-center gap-3 underline-offset-4 hover:underline">
+                    <Mail className="h-6 w-6 shrink-0 text-brand-dark" aria-hidden="true" />
+                    {CONTACT.email}
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href={INSTAGRAM.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[44px] items-center gap-3 underline-offset-4 hover:underline"
+                  >
+                    <Instagram className="h-6 w-6 shrink-0 text-brand-dark" aria-hidden="true" />
+                    {INSTAGRAM.label}
+                  </a>
+                </li>
+              </ul>
+
+              <div className="mt-8 flex flex-col gap-3 sm:max-w-sm">
+                <a href={CONTACT.whatsapp} target="_blank" rel="noopener noreferrer" className="contact-btn">
+                  <MessageCircle className="h-5 w-5" aria-hidden="true" />
+                  Message us on WhatsApp
+                </a>
+                <a href={CONTACT.twoGisUrl} target="_blank" rel="noopener noreferrer" className="contact-btn">
+                  <Navigation className="h-5 w-5" aria-hidden="true" />
+                  Get directions in 2GIS
+                </a>
+              </div>
+            </div>
+
+            <div className="h-80 overflow-hidden rounded-2xl border border-line bg-white sm:h-96 lg:h-[440px]">
+              <iframe
+                title={`Map: ${GYM_NAME}, ${CONTACT.address}`}
+                src={MAP_SRC}
+                className="h-full w-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+          </div>
+        </section>
       </main>
 
-      {/* ---- Footer / contact ---- */}
-      <footer id="contact" className="scroll-mt-20">
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-3">
-          <div>
-            <p className="flex items-center gap-2 font-display text-xl font-bold uppercase tracking-wide">
-              <Barbell className="h-5 w-5" /> {GYM_NAME}
-            </p>
-            <p className="mt-2 text-sm text-ink/70">
-              Personal training and hall rental by the hour.
-            </p>
-            <ul className="mt-4 flex gap-2">
-              {SOCIALS.map((s) => {
-                const Icon = SOCIAL_ICON[s.name];
-                return (
-                  <li key={s.name}>
-                    <a
-                      href={s.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`${GYM_NAME} on ${s.name}`}
-                      className="flex h-11 w-11 items-center justify-center rounded-md border border-line text-ink/80 transition hover:border-ink/40 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
-                    >
-                      <Icon className="h-5 w-5" />
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-
-          <div>
-            <h2 className="text-lg font-bold">Contact</h2>
-            <ul className="mt-3 space-y-2 text-sm">
-              <li className="flex items-start gap-2">
-                <MapPin
-                  className="mt-0.5 h-4 w-4 shrink-0 text-ink/60"
-                  aria-hidden="true"
-                />{" "}
-                {CONTACT.address}
-              </li>
-              <li>
-                <a
-                  href={`tel:${CONTACT.phone.replace(/[^+\d]/g, "")}`}
-                  className="inline-flex min-h-[44px] items-center gap-2 hover:text-brand-dark"
-                >
-                  <Phone
-                    className="h-4 w-4 shrink-0 text-ink/60"
-                    aria-hidden="true"
-                  />{" "}
-                  {CONTACT.phone}
-                </a>
-              </li>
-              <li>
-                <a
-                  href={`mailto:${CONTACT.email}`}
-                  className="inline-flex min-h-[44px] items-center gap-2 hover:text-brand-dark"
-                >
-                  <Mail
-                    className="h-4 w-4 shrink-0 text-ink/60"
-                    aria-hidden="true"
-                  />{" "}
-                  {CONTACT.email}
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h2 className="text-lg font-bold">Opening hours</h2>
-            <p className="mt-3 flex items-center gap-2 text-sm">
-              <Clock className="h-4 w-4 text-ink/60" aria-hidden="true" /> Every
-              day, {HOURS_TEXT}
-            </p>
-          </div>
-        </div>
-        <div className="border-t border-line">
-          <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-ink/60 sm:px-6">
-            © {TODAY_DATE.slice(0, 4)} {GYM_NAME} (placeholder name). Demo
-            contact details.
+      {/* ---- Footer ---- */}
+      <footer className="border-t border-line">
+        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p className="flex items-center gap-2 font-display text-lg font-bold uppercase tracking-wide">
+            <Barbell className="h-5 w-5" /> {GYM_NAME}
+          </p>
+          <p className="text-xs text-ink/60">
+            © {TODAY_DATE.slice(0, 4)} {GYM_NAME}. Personal training and hall rental by the hour.
           </p>
         </div>
       </footer>

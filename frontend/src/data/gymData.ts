@@ -44,6 +44,22 @@ export const HALLS: DemoHall[] = [
   { name: 'Boxing Studio', capacity: 15, sizeM2: 70, pricePerHourKzt: 9000 },
 ];
 
+// Trainers shown on the landing page. Names, specialization and price match the mock database seed.
+// TODO: experienceYears are example values - replace them with each trainer's real experience.
+export interface DemoTrainer {
+  name: string;
+  specialization: string;
+  priceKzt: number;
+  experienceYears: number;
+}
+
+export const TRAINERS: DemoTrainer[] = [
+  { name: 'Aigerim Sadykova', specialization: 'Strength training', priceKzt: 8000, experienceYears: 7 },
+  { name: 'Arman Seitkali', specialization: 'Functional training', priceKzt: 6500, experienceYears: 4 },
+  { name: 'Daniyar Ospanov', specialization: 'Boxing', priceKzt: 7000, experienceYears: 9 },
+  { name: 'Zhanna Iskakova', specialization: 'Yoga / Pilates', priceKzt: 6000, experienceYears: 5 },
+];
+
 export const STEPS = [
   { title: 'Create account', text: 'Your name, e-mail and a membership plan. You are signed in straight away.' },
   { title: 'Choose a session or a hall', text: 'Pick a coach for personal training, or a hall for your group.' },
@@ -86,21 +102,22 @@ export const PLANS: Plan[] = [
 
 // Fictional sample reviews for the demo - not real customers.
 export const TESTIMONIALS = [
-  { name: 'Ayana Abishayeva', role: 'Member, 6 months', text: 'I book my 7 a.m. strength session the night before and just show my QR code. No phone calls, no waiting.' },
+  { name: 'Ayana Adil', role: 'Member, 6 months', text: 'I book my 7 a.m. strength session the night before and just show my QR code. No phone calls, no waiting.' },
   { name: 'Bolat Madi', role: 'Football coach', text: 'We rent the Main Hall for team practice twice a week. Seeing the free hours before booking saves a lot of back and forth.' },
-  { name: 'Ismagul Abubakir', role: 'Member, 1 year', text: 'Yoga after work is finally a habit. If I cannot pay right away, the slot waits for me for 15 minutes.' },
+  { name: 'Sultan Bimaganbet', role: 'Member, 1 year', text: 'Yoga after work is finally a habit. If I cannot pay right away, the slot waits for me for 15 minutes.' },
 ];
 
 // Contact details.
 export const CONTACT = {
-  address: 'Zhk Amal, Almaty',
+  address: 'ЖК Амаль, Алматы',
   phone: '+7 (700) 255-85-47',
-  email: 'pulsegym@gmail.com',
+  email: 'hello@pulsegym.example',
+  whatsapp: 'https://wa.me/77002558547',
+  // Our place in 2GIS (used by the "Get directions" button).
+  twoGisUrl: 'https://go.2gis.com/GZIOY',
+  // What the embedded map searches for and pins.
+  mapQuery: 'ЖК Амаль, Алматы',
 };
 
-// Placeholder social links - point them at the real profiles.
-export const SOCIALS: { name: 'Instagram' | 'Facebook' | 'YouTube'; href: string }[] = [
-  { name: 'Instagram', href: 'https://www.instagram.com/' },
-  { name: 'Facebook', href: 'https://www.facebook.com/' },
-  { name: 'YouTube', href: 'https://www.youtube.com/' },
-];
+// Only Instagram for now. TODO: put the real profile link here.
+export const INSTAGRAM = { href: 'https://www.instagram.com/', label: 'Instagram' };
