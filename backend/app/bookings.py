@@ -192,6 +192,7 @@ def list_member_bookings(member_id: int) -> list[BookingResponse]:
 
 
 @router.post("/{booking_id}/cancel", response_model=BookingResponse)
+@router.post("/{booking_id}/cancel", response_model=BookingResponse)
 def cancel_booking(booking_id: int) -> BookingResponse:
     try:
         with psycopg.connect(
@@ -203,10 +204,49 @@ def cancel_booking(booking_id: int) -> BookingResponse:
 
                 cursor.execute(
                     """
+                    SELECT status
+                    FROM bookings
+                    WHERE booking_id = %s
+                    FOR UPDATE
+                    """,
+                    (booking_id,),
+                )
+
+                existing = cursor.fetchone()
+
+                if existing is None:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Booking not found.",
+                    )
+
+                previous_status = existing["status"]
+
+                if previous_status not in {"pending", "confirmed"}:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=(
+                            "Only pending or confirmed bookings "
+                            "can be cancelled."
+                        ),
+                    )
+
+                if previous_status == "confirmed":
+                    cursor.execute(
+                        """
+                        UPDATE payments
+                        SET payment_status = 'refunded'
+                        WHERE booking_id = %s
+                          AND payment_status = 'approved'
+                        """,
+                        (booking_id,),
+                    )
+
+                cursor.execute(
+                    """
                     UPDATE bookings
                     SET status = 'cancelled'
                     WHERE booking_id = %s
-                      AND status = 'pending'
                     RETURNING
                         booking_id,
                         member_id,
@@ -223,32 +263,9 @@ def cancel_booking(booking_id: int) -> BookingResponse:
                     (booking_id,),
                 )
 
-                row = cursor.fetchone()
+                booking = cursor.fetchone()
 
-                if row is None:
-                    cursor.execute(
-                        """
-                        SELECT status
-                        FROM bookings
-                        WHERE booking_id = %s
-                        """,
-                        (booking_id,),
-                    )
-
-                    existing = cursor.fetchone()
-
-                    if existing is None:
-                        raise HTTPException(
-                            status_code=404,
-                            detail="Booking not found.",
-                        )
-
-                    raise HTTPException(
-                        status_code=409,
-                        detail="Only pending bookings can be cancelled.",
-                    )
-
-        return BookingResponse(**row)
+        return BookingResponse(**booking)
 
     except HTTPException:
         raise

@@ -10,11 +10,25 @@ import { memberViewFor } from './views';
 
 /** The signed-in member's own record (includes email + QR token). */
 export async function getMyProfile(): Promise<MemberView> {
-  await delay();
   const viewer = requireUser(['member']);
-  const m = getDb().members.find((x) => x.member_id === viewer.member_id);
-  if (!m) throw new ApiError('NOT_FOUND', 'Member not found.');
-  return clone(memberViewFor(m, viewer));
+
+  if (!viewer.member_id) {
+    throw new ApiError('NOT_FOUND', 'Member not found.');
+  }
+
+  const response = await fetch(`/api/members/${viewer.member_id}`);
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new ApiError(
+      response.status === 404 ? 'NOT_FOUND' : 'VALIDATION',
+      typeof data.detail === 'string'
+        ? data.detail
+        : 'Could not load member profile.',
+    );
+  }
+
+  return data as MemberView;
 }
 
 /** Reception: name / phone / plan only. Admin: everything. Members and trainers: no access. */
