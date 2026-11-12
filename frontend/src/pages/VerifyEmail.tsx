@@ -23,7 +23,6 @@ export default function VerifyEmail() {
   const [busy, setBusy] = useState(false);
   // Coming from login (resend=1) or after a failed send, a new code can be requested at once.
   const [cooldown, setCooldown] = useState(params.get('sent') === '0' || params.get('resend') === '1' ? 0 : RESEND_SECONDS);
-  const [trainerConfirmed, setTrainerConfirmed] = useState(false);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -41,10 +40,6 @@ export default function VerifyEmail() {
     setBusy(true);
     try {
       const verified = await verifyEmail(email.trim(), code);
-      if (verified.role === 'trainer') {
-        setTrainerConfirmed(true);
-        return;
-      }
       toast.success(`Email confirmed. Welcome, ${verified.full_name.split(' ')[0]}!`);
       navigate(HOME[verified.role as keyof typeof HOME] ?? '/', { replace: true });
     } catch (err) {
@@ -70,31 +65,6 @@ export default function VerifyEmail() {
       setBusy(false);
     }
   };
-
-  if (trainerConfirmed) {
-    return (
-      <AuthLayout
-        aside={{
-          title: (
-            <>
-              Thanks for applying. <span className="block text-brand-dark">We will review it soon.</span>
-            </>
-          ),
-          text: 'Approved trainers are listed on PulseGym with their specialization and session price.',
-        }}
-      >
-        <div className="space-y-4 rounded-xl border border-line bg-white p-6">
-          <h1 className="text-4xl font-bold">Email confirmed</h1>
-          <p className="text-ink/70">
-            Your trainer profile is waiting for approval and is not public yet. Trainer sign-in is not available yet.
-          </p>
-          <Link to="/" className="btn-primary inline-flex min-h-[48px] w-full items-center justify-center text-base">
-            Back to home
-          </Link>
-        </div>
-      </AuthLayout>
-    );
-  }
 
   return (
     <AuthLayout

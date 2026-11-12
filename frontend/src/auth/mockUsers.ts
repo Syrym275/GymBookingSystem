@@ -1,5 +1,5 @@
 import { addMonths } from 'date-fns';
-import { DEMO_PASSWORD, TODAY, TODAY_DATE } from '../config';
+import { DEMO_PASSWORD, MEMBER_AREA_ENABLED, TODAY, TODAY_DATE } from '../config';
 import { ApiError } from '../api/ApiError';
 import { getDb, nextId, saveDb } from '../mock/db';
 import { qrToken } from '../mock/seed';
@@ -17,13 +17,18 @@ export interface DemoAccount {
   note: string;
 }
 
-export const DEMO_ACCOUNTS: DemoAccount[] = [
+// Roles that can sign in. The admin area is hidden for now; the member area follows MEMBER_AREA_ENABLED.
+export const ENABLED_ROLES: Role[] = MEMBER_AREA_ENABLED ? ['member', 'trainer', 'receptionist'] : ['trainer', 'receptionist'];
+
+const ALL_DEMO_ACCOUNTS: DemoAccount[] = [
   { role: 'member', label: 'Member', name: 'Aruzhan Bekova', email: 'aruzhan.bekova@example.kz', password: DEMO_PASSWORD, note: 'Book, pay, manage bookings' },
+  { role: 'trainer', label: 'Trainer', name: 'Aigerim Sadykova', email: 'aigerim.sadykova@gym.kz', password: DEMO_PASSWORD, note: 'Schedule, clients, statistics' },
   { role: 'receptionist', label: 'Receptionist', name: 'Anel Rakhimova', email: 'reception@gym.kz', password: DEMO_PASSWORD, note: 'Today, lookups, unpaid' },
 ];
 
-// Trainer and admin areas are hidden for now, so only these roles can sign in.
-export const ENABLED_ROLES: Role[] = ['member', 'receptionist'];
+// Only the demo accounts of roles that can sign in are offered on the login page and in the DEV role switcher.
+// The backend authenticates registered trainers; demo sign-in remains available in mock mode.
+export const DEMO_ACCOUNTS: DemoAccount[] = ALL_DEMO_ACCOUNTS.filter((d) => ENABLED_ROLES.includes(d.role));
 
 export function authenticate(email: string, password: string): CurrentUser | null {
   const u = getDb().users.find(

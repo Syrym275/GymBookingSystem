@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { Check, UserX } from 'lucide-react';
 import { markAttendance } from '../api/bookingsApi';
-import { TODAY_DATE } from '../config';
 import type { BookingView } from '../types';
-import { dateOf } from '../utils/format';
 import { useToast } from './Toast';
 
-/** Eligible = paid (confirmed) and the session day is today or earlier. */
-export const canMarkAttendance = (b: BookingView) => b.status === 'confirmed' && dateOf(b.start_time) <= TODAY_DATE;
+/** Eligible = paid (confirmed) and the session has ended. */
+export const canMarkAttendance = (b: BookingView) => b.status === 'confirmed' && new Date(b.end_time).getTime() <= Date.now();
 
 export function AttendanceButtons({ booking, onDone }: { booking: BookingView; onDone: () => void }) {
   const toast = useToast();

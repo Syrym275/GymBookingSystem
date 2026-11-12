@@ -2,16 +2,14 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   Clock,
-  Facebook,
   Instagram,
   LayoutDashboard,
   LogIn,
   LogOut,
   Mail,
-  MapPin,
+  MessageCircle,
   Navigation,
   Phone,
-  Youtube,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { getPublicCatalog } from "../api/publicApi";
@@ -23,8 +21,8 @@ import {
   CONTACT,
   GYM_NAME,
   PLANS,
+  INSTAGRAM,
   SERVICES,
-  SOCIALS,
   STEPS,
   TESTIMONIALS,
   type ServiceIcon,
@@ -44,8 +42,6 @@ const SERVICE_ICON: Record<
   kettlebell: Kettlebell,
 };
 
-const SOCIAL_ICON = { Instagram, Facebook, YouTube: Youtube };
-
 const NAV = [
   { href: "#services", label: "Services" },
   { href: "#trainers", label: "Trainers" },
@@ -55,8 +51,16 @@ const NAV = [
 ];
 
 const HOURS_TEXT = `${hourLabel(OPEN_HOUR)}–${hourLabel(CLOSE_HOUR)}`;
+const PHONE_HREF = `tel:${CONTACT.phone.replace(/[^+\d]/g, "")}`;
 const MAP_SRC = `https://maps.google.com/maps?q=${encodeURIComponent(CONTACT.mapQuery)}&z=16&output=embed`;
-const initials = (name: string) => name.split(' ').map((part) => part[0]).join('').slice(0, 2);
+
+/** "Aigerim Sadykova" -> "AS" */
+const initials = (name: string) =>
+  name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2);
 
 export default function Landing() {
   const { user, logout } = useAuth();
@@ -218,6 +222,7 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* ---- Trainers ---- */}
         <section
           id="trainers"
           className="mx-auto max-w-6xl scroll-mt-20 px-4 py-14 sm:px-6 lg:py-20"
@@ -408,109 +413,81 @@ export default function Landing() {
             </ul>
           </div>
         </section>
-      </main>
 
-      {/* ---- Footer / contact ---- */}
-      <footer id="contact" className="scroll-mt-20">
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-3">
-          <div>
-            <p className="flex items-center gap-2 font-display text-xl font-bold uppercase tracking-wide">
-              <Barbell className="h-5 w-5" /> {GYM_NAME}
-            </p>
-            <p className="mt-2 text-sm text-ink/70">
-              Personal training and hall rental by the hour.
-            </p>
-            <ul className="mt-4 flex gap-2">
-              {SOCIALS.map((s) => {
-                const Icon = SOCIAL_ICON[s.name];
-                return (
-                  <li key={s.name}>
-                    <a
-                      href={s.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`${GYM_NAME} on ${s.name}`}
-                      className="flex h-11 w-11 items-center justify-center rounded-md border border-line text-ink/80 transition hover:border-ink/40 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60"
-                    >
-                      <Icon className="h-5 w-5" />
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-
-          <div>
-            <h2 className="text-lg font-bold">Contact</h2>
-            <ul className="mt-3 space-y-2 text-sm">
-              <li className="flex items-start gap-2">
-                <MapPin
-                  className="mt-0.5 h-4 w-4 shrink-0 text-ink/60"
-                  aria-hidden="true"
-                />{" "}
+        {/* ---- Contact: address, hours, phone, map ---- */}
+        <section id="contact" className="scroll-mt-20">
+          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[1fr_1.35fr] lg:items-center lg:py-20">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-widest text-brand-dark">
+                Visit us
+              </p>
+              <h2 className="mt-2 text-4xl font-bold sm:text-5xl">
                 {CONTACT.address}
-              </li>
-              <li>
-                <a
-                  href={`tel:${CONTACT.phone.replace(/[^+\d]/g, "")}`}
-                  className="inline-flex min-h-[44px] items-center gap-2 hover:text-brand-dark"
-                >
-                  <Phone
-                    className="h-4 w-4 shrink-0 text-ink/60"
-                    aria-hidden="true"
-                  />{" "}
-                  {CONTACT.phone}
+              </h2>
+
+              <ul className="mt-6 space-y-1 text-lg">
+                <li className="flex min-h-[44px] items-center gap-3">
+                  <Clock className="h-6 w-6 shrink-0 text-brand-dark" aria-hidden="true" />
+                  Every day, {HOURS_TEXT}
+                </li>
+                <li>
+                  <a href={PHONE_HREF} className="inline-flex min-h-[44px] items-center gap-3 underline-offset-4 hover:underline">
+                    <Phone className="h-6 w-6 shrink-0 text-brand-dark" aria-hidden="true" />
+                    {CONTACT.phone}
+                  </a>
+                </li>
+                <li>
+                  <a href={`mailto:${CONTACT.email}`} className="inline-flex min-h-[44px] items-center gap-3 underline-offset-4 hover:underline">
+                    <Mail className="h-6 w-6 shrink-0 text-brand-dark" aria-hidden="true" />
+                    {CONTACT.email}
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href={INSTAGRAM.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[44px] items-center gap-3 underline-offset-4 hover:underline"
+                  >
+                    <Instagram className="h-6 w-6 shrink-0 text-brand-dark" aria-hidden="true" />
+                    {INSTAGRAM.label}
+                  </a>
+                </li>
+              </ul>
+
+              <div className="mt-8 flex flex-col gap-3 sm:max-w-sm">
+                <a href={CONTACT.whatsapp} target="_blank" rel="noopener noreferrer" className="contact-btn">
+                  <MessageCircle className="h-5 w-5" aria-hidden="true" />
+                  Message us on WhatsApp
                 </a>
-              </li>
-              <li>
-                <a
-                  href={`mailto:${CONTACT.email}`}
-                  className="inline-flex min-h-[44px] items-center gap-2 hover:text-brand-dark"
-                >
-                  <Mail
-                    className="h-4 w-4 shrink-0 text-ink/60"
-                    aria-hidden="true"
-                  />{" "}
-                  {CONTACT.email}
-                </a>
-              </li>
-              <li>
-                <a
-                  href={CONTACT.twoGisUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex min-h-[44px] items-center gap-2 hover:text-brand-dark"
-                >
-                  <Navigation className="h-4 w-4 shrink-0 text-ink/60" aria-hidden="true" />
+                <a href={CONTACT.twoGisUrl} target="_blank" rel="noopener noreferrer" className="contact-btn">
+                  <Navigation className="h-5 w-5" aria-hidden="true" />
                   Get directions in 2GIS
                 </a>
-              </li>
-            </ul>
-          </div>
+              </div>
+            </div>
 
-          <div>
-            <h2 className="text-lg font-bold">Opening hours</h2>
-            <p className="mt-3 flex items-center gap-2 text-sm">
-              <Clock className="h-4 w-4 text-ink/60" aria-hidden="true" /> Every
-              day, {HOURS_TEXT}
-            </p>
+            <div className="h-80 overflow-hidden rounded-2xl border border-line bg-white sm:h-96 lg:h-[440px]">
+              <iframe
+                title={`Map: ${GYM_NAME}, ${CONTACT.address}`}
+                src={MAP_SRC}
+                className="h-full w-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
           </div>
-        </div>
-        <div className="mx-auto max-w-6xl px-4 pb-8 sm:px-6">
-          <div className="h-72 overflow-hidden rounded-xl border border-line bg-white sm:h-96">
-            <iframe
-              title={`Google map: ${CONTACT.address}`}
-              src={MAP_SRC}
-              className="h-full w-full border-0"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          </div>
-        </div>
-        <div className="border-t border-line">
-          <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-ink/60 sm:px-6">
-            © {TODAY_DATE.slice(0, 4)} {GYM_NAME} (placeholder name). Demo
-            contact details.
+        </section>
+      </main>
+
+      {/* ---- Footer ---- */}
+      <footer className="border-t border-line">
+        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p className="flex items-center gap-2 font-display text-lg font-bold uppercase tracking-wide">
+            <Barbell className="h-5 w-5" /> {GYM_NAME}
+          </p>
+          <p className="text-xs text-ink/60">
+            © {TODAY_DATE.slice(0, 4)} {GYM_NAME}. Personal training and hall rental by the hour.
           </p>
         </div>
       </footer>

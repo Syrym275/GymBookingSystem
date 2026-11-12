@@ -106,6 +106,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const signIn = (found: CurrentUser) => {
+      if (!ENABLED_ROLES.includes(found.role)) {
+        throw new ApiError('AUTH', 'This type of account cannot sign in yet. It will be available soon.');
+      }
       setSessionUser(found);
       writeStored(found);
       setUser(found);
@@ -166,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyEmail = useCallback(async (email: string, code: string) => {
     const verified = await postJson<CurrentUser>('/auth/verify-email', { email, code }, 'Could not confirm the email.');
-    // Trainers have no app area yet, so they are confirmed but not signed in.
+    // Only roles whose area is switched on are signed in (see ENABLED_ROLES).
     if (ENABLED_ROLES.includes(verified.role)) {
       setSessionUser(verified);
       writeStored(verified);

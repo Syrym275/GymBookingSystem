@@ -57,6 +57,12 @@
 }
 
 @layer components {
+  /* Outlined pill buttons in the contact section (follow the light/dark theme) */
+  .contact-btn {
+    @apply inline-flex min-h-[56px] items-center justify-center gap-2.5 rounded-full border-2 border-ink px-6 text-lg font-semibold text-ink transition
+      hover:border-brand hover:bg-brand hover:text-onaccent focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/40;
+  }
+
   .btn,
   .btn-primary,
   .btn-secondary,

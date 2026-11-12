@@ -40,7 +40,7 @@ def booking_availability(
                             WHERE ((booking_type = %s
                                     AND CASE WHEN booking_type = 'training' THEN trainer_id ELSE hall_id END = %s)
                                    OR member_id = COALESCE(%s::integer, -1))
-                              AND status IN ('pending', 'confirmed')
+                              AND status NOT IN ('cancelled', 'expired')
                               AND start_time < %s AND end_time > %s
                         )
                         """,
@@ -92,6 +92,13 @@ def create_booking(input: BookingCreateRequest) -> BookingResponse:
             row_factory=dict_row,
         ) as connection:
             with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT %s::timestamp <= LOCALTIMESTAMP AS starts_in_past",
+                    (input.start_time,),
+                )
+                if cursor.fetchone()["starts_in_past"]:
+                    raise HTTPException(status_code=409, detail="Bookings must start in the future.")
+
                 cursor.execute("SELECT expire_pending_bookings()")
 
                 if input.booking_type == "training":
@@ -116,6 +123,29 @@ def create_booking(input: BookingCreateRequest) -> BookingResponse:
                     price = resource["session_price_kzt"]
                     trainer_id = input.trainer_id
                     hall_id = None
+
+                    # Serialize API bookings for this trainer without requiring
+                    # UPDATE privilege on the trainers table.
+                    cursor.execute("SELECT pg_advisory_xact_lock(%s, %s)", (2026, trainer_id))
+                    cursor.execute(
+                        """
+                        SELECT EXISTS (
+                            SELECT 1
+                            FROM bookings
+                            WHERE booking_type = 'training'
+                              AND trainer_id = %s
+                              AND status NOT IN ('cancelled', 'expired')
+                              AND start_time < %s
+                              AND end_time > %s
+                        ) AS trainer_busy
+                        """,
+                        (trainer_id, input.end_time, input.start_time),
+                    )
+                    if cursor.fetchone()["trainer_busy"]:
+                        raise HTTPException(
+                            status_code=409,
+                            detail="This trainer is already booked at that time.",
+                        )
 
                 else:
                     cursor.execute(
@@ -203,7 +233,10 @@ def create_booking(input: BookingCreateRequest) -> BookingResponse:
 
 
 @router.get("", response_model=list[BookingResponse])
-def list_member_bookings(member_id: int | None = None) -> list[BookingResponse]:
+def list_member_bookings(
+    member_id: int | None = None,
+    trainer_id: int | None = None,
+) -> list[BookingResponse]:
     try:
         with connect(
             row_factory=dict_row,
@@ -226,7 +259,7 @@ def list_member_bookings(member_id: int | None = None) -> list[BookingResponse]:
                         b.created_at,
                         b.payment_expires_at,
                         m.full_name AS member_name,
-                        m.phone AS member_phone,
+                        CASE WHEN %s::integer IS NULL THEN m.phone ELSE NULL END AS member_phone,
                         m.membership_plan AS member_membership_plan,
                         m.membership_expires_on AS member_membership_expires_on,
                         t.full_name AS trainer_name,
@@ -250,9 +283,10 @@ def list_member_bookings(member_id: int | None = None) -> list[BookingResponse]:
                         LIMIT 1
                     ) AS latest_payment ON TRUE
                     WHERE (%s::integer IS NULL OR b.member_id = %s)
+                      AND (%s::integer IS NULL OR (b.booking_type = 'training' AND b.trainer_id = %s))
                     ORDER BY b.start_time DESC, b.booking_id DESC
                     """,
-                    (member_id, member_id),
+                    (trainer_id, member_id, member_id, trainer_id, trainer_id),
                 )
 
                 rows = cursor.fetchall()
@@ -331,6 +365,7 @@ def cancel_booking(booking_id: int) -> BookingResponse:
 def mark_booking_attendance(
     booking_id: int,
     status: Literal["completed", "no_show"],
+    trainer_id: int | None = None,
 ) -> BookingResponse:
     try:
         with connect(
@@ -342,21 +377,24 @@ def mark_booking_attendance(
                     UPDATE bookings
                     SET status = %s
                     WHERE booking_id = %s
+                      AND (%s::integer IS NULL OR trainer_id = %s)
                       AND status = 'confirmed'
-                      AND start_time::date <= CURRENT_DATE
+                      AND end_time <= LOCALTIMESTAMP
                     RETURNING booking_id
                     """,
-                    (status, booking_id),
+                    (status, booking_id, trainer_id, trainer_id),
                 )
                 updated = cursor.fetchone()
                 if updated is None:
-                    cursor.execute("SELECT status, start_time::date FROM bookings WHERE booking_id = %s", (booking_id,))
+                    cursor.execute("SELECT trainer_id, status, start_time::date FROM bookings WHERE booking_id = %s", (booking_id,))
                     existing = cursor.fetchone()
                     if existing is None:
                         raise HTTPException(status_code=404, detail="Booking not found.")
+                    if trainer_id is not None and existing["trainer_id"] != trainer_id:
+                        raise HTTPException(status_code=403, detail="This is not your session.")
                     raise HTTPException(
                         status_code=409,
-                        detail="Only confirmed bookings on today’s date or earlier can be marked attended.",
+                        detail="Only confirmed sessions that have ended can be marked attended.",
                     )
 
                 cursor.execute(
@@ -364,7 +402,8 @@ def mark_booking_attendance(
                     SELECT
                         b.booking_id, b.member_id, b.booking_type, b.trainer_id, b.hall_id,
                         b.start_time, b.end_time, b.status, b.price_kzt, b.created_at,
-                        b.payment_expires_at, m.full_name AS member_name, m.phone AS member_phone,
+                        b.payment_expires_at, m.full_name AS member_name,
+                        CASE WHEN %s::integer IS NULL THEN m.phone ELSE NULL END AS member_phone,
                         m.membership_plan AS member_membership_plan,
                         m.membership_expires_on AS member_membership_expires_on,
                         t.full_name AS trainer_name, h.hall_name AS hall_name
@@ -374,7 +413,7 @@ def mark_booking_attendance(
                     LEFT JOIN halls h ON h.hall_id = b.hall_id
                     WHERE b.booking_id = %s
                     """,
-                    (booking_id,),
+                    (trainer_id, booking_id),
                 )
                 row = cursor.fetchone()
         return BookingResponse(**row)
@@ -396,19 +435,28 @@ def get_booking(booking_id: int) -> BookingResponse:
                 cursor.execute(
                     """
                     SELECT
-                        booking_id,
-                        member_id,
-                        booking_type,
-                        trainer_id,
-                        hall_id,
-                        start_time,
-                        end_time,
-                        status,
-                        price_kzt,
-                        created_at,
-                        payment_expires_at
-                    FROM bookings
-                    WHERE booking_id = %s
+                        b.booking_id,
+                        b.member_id,
+                        b.booking_type,
+                        b.trainer_id,
+                        b.hall_id,
+                        b.start_time,
+                        b.end_time,
+                        b.status,
+                        b.price_kzt,
+                        b.created_at,
+                        b.payment_expires_at,
+                        m.full_name AS member_name,
+                        m.phone AS member_phone,
+                        m.membership_plan AS member_membership_plan,
+                        m.membership_expires_on AS member_membership_expires_on,
+                        t.full_name AS trainer_name,
+                        h.hall_name AS hall_name
+                    FROM bookings b
+                    JOIN members m ON m.member_id = b.member_id
+                    LEFT JOIN trainers t ON t.trainer_id = b.trainer_id
+                    LEFT JOIN halls h ON h.hall_id = b.hall_id
+                    WHERE b.booking_id = %s
                     """,
                     (booking_id,),
                 )

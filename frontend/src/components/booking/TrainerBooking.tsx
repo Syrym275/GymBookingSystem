@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dumbbell } from 'lucide-react';
 import { createBooking, getTakenHours } from '../../api/bookingsApi';
 import type { Suggestion } from '../../api/ApiError';
@@ -22,7 +22,27 @@ export function TrainerBooking({ memberId, onBooked }: { memberId?: number; onBo
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
 
-  const taken = useAsync(() => (trainerId ? getTakenHours('trainer', trainerId, date, memberId) : Promise.resolve([])), [trainerId, date, memberId]);
+  const [takenHours, setTakenHours] = useState<number[]>([]);
+  const [takenLoading, setTakenLoading] = useState(false);
+  const [takenError, setTakenError] = useState<string | null>(null);
+  const [availabilityVersion, setAvailabilityVersion] = useState(0);
+  useEffect(() => {
+    let current = true;
+    if (!trainerId) {
+      setTakenHours([]);
+      setTakenLoading(false);
+      setTakenError(null);
+      return () => { current = false; };
+    }
+    setTakenHours([]);
+    setTakenLoading(true);
+    setTakenError(null);
+    getTakenHours('trainer', trainerId, date, memberId)
+      .then((hours) => { if (current) setTakenHours(hours); })
+      .catch((cause: unknown) => { if (current) setTakenError(cause instanceof Error ? cause.message : String(cause)); })
+      .finally(() => { if (current) setTakenLoading(false); });
+    return () => { current = false; };
+  }, [trainerId, date, memberId, availabilityVersion]);
   const trainer = trainers.data?.find((t) => t.trainer_id === trainerId);
 
   const submit = async () => {
@@ -40,7 +60,10 @@ export function TrainerBooking({ memberId, onBooked }: { memberId?: number; onBo
       onBooked(b);
     } catch (e) {
       setError(e);
-      taken.reload();
+      setTakenHours([]);
+      setTakenLoading(true);
+      setTakenError(null);
+      setAvailabilityVersion((version) => version + 1);
       setHour(null);
     } finally {
       setBusy(false);
@@ -65,6 +88,11 @@ export function TrainerBooking({ memberId, onBooked }: { memberId?: number; onBo
             <button
               key={t.trainer_id}
               onClick={() => {
+                if (t.trainer_id !== trainerId) {
+                  setTakenHours([]);
+                  setTakenLoading(true);
+                  setTakenError(null);
+                }
                 setTrainerId(t.trainer_id);
                 setHour(null);
                 setError(null);
@@ -107,6 +135,9 @@ export function TrainerBooking({ memberId, onBooked }: { memberId?: number; onBo
                 max={addDaysStr(TODAY_DATE, 90)}
                 onChange={(e) => {
                   if (e.target.value) {
+                    setTakenHours([]);
+                    setTakenLoading(true);
+                    setTakenError(null);
                     setDate(e.target.value);
                     setHour(null);
                     setError(null);
@@ -116,9 +147,13 @@ export function TrainerBooking({ memberId, onBooked }: { memberId?: number; onBo
             </div>
             <div>
               <p className="label">3 · Pick a start time (60 min)</p>
-              <SlotPicker date={date} hours={HOURS} taken={taken.data ?? []} selected={hour} onSelect={setHour} />
-              {taken.loading && <p className="mt-2 text-sm text-ink/60">Checking availability…</p>}
-              {taken.error && <ErrorNote message={taken.error} />}
+              {takenLoading ? (
+                <p className="text-sm text-ink/60">Checking availability…</p>
+              ) : takenError ? (
+                <ErrorNote message={takenError} />
+              ) : (
+                <SlotPicker date={date} hours={HOURS} taken={takenHours} selected={hour} onSelect={setHour} />
+              )}
               <p className="mt-2 text-xs text-ink/50">Striped slots are already booked. Open 07:00–22:00.</p>
             </div>
             <BookingError error={error} onPick={pick} />
@@ -137,7 +172,7 @@ export function TrainerBooking({ memberId, onBooked }: { memberId?: number; onBo
                 </>
               )}
             </div>
-            <button className="btn-primary w-full sm:w-auto" disabled={hour === null || busy || taken.loading || Boolean(taken.error)} onClick={submit}>
+            <button className="btn-primary w-full sm:w-auto" disabled={hour === null || busy || takenLoading || Boolean(takenError)} onClick={submit}>
               {busy ? 'Reserving…' : 'Reserve this slot'}
             </button>
           </div>

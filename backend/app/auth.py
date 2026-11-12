@@ -326,7 +326,10 @@ def verify_email(input: VerifyEmailRequest) -> CurrentUserResponse:
                         ) AS full_name,
                         v.code_hash,
                         v.attempts,
-                        v.expires_at > CURRENT_TIMESTAMP AS code_still_valid
+                        v.expires_at > CURRENT_TIMESTAMP AS code_still_valid,
+                        t.specialization,
+                        t.session_price_kzt,
+                        t.is_active AS trainer_is_active
                     FROM users u
                     LEFT JOIN members m ON m.member_id = u.member_id
                     LEFT JOIN trainers t ON t.trainer_id = u.trainer_id
@@ -382,6 +385,9 @@ def verify_email(input: VerifyEmailRequest) -> CurrentUserResponse:
         member_id=row[3],
         trainer_id=row[4],
         full_name=row[6],
+        trainer_specialization=row[10],
+        trainer_session_price_kzt=row[11],
+        trainer_is_active=row[12],
     )
 
 
@@ -445,13 +451,19 @@ def login(input: LoginRequest) -> CurrentUserResponse:
                         u.password_hash,
                         u.role,
                         u.member_id,
+                        u.trainer_id,
                         COALESCE(
                             m.full_name,
+                            t.full_name,
                             INITCAP(REPLACE(SPLIT_PART(u.email, '@', 1), '.', ' '))
                         ) AS full_name,
+                        t.specialization,
+                        t.session_price_kzt,
+                        t.is_active AS trainer_is_active,
                         u.email_verified
                     FROM users u
                     LEFT JOIN members m ON m.member_id = u.member_id
+                    LEFT JOIN trainers t ON t.trainer_id = u.trainer_id
                     WHERE LOWER(BTRIM(u.email)) = %s
                       AND u.is_active = TRUE
                     """,
@@ -484,7 +496,7 @@ def login(input: LoginRequest) -> CurrentUserResponse:
             detail="Wrong email or password.",
         )
 
-    if not row[6]:
+    if not row[10]:
         # The header lets the frontend offer the confirmation screen.
         raise HTTPException(
             status_code=403,
@@ -492,16 +504,14 @@ def login(input: LoginRequest) -> CurrentUserResponse:
             headers={"X-Error-Code": "email_not_verified"},
         )
 
-    if row[3] == "trainer":
-        raise HTTPException(
-            status_code=403,
-            detail="Your trainer registration is saved, but trainer sign-in is not available yet.",
-        )
-
     return CurrentUserResponse(
         user_id=row[0],
         email=row[1],
         role=row[3],
         member_id=row[4],
-        full_name=row[5],
+        trainer_id=row[5],
+        full_name=row[6],
+        trainer_specialization=row[7],
+        trainer_session_price_kzt=row[8],
+        trainer_is_active=row[9],
     )
