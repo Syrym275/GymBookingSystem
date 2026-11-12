@@ -10,6 +10,7 @@ from .auth import router as auth_router
 from .bookings import router as bookings_router
 from .members import router as members_router
 from .payments import router as payments_router
+from .verification import router as verification_router
 
 from .catalog import data_source, get_catalog
 from .models import HealthResponse, PublicCatalog, PublicHall, PublicTrainer
@@ -52,6 +53,7 @@ app.include_router(auth_router)
 app.include_router(bookings_router)
 app.include_router(members_router)
 app.include_router(payments_router)
+app.include_router(verification_router)
 
 # For the React dev server. This is browser configuration, not authentication.
 app.add_middleware(

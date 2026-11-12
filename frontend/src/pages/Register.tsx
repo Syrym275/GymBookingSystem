@@ -53,7 +53,8 @@ export default function Register() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  if (user) return <Navigate to={HOME[user.role]} replace />;
+  // While submitting, the new member is signed in before we move on to /check-email.
+  if (user && !busy) return <Navigate to={HOME[user.role]} replace />;
 
   const isTrainer = accountType === 'trainer';
 
@@ -76,13 +77,16 @@ export default function Register() {
 
     setBusy(true);
     try {
-      // Both account types confirm their email with a code before they can be used.
-      const { emailSent } = isTrainer
-        ? await registerTrainer({ full_name: fullName, email, password, specialization, session_price_kzt: priceKzt })
-        : await register({ full_name: fullName, email, phone, password, membership_plan: plan });
-      const query = new URLSearchParams({ email: email.trim().toLowerCase() });
-      if (!emailSent) query.set('sent', '0');
-      navigate(`/verify-email?${query}`, { replace: true });
+      const query = new URLSearchParams({ email: email.trim().toLowerCase(), new: '1' });
+      if (isTrainer) {
+        const { verificationEmailSent } = await registerTrainer({ full_name: fullName, email, password, specialization, session_price_kzt: priceKzt });
+        query.set('role', 'trainer');
+        if (!verificationEmailSent) query.set('sent', '0');
+      } else {
+        const u = await register({ full_name: fullName, email, phone, password, membership_plan: plan });
+        if (u.verification_email_sent === false) query.set('sent', '0');
+      }
+      navigate(`/check-email?${query}`, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create the account.');
       setBusy(false);
@@ -110,8 +114,8 @@ export default function Register() {
         <h1 className="text-4xl font-bold">Sign up</h1>
         <p className="mt-1 text-ink/70">
           {isTrainer
-            ? 'Takes a minute. Confirm your email, then your profile is reviewed before it goes public.'
-            : 'Takes a minute. Confirm your email with the code we send, and you are in.'}
+            ? 'Takes a minute. Verify your email, then your profile is reviewed before it goes public.'
+            : 'Takes a minute. You are logged in straight away; verify your email to start booking.'}
         </p>
       </div>
 

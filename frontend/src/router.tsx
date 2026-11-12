@@ -6,6 +6,7 @@ import Landing from './pages/Landing';
 import NotFound from './pages/NotFound';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import CheckEmail from './pages/CheckEmail';
 import VerifyEmail from './pages/VerifyEmail';
 import MemberDashboard from './pages/member/Dashboard';
 import BookTrainer from './pages/member/BookTrainer';
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
   { path: '/', element: <Landing /> }, // logged-in users are sent to their dashboard
   { path: '/login', element: <Login /> },
   { path: '/register', element: <Register /> },
+  { path: '/check-email', element: <CheckEmail /> },
   { path: '/verify-email', element: <VerifyEmail /> },
   ...memberRoutes,
   {

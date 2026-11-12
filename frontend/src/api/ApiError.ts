@@ -6,7 +6,6 @@ export type ApiErrorCode =
   | 'NOT_FOUND'
   | 'FORBIDDEN'
   | 'VALIDATION'
-  | 'UNVERIFIED' // account exists but its email is not confirmed yet
   | 'AUTH';
 
 export interface Suggestion {

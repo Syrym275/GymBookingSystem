@@ -27,8 +27,8 @@ export interface TrainerRegistrationInput {
   session_price_kzt: number;
 }
 
-/** Saves a trainer for approval and emails a confirmation code. Does not sign them in. */
-export async function registerTrainer(input: TrainerRegistrationInput): Promise<{ emailSent: boolean }> {
+/** Saves a trainer for approval and emails a verification link. Does not sign them in. */
+export async function registerTrainer(input: TrainerRegistrationInput): Promise<{ verificationEmailSent: boolean }> {
   const fallback = 'Could not send your registration. Please try again shortly.';
   let response: Response;
   try {
@@ -45,7 +45,7 @@ export async function registerTrainer(input: TrainerRegistrationInput): Promise<
     throw new Error(typeof data?.detail === 'string' ? data.detail : fallback);
   }
   const data = await response.json().catch(() => null);
-  return { emailSent: data?.email_sent !== false };
+  return { verificationEmailSent: data?.verification_email_sent !== false };
 }
 
 export async function getPublicCatalog(): Promise<PublicCatalog> {

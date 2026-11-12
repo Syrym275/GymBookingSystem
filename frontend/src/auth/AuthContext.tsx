@@ -8,9 +8,8 @@
  *      user : CurrentUser | null
  *             { user_id, full_name, email, role, member_id?, trainer_id? }
  *      login(email, password) : Promise<CurrentUser>   (throws ApiError('AUTH', msg) on failure)
- *      register(input) : Promise<PendingRegistration>  (member self sign-up; account needs email confirmation)
- *      verifyEmail(email, code) : Promise<CurrentUser>  (confirms the emailed code; signs members in)
- *      resendCode(email) : Promise<void>
+ *      register(input) : Promise<CurrentUser>  (member self sign-up; signs the new member in, unverified)
+ *      markEmailVerified(email) : void  (after the emailed link is opened)
  *      logout() : void
  *
  *  To connect the real backend replace ONLY the marked parts below:
@@ -33,47 +32,13 @@ import { authenticate, ENABLED_ROLES, type RegisterInput } from './mockUsers';
 
 const STORAGE_KEY = 'gbs_current_user';
 
-export interface PendingRegistration {
-  email: string;
-  /** False when the backend saved the account but could not send the email. */
-  emailSent: boolean;
-}
-
 interface AuthValue {
   user: CurrentUser | null;
   login: (email: string, password: string) => Promise<CurrentUser>;
-  /** Saves the account; it can be used after verifyEmail(). */
-  register: (input: RegisterInput) => Promise<PendingRegistration>;
-  /** Checks the emailed code. Signs the user in when their role has an app area. */
-  verifyEmail: (email: string, code: string) => Promise<CurrentUser>;
-  resendCode: (email: string) => Promise<void>;
+  register: (input: RegisterInput) => Promise<CurrentUser>;
+  /** Updates the signed-in user after their email link was opened (in this or another tab). */
+  markEmailVerified: (email: string) => void;
   logout: () => void;
-}
-
-/** POST JSON to the backend and return the parsed body, or throw ApiError with the backend's message. */
-async function postJson<T>(path: string, body: unknown, fallback: string, code: ApiError['code'] = 'VALIDATION'): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(`/api${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-  } catch {
-    throw new ApiError(code, 'Could not reach the server. Check that the backend is running.');
-  }
-  // A proxy or server crash can send an empty or non-JSON body.
-  const data = (await response.json().catch(() => ({}))) as { detail?: unknown };
-  if (!response.ok) {
-    const detail =
-      typeof data.detail === 'string'
-        ? data.detail
-        : response.status >= 500
-          ? 'The service is temporarily unavailable. Check that the backend is running.'
-          : fallback;
-    throw new ApiError(code, detail);
-  }
-  return data as T;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -150,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!response.ok) {
       throw new ApiError(
-        response.headers.get('X-Error-Code') === 'email_not_verified' ? 'UNVERIFIED' : 'AUTH',
+        'AUTH',
         typeof data.detail === 'string'
           ? data.detail
           : response.status >= 500
@@ -162,24 +127,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return signIn(data as CurrentUser);
   }, []);
 
-  const register = useCallback(async (input: RegisterInput): Promise<PendingRegistration> => {
-    const data = await postJson<{ email: string; email_sent?: boolean }>('/auth/register', input, 'Registration failed.');
-    return { email: data.email, emailSent: data.email_sent !== false };
-  }, []);
+  const register = useCallback(async (input: RegisterInput) => {
+  let response: Response;
+  try {
+    response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    });
+  } catch {
+    throw new ApiError('VALIDATION', 'Could not reach the registration service. Check that the backend is running.');
+  }
 
-  const verifyEmail = useCallback(async (email: string, code: string) => {
-    const verified = await postJson<CurrentUser>('/auth/verify-email', { email, code }, 'Could not confirm the email.');
-    // Only roles whose area is switched on are signed in (see ENABLED_ROLES).
-    if (ENABLED_ROLES.includes(verified.role)) {
-      setSessionUser(verified);
-      writeStored(verified);
-      setUser(verified);
-    }
-    return verified;
-  }, []);
+  // A proxy or server crash can send an empty or non-JSON body.
+  const data = (await response.json().catch(() => ({}))) as { detail?: unknown } & Partial<CurrentUser>;
 
-  const resendCode = useCallback(async (email: string) => {
-    await postJson('/auth/resend-code', { email }, 'Could not send a new code.');
+  if (!response.ok) {
+    throw new ApiError(
+      'VALIDATION',
+      typeof data.detail === 'string'
+        ? data.detail
+        : response.status >= 500
+          ? 'Registration is temporarily unavailable. Check that the backend is running.'
+          : 'Registration failed.',
+    );
+  }
+
+  const created = data as CurrentUser;
+
+  setSessionUser(created);
+  writeStored(created);
+  setUser(created);
+
+  return created;
+}, []);
+
+  const markEmailVerified = useCallback((email: string) => {
+    setUser((current) => {
+      if (!current || current.email !== email.trim().toLowerCase() || current.email_verified !== false) return current;
+      const updated = { ...current, email_verified: true };
+      setSessionUser(updated);
+      writeStored(updated);
+      return updated;
+    });
   }, []);
 
   const logout = useCallback(() => {
@@ -189,8 +181,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, login, register, verifyEmail, resendCode, logout }),
-    [user, login, register, verifyEmail, resendCode, logout],
+    () => ({ user, login, register, markEmailVerified, logout }),
+    [user, login, register, markEmailVerified, logout],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

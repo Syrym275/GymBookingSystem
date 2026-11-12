@@ -2,7 +2,7 @@ import logging
 import secrets
 
 import psycopg
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from psycopg.rows import dict_row
 
 from .db import connect
@@ -12,13 +12,18 @@ from .models import (
     PaymentResponse,
     PayResultResponse,
 )
+from .verification import require_verified_booking_owner
 
 
 router = APIRouter(prefix="/bookings", tags=["Payments"])
 logger = logging.getLogger(__name__)
 
 
-@router.post("/{booking_id}/payment", response_model=PayResultResponse)
+@router.post(
+    "/{booking_id}/payment",
+    response_model=PayResultResponse,
+    dependencies=[Depends(require_verified_booking_owner)],
+)
 def pay_booking(
     booking_id: int,
     input: PaymentRequest,

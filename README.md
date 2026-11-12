@@ -35,7 +35,7 @@ $env:PGPASSWORD = "YOUR_POSTGRES_PASSWORD"
 
 & $psql -U postgres -c "CREATE DATABASE gym_booking;"
 
-foreach ($file in "task09_reference", "auth_schema", "booking_hold") {
+foreach ($file in "task09_reference", "auth_schema", "booking_hold", "email_verification") {
   & $psql -U postgres -d gym_booking -v ON_ERROR_STOP=1 -q -o NUL -f "backend/sql/$file.sql"
 }
 ```
@@ -75,29 +75,32 @@ Open http://localhost:5173.
 
 Go to http://localhost:5173/register and sign up with a Kazakhstan phone number (for example `+77011234567`) and a password of at least 8 characters with 1 capital letter and 1 symbol (for example `Secret12!`).
 
-You then land on **Confirm your email**. The backend emails a 6-digit code, and the account cannot log in until the code is entered:
+Before saving the account, the backend asks DNS whether the email's domain can receive mail. A made-up domain such as `user@nosuchsite.kz` is refused right away with "The email domain ... does not exist". It cannot tell whether the mailbox itself exists. If DNS does not answer (no internet, router problems), the sign-up is allowed.
 
-- **No mail settings (default):** nothing is sent. The code is printed in the backend terminal, like `[email] SMTP_HOST not set. To: you@example.kz | Confirmation code: 528359`.
-- **Real emails:** set the `SMTP_*` variables under [Configuration](#configuration) before starting the backend.
+#### Email verification
 
-A code works for 15 minutes and allows 5 wrong tries. **Send a new code** works once a minute. If someone tries to log in before confirming, the login page links to the confirmation page.
+After signing up you see **Check your inbox**. The backend emails a link, `{APP_URL}/verify-email?token=...`, that works once and expires after 24 hours.
 
-Before saving the account, the backend asks DNS whether the email's domain can receive mail. A made-up domain such as `user@nosuchsite.kz` is refused right away with "The email domain ... does not exist". This cannot tell whether the mailbox itself exists; the code does that. If DNS does not answer (no internet, router problems), the sign-up is allowed.
+- **No mail settings (default):** nothing is sent. The email, including the link, is printed in the backend terminal. Copy the link into the browser.
+- **Real emails:** set the variables under [Configuration](#configuration) before starting the backend.
+
+Until the link is opened, the member can log in and look around, and the app shows a **Verify your email** banner. **Creating a booking and paying are refused** with `Please verify your email before booking or paying`. **Send a new link** works up to 3 times an hour, and each new link cancels the previous one. Accounts that existed before email verification was added count as verified.
 
 **The demo accounts and one-click demo buttons on the login page do not work.** Login now checks the PostgreSQL `users` table, which starts empty.
 
 ### Trainer registration
 
-Choose **Trainer** on the sign-up page. Trainers confirm their email with a code too. The trainer is saved as inactive and stays off the public list until approved, and trainers cannot sign in yet. There is no admin screen, so approve a trainer in the database:
+Choose **Trainer** on the sign-up page. Trainers get a verification link too. The trainer is saved as inactive and stays off the public list until approved, and trainers cannot sign in yet. There is no admin screen, so approve a trainer in the database:
 
 ```powershell
 & $psql -U postgres -d gym_booking -c "UPDATE trainers SET is_active = TRUE WHERE trainer_id = 5;"
 ```
 
-If your database was created before trainer registration or email confirmation was added, apply the schema update once. It keeps your existing data, and accounts that already exist are marked as confirmed so they can still log in:
+If your database was created before trainer registration or email verification was added, apply the schema updates once. They keep your existing data, and existing accounts are marked as verified:
 
 ```powershell
 & $psql -U postgres -d gym_booking -v ON_ERROR_STOP=1 -f backend/sql/auth_schema.sql
+& $psql -U postgres -d gym_booking -v ON_ERROR_STOP=1 -f backend/sql/email_verification.sql
 ```
 
 ## Running it again
@@ -131,7 +134,7 @@ Stop either server with **Ctrl+C**.
 
 ### Known limitations
 
-- **No way to create staff accounts.** A receptionist needs a `users` row inserted by hand with a bcrypt `password_hash` and `email_verified = TRUE`. Their display name comes from the email address. Trainer logins are refused with a message until a trainer area exists.
+- **Staff cannot sign in.** The backend takes the display name from `members`, so a receptionist account with no member record makes login fail with a 500 error. Trainer logins are refused with a message until a trainer area exists.
 - **Approved trainers appear only on the landing page.** The booking page's trainer picker still reads mock data, so members cannot pick them yet.
 - **Dashboard and Profile do not show real member data.** They look up the signed-in member in the browser mock data by ID. Real IDs start at 9, so members 9 to 11 see a different mock person, and from 12 onward the pages show `Member not found`. **Book a trainer**, **Rent a hall** and **My bookings** still work from the sidebar.
 - **Taken slots can look free.** The slot picker reads mock data. The backend still rejects a real conflict with `This slot was just taken`.
@@ -170,18 +173,71 @@ Do not re-run only `task09_reference.sql`, because that leaves old accounts in `
 | --- | --- | --- |
 | `DATABASE_URL` | Backend terminal | PostgreSQL connection. Required for everything except the catalogue. |
 | `BACKEND_URL` | Frontend terminal or `frontend/.env` | Where Vite forwards `/api`. Defaults to `http://127.0.0.1:8000`. |
-| `SMTP_HOST` | Backend terminal | Mail server for confirmation codes, e.g. `smtp.gmail.com`. If unset, codes are printed in the backend terminal. |
-| `SMTP_PORT` | Backend terminal | Defaults to `587` (STARTTLS). |
+| `APP_URL` | Backend terminal | Frontend address used in verification links. Defaults to `http://localhost:5173`. |
+| `EMAIL_BACKEND` | Backend terminal | `console` prints emails in the terminal, `smtp` sends them. Defaults to `smtp` when `SMTP_HOST` is set, otherwise `console`. |
+| `EMAIL_FROM` | Backend terminal | Sender address, e.g. `PulseGym <no-reply@yourdomain.kz>`. Defaults to `SMTP_USER`. |
+| `SMTP_HOST`, `SMTP_PORT` | Backend terminal | Mail server. Port `587` (default) uses STARTTLS, `465` uses TLS. |
 | `SMTP_USER`, `SMTP_PASSWORD` | Backend terminal | Mail login. For Gmail, use an [app password](https://myaccount.google.com/apppasswords), not your normal password. |
-| `SMTP_FROM` | Backend terminal | Sender address. Defaults to `SMTP_USER`. |
 
-For example, to send real emails through Gmail, set these before starting uvicorn:
+All of them are listed in `backend/.env.example`. The backend does not read `.env` files, so set them in the terminal before starting uvicorn. They last only as long as that terminal window.
+
+### Test emails with Mailtrap (recommended for development)
+
+[Mailtrap](https://mailtrap.io) Email Testing catches every email the app sends and shows it in a web inbox. Nothing reaches a real mailbox, so any sender and recipient address works, and no domain is needed.
+
+1. Sign up at https://mailtrap.io and open https://mailtrap.io/inboxes. Skip any "add a domain" screen: that belongs to Mailtrap's *Email Sending* product, which is not needed here.
+2. Open your inbox (**My Inbox** or **My Sandbox**), then **Integration** or **SMTP Settings**, and click **Show credentials**. The host must be `sandbox.smtp.mailtrap.io`. If it says `live.smtp.mailtrap.io`, you are in the sending product.
+3. Set these before starting uvicorn:
+
+```powershell
+$env:SMTP_HOST = "sandbox.smtp.mailtrap.io"
+$env:SMTP_PORT = "2525"
+$env:SMTP_USER = "YOUR_MAILTRAP_USERNAME"
+$env:SMTP_PASSWORD = "YOUR_MAILTRAP_PASSWORD"
+$env:EMAIL_FROM = "PulseGym <no-reply@pulsegym.kz>"
+```
+
+Sign up, then open the **Verify your PulseGym email** message in the Mailtrap inbox and click **Verify my email**.
+
+To check the settings without signing up, run this from `backend`. It should print `sent`, and the email appears in Mailtrap:
+
+```powershell
+.\.venv\Scripts\python.exe -c "from app.mailer import send_email, OutgoingEmail; send_email(OutgoingEmail('test@example.kz', 'PulseGym test', 'It works.', '<p>It works.</p>')); print('sent')"
+```
+
+### Start script for your own settings
+
+To avoid retyping the variables in every new window, create `backend/start-dev.ps1` with your own values. It is listed in `.gitignore`, so your passwords stay on your computer:
+
+```powershell
+$env:DATABASE_URL  = "postgresql://postgres:YOUR_POSTGRES_PASSWORD@localhost:5432/gym_booking"
+$env:SMTP_HOST     = "sandbox.smtp.mailtrap.io"
+$env:SMTP_PORT     = "2525"
+$env:SMTP_USER     = "YOUR_MAILTRAP_USERNAME"
+$env:SMTP_PASSWORD = "YOUR_MAILTRAP_PASSWORD"
+$env:EMAIL_FROM    = "PulseGym <no-reply@pulsegym.kz>"
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Then start the backend from the `backend` folder with `.\start-dev.ps1`. If PowerShell says running scripts is disabled, use `powershell -ExecutionPolicy Bypass -File .\start-dev.ps1`.
+
+### Send real emails through Gmail
+
+Mailtrap's testing inbox never delivers to real addresses. To send to real inboxes without your own domain, use a Gmail account:
+
+1. Turn on [2-Step Verification](https://myaccount.google.com/signinoptions/twosv) for the Gmail account.
+2. Create an [app password](https://myaccount.google.com/apppasswords) while logged in as that account, and copy the 16 letters without spaces. Your normal Google password is always rejected with `535 Username and Password not accepted`.
+3. Set these before starting uvicorn. `EMAIL_FROM` must be the same Gmail address:
 
 ```powershell
 $env:SMTP_HOST = "smtp.gmail.com"
+$env:SMTP_PORT = "587"
 $env:SMTP_USER = "your.address@gmail.com"
-$env:SMTP_PASSWORD = "your-16-letter-app-password"
+$env:SMTP_PASSWORD = "your16letterapppassword"
+$env:EMAIL_FROM = "PulseGym <your.address@gmail.com>"
 ```
+
+Gmail allows about 500 emails a day. For a public launch, use your own domain with a sending provider (Mailtrap Sending, SendGrid, Resend, Amazon SES), add the SPF and DKIM DNS records they give you, and put their SMTP details in the same variables.
 
 ## Troubleshooting
 
@@ -196,9 +252,9 @@ $env:SMTP_PASSWORD = "your-16-letter-app-password"
 | Landing page shows a catalogue error | The backend is not running or cannot reach the database. |
 | `Booking service unavailable` | `booking_hold.sql` was not applied. Reset the database. |
 | Trainer sign-up shows `Could not send your registration` | Check that the backend is running, then apply the schema update under [Trainer registration](#trainer-registration). |
-| No confirmation email arrives | Without `SMTP_HOST` the code is only printed in the backend terminal. With SMTP set, check the spam folder and the backend log for `Could not send the confirmation email`. |
-| Login says `Please confirm your email first` | Click **Enter confirmation code**, then **Send a new code**. |
-| Sign-up or login says `temporarily unavailable`, and the backend log mentions `email_verified` or `email_verifications` | Apply the schema update under [Trainer registration](#trainer-registration). |
+| No verification email arrives | Without `SMTP_HOST` the email is only printed in the backend terminal. With SMTP set, check the spam folder and the backend log for `Could not send the verification email`. |
+| Backend log shows `535 Username and Password not accepted` | Wrong SMTP login. For Gmail, `SMTP_USER` must be the account the app password was made in. |
+| Sign-up says `Registration is temporarily unavailable`, and the backend log mentions `email_verification_tokens` | Apply `email_verification.sql` as shown under [Trainer registration](#trainer-registration). |
 | Port 8000 is in use | Start uvicorn with `--port 8001`, and set `$env:BACKEND_URL = "http://127.0.0.1:8001"` before `npm.cmd run dev`. |
 
 ## macOS and Linux

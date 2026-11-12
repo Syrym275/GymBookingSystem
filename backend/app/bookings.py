@@ -3,11 +3,12 @@ from datetime import date, datetime, time, timedelta
 from typing import Literal
 
 import psycopg
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from psycopg.rows import dict_row
 
 from .db import connect
 from .models import BookingCreateRequest, BookingResponse
+from .verification import require_verified_member
 
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
@@ -85,7 +86,12 @@ def database_error(error: psycopg.Error) -> HTTPException:
     return HTTPException(status_code=503, detail="Booking service unavailable.")
 
 
-@router.post("", response_model=BookingResponse, status_code=201)
+@router.post(
+    "",
+    response_model=BookingResponse,
+    status_code=201,
+    dependencies=[Depends(require_verified_member)],
+)
 def create_booking(input: BookingCreateRequest) -> BookingResponse:
     try:
         with connect(

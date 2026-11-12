@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   Activity,
   BarChart3,
@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   ListChecks,
   LogOut,
+  MailWarning,
   Menu,
   PlusCircle,
   RotateCcw,
@@ -177,6 +178,20 @@ export function AppLayout() {
           </button>
         </header>
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
+          {user.email_verified === false && (
+            <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-cream p-4 text-sm" role="status">
+              <MailWarning className="h-5 w-5 shrink-0 text-brand-dark" />
+              <p className="min-w-0 flex-1">
+                <b>Verify your email to book and pay.</b> We sent a link to <span className="break-all">{user.email}</span>.
+              </p>
+              <Link
+                to={`/check-email?${new URLSearchParams({ email: user.email })}`}
+                className="btn-secondary inline-flex min-h-[44px] items-center justify-center"
+              >
+                Resend link
+              </Link>
+            </div>
+          )}
           <Outlet />
         </main>
       </div>
