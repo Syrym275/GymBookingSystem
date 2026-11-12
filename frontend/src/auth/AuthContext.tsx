@@ -68,6 +68,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const signIn = (found: CurrentUser) => {
+      if (!ENABLED_ROLES.includes(found.role)) {
+        throw new ApiError('AUTH', 'This type of account cannot sign in yet. It will be available soon.');
+      }
       setSessionUser(found);
       writeStored(found);
       setUser(found);

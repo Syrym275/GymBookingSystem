@@ -8,7 +8,7 @@ import { HOME } from '../auth/RequireRole';
 import { AuthLayout } from '../components/AuthLayout';
 import { useToast } from '../components/Toast';
 import { ErrorNote } from '../components/ui';
-import { TODAY_DATE } from '../config';
+import { TODAY_DATE, MEMBER_AREA_ENABLED } from '../config';
 import { PLANS as PLAN_INFO } from '../data/gymData';
 import type { MembershipPlan } from '../types';
 import { fmtDate, kzt, PLAN_LABEL, toDate } from '../utils/format';
@@ -25,9 +25,9 @@ const EMAIL_PATTERN =
 
 type AccountType = 'member' | 'trainer';
 const ACCOUNT_TYPES: { type: AccountType; label: string; note: string }[] = [
-  { type: 'member', label: 'Member', note: 'Book trainers and halls' },
-  { type: 'trainer', label: 'Trainer', note: 'Offer training sessions' },
-];
+  { type: 'member' as AccountType, label: 'Member', note: 'Book trainers and halls' },
+  { type: 'trainer' as AccountType, label: 'Trainer', note: 'Offer training sessions' },
+].filter((a) => a.type !== 'member' || MEMBER_AREA_ENABLED); // member sign-up is hidden until the member area is ready
 
 // Demo prices shared with the landing page's pricing section.
 const price = (p: MembershipPlan) => {
@@ -49,7 +49,7 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [plan, setPlan] = useState<MembershipPlan>(planParam && PLANS.includes(planParam) ? planParam : 'monthly');
-  const [accountType, setAccountType] = useState<AccountType>('member');
+  const [accountType, setAccountType] = useState<AccountType>(ACCOUNT_TYPES[0].type);
   const [specialization, setSpecialization] = useState('');
   const [sessionPrice, setSessionPrice] = useState('');
   const [trainerSubmitted, setTrainerSubmitted] = useState(false);
@@ -122,12 +122,18 @@ export default function Register() {
   return (
     <AuthLayout
       aside={{
-        title: (
+        title: MEMBER_AREA_ENABLED ? (
           <>
             Join PulseGym. <span className="block text-brand-dark">Book your first hour.</span>
           </>
+        ) : (
+          <>
+            Join PulseGym. <span className="block text-brand-dark">Offer your sessions.</span>
+          </>
         ),
-        text: 'Create an account, choose a coach or a hall, pick a free hour and pay online. Your QR code gets you in at the desk.',
+        text: MEMBER_AREA_ENABLED
+          ? 'Create an account, choose a coach or a hall, pick a free hour and pay online. Your QR code gets you in at the desk.'
+          : 'Register as a trainer. Your profile is reviewed before it goes public.',
       }}
     >
       <div>

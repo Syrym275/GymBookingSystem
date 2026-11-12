@@ -8,3 +8,7 @@ export const CLOSE_HOUR = 22; // 22:00
 export const MAX_PENDING = 2; // unpaid bookings per member
 export const HOLD_MINUTES = 15; // payment hold
 export const DEMO_PASSWORD = 'demo123';
+
+// The member area is hidden until it is finished (it is planned for next week).
+// Set this to true to bring back its pages, demo account, sign-up and sign-in.
+export const MEMBER_AREA_ENABLED = false;

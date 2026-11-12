@@ -1,4 +1,5 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, type RouteObject } from 'react-router-dom';
+import { MEMBER_AREA_ENABLED } from './config';
 import { RequireRole } from './auth/RequireRole';
 import { AppLayout } from './layouts/AppLayout';
 import Landing from './pages/Landing';
@@ -31,23 +32,30 @@ const guarded = (role: 'member' | 'trainer' | 'receptionist') => (
   </RequireRole>
 );
 
+// The member area is hidden until it is finished (see MEMBER_AREA_ENABLED in config.ts).
+const memberRoutes: RouteObject[] = MEMBER_AREA_ENABLED
+  ? [
+      {
+        path: '/member',
+        element: guarded('member'),
+        children: [
+          { index: true, element: <MemberDashboard /> },
+          { path: 'trainers', element: <BookTrainer /> },
+          { path: 'halls', element: <RentHall /> },
+          { path: 'pay/:bookingId', element: <Payment /> },
+          { path: 'confirmation/:bookingId', element: <Confirmation /> },
+          { path: 'bookings', element: <MyBookings /> },
+          { path: 'profile', element: <Profile /> },
+        ],
+      },
+    ]
+  : [];
+
 export const router = createBrowserRouter([
   { path: '/', element: <Landing /> }, // logged-in users are sent to their dashboard
   { path: '/login', element: <Login /> },
   { path: '/register', element: <Register /> },
-  {
-    path: '/member',
-    element: guarded('member'),
-    children: [
-      { index: true, element: <MemberDashboard /> },
-      { path: 'trainers', element: <BookTrainer /> },
-      { path: 'halls', element: <RentHall /> },
-      { path: 'pay/:bookingId', element: <Payment /> },
-      { path: 'confirmation/:bookingId', element: <Confirmation /> },
-      { path: 'bookings', element: <MyBookings /> },
-      { path: 'profile', element: <Profile /> },
-    ],
-  },
+  ...memberRoutes,
   {
     path: '/trainer',
     element: guarded('trainer'),
