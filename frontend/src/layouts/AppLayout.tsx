@@ -1,8 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
+  Activity,
+  BarChart3,
   Building2,
   CalendarCheck,
+  CalendarDays,
   Dumbbell,
   LayoutDashboard,
   ListChecks,
@@ -10,9 +13,11 @@ import {
   Menu,
   PlusCircle,
   RotateCcw,
+  History,
   Search,
   ShieldCheck,
   User,
+  Users,
   Wallet,
   X,
 } from 'lucide-react';
@@ -40,6 +45,14 @@ const NAV: Partial<Record<Role, NavItem[]>> = {
     { to: '/member/halls', label: 'Rent a hall', icon: <Building2 className={i} /> },
     { to: '/member/bookings', label: 'My bookings', icon: <ListChecks className={i} /> },
     { to: '/member/profile', label: 'Profile & QR', icon: <User className={i} /> },
+  ],
+  trainer: [
+    { to: '/trainer', label: 'Overview', icon: <LayoutDashboard className={i} />, end: true },
+    { to: '/trainer/schedule', label: 'Schedule', icon: <CalendarDays className={i} /> },
+    { to: '/trainer/stats', label: 'Statistics', icon: <BarChart3 className={i} /> },
+    { to: '/trainer/clients', label: 'Clients', icon: <Users className={i} /> },
+    { to: '/trainer/history', label: 'History', icon: <History className={i} /> },
+    { to: '/trainer/status', label: 'Status', icon: <Activity className={i} /> },
   ],
   receptionist: [
     { to: '/reception', label: 'Today', icon: <CalendarCheck className={i} />, end: true },

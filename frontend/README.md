@@ -34,6 +34,7 @@ Password for every account: **`demo123`**. The login page has one-click buttons 
 | Role | Email | Notes |
 |---|---|---|
 | Member | `aruzhan.bekova@example.kz` | Annual plan |
+| Trainer | `aigerim.sadykova@gym.kz` | Demo trainer (mock data, dev mode only, see below) |
 | Receptionist | `reception@gym.kz` | |
 
 Handy extras (all members use `demo123`):
@@ -51,7 +52,22 @@ In development (`npm run dev`) the top bar shows a **DEV role switcher** and a *
 
 **Member** (`/member`) — Dashboard (plan, expiry warning, "X of 2 unpaid") · Book a trainer · Rent a hall · Payment (15-min hold countdown, card/NFC/app, simulate a declined payment) · Confirmation · My bookings (upcoming/past, status filter, booking slip, cancel) · Profile with QR
 
-**Trainer** and **Admin / Manager** areas are hidden for now: their pages were removed and those accounts cannot sign in (`ENABLED_ROLES` in `src/auth/mockUsers.ts`).
+**Trainer** (`/trainer`) — six pages in `src/pages/trainer/`:
+
+| Page | Route | What it shows |
+|---|---|---|
+| Overview ("page for trainer") | `/trainer` | Profile, live status, KPIs (sessions, attendance, clients, session value), today's sessions with attendance buttons, coming up, last-7-days chart |
+| Schedule | `/trainer/schedule` | Week calendar + day list, click a session for the booking slip and attendance |
+| Statistics ("graphic") | `/trainer/stats` | Period picker (7 / 30 / 90 days), KPIs compared with the previous period, sessions per day or week, outcome donut, busiest hours, 8-week trend |
+| Clients | `/trainer/clients` | Clients grouped by name with derived labels (Regular, New, Active, At risk, Inactive), search, per-client history |
+| History | `/trainer/history` | Sessions that are over, filters (dates, client, result), sortable table, CSV export |
+| Status | `/trainer/status` | Live status from the schedule, own availability (Available / On a break / Day off + note), profile approval state, session status board, "needs your attention" list for unmarked sessions |
+
+Privacy: a trainer only ever sees a client's **name** (no phone, email, QR or member id) and only their **own** sessions. All numbers are computed in `src/pages/trainer/analytics.ts` from the trainer's own bookings (`listBookings()`).
+
+Trainer limits for now: the backend refuses trainer sign-in (`backend/app/auth.py`: "not available yet") and has no trainer-scoped booking routes, so the trainer area runs on the **mock data** and the demo account works in **development mode only** (`npm run dev`). The availability choice is stored in this browser (`localStorage`) until the backend has a field for it. The mock seed adds eight weeks of demo history for the demo trainer, generated relative to today, so the charts always show recent data.
+
+**Admin / Manager** area is hidden for now: its pages were removed and that role cannot sign in (`ENABLED_ROLES` in `src/auth/mockUsers.ts`).
 
 **Receptionist** (`/reception`) — Today (timeline, check-in, next 2 hours) · All bookings (multi-filter, search, sort, pagination, filters in the URL) · Unpaid bookings (grouped by member, limit highlighted, cancel) · Member lookup · New booking for a member
 

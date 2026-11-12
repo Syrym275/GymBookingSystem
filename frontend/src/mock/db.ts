@@ -14,7 +14,7 @@ export interface DB {
   seq: { booking: number; payment: number; member: number; trainer: number; hall: number; user: number };
 }
 
-const KEY = 'gbs_mock_db_v1';
+const KEY = 'gbs_mock_db_v2'; // bumped: the seed now includes demo history for the trainer area
 
 function load(): DB {
   try {

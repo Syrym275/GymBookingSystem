@@ -19,11 +19,13 @@ export interface DemoAccount {
 
 export const DEMO_ACCOUNTS: DemoAccount[] = [
   { role: 'member', label: 'Member', name: 'Aruzhan Bekova', email: 'aruzhan.bekova@example.kz', password: DEMO_PASSWORD, note: 'Book, pay, manage bookings' },
+  { role: 'trainer', label: 'Trainer', name: 'Aigerim Sadykova', email: 'aigerim.sadykova@gym.kz', password: DEMO_PASSWORD, note: 'Schedule, clients, statistics' },
   { role: 'receptionist', label: 'Receptionist', name: 'Anel Rakhimova', email: 'reception@gym.kz', password: DEMO_PASSWORD, note: 'Today, lookups, unpaid' },
 ];
 
-// Trainer and admin areas are hidden for now, so only these roles can sign in.
-export const ENABLED_ROLES: Role[] = ['member', 'receptionist'];
+// The admin area is hidden for now. Trainers sign in through the demo account only: the backend
+// still refuses trainer sign-in ("not available yet"), see backend/app/auth.py.
+export const ENABLED_ROLES: Role[] = ['member', 'trainer', 'receptionist'];
 
 export function authenticate(email: string, password: string): CurrentUser | null {
   const u = getDb().users.find(

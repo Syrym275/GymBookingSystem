@@ -4,6 +4,15 @@ import { ApiError } from './ApiError';
 import { clone, delay } from './helpers';
 import { requireUser } from './session';
 
+/** The signed-in trainer's own profile, including is_active (false = registration still pending approval). */
+export async function getMyTrainerProfile(): Promise<Trainer> {
+  await delay();
+  const viewer = requireUser(['trainer']);
+  const t = getDb().trainers.find((x) => x.trainer_id === viewer.trainer_id);
+  if (!t) throw new ApiError('NOT_FOUND', 'Trainer profile not found.');
+  return clone(t);
+}
+
 /** Booking pages only ever see active trainers; staff may ask for inactive ones too (filters, admin). */
 export async function listTrainers(opts: { includeInactive?: boolean } = {}): Promise<Trainer[]> {
   const viewer = requireUser();
