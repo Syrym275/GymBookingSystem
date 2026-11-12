@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { DEMO_ACCOUNTS } from '../auth/mockUsers';
 import { HOME } from '../auth/RequireRole';
+import { MEMBER_AREA_ENABLED } from '../config';
 import { AuthLayout } from '../components/AuthLayout';
 import { ErrorNote } from '../components/ui';
 
@@ -47,7 +48,9 @@ export default function Login() {
             Welcome back. <span className="block text-brand-dark">Your hour is waiting.</span>
           </>
         ),
-        text: 'Log in to book trainers and halls, pay for your bookings and show your QR code at the desk.',
+        text: MEMBER_AREA_ENABLED
+          ? 'Log in to book trainers and halls, pay for your bookings and show your QR code at the desk.'
+          : 'Log in to see your schedule, your clients and your results.',
       }}
     >
       <div>
@@ -109,8 +112,12 @@ export default function Login() {
           ))}
         </div>
         <p className="mt-3 text-xs text-ink/60">
-          Password for every demo account: <b>demo123</b>. Try <i>yerassyl.omarov@example.kz</i> (2 unpaid bookings) or{' '}
-          <i>timur.abenov@example.kz</i> (expired membership) to see the booking limits.
+          Password for every demo account: <b>demo123</b>.
+          {MEMBER_AREA_ENABLED && (
+            <>
+              {' '}Try <i>yerassyl.omarov@example.kz</i> (2 unpaid bookings) or <i>timur.abenov@example.kz</i> (expired membership) to see the booking limits.
+            </>
+          )}
         </p>
       </div>
     </AuthLayout>

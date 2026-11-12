@@ -33,11 +33,11 @@ Password for every account: **`demo123`**. The login page has one-click buttons 
 
 | Role | Email | Notes |
 |---|---|---|
-| Member | `aruzhan.bekova@example.kz` | Annual plan |
+| Member | `aruzhan.bekova@example.kz` | **Hidden for now** (see the member area note below) |
 | Trainer | `aigerim.sadykova@gym.kz` | Demo trainer (mock data, dev mode only, see below) |
 | Receptionist | `reception@gym.kz` | |
 
-Handy extras (all members use `demo123`):
+Handy extras (member accounts, only when the member area is enabled; all use `demo123`):
 - `yerassyl.omarov@example.kz` — already has **2 unpaid bookings** → try booking a third (error `GB001`).
 - `timur.abenov@example.kz` — membership **expired** 2026-10-31 → booking is refused (error `GB002`).
 - `madina.rakhimova@example.kz` — membership ends in 4 days → warning banner.
@@ -50,7 +50,7 @@ In development (`npm run dev`) the top bar shows a **DEV role switcher** and a *
 
 **Public** — Landing (`/`): hero, features, how it works, live list of active trainers and halls with prices (`getPublicCatalog()` in `src/api/publicApi.ts`, no sign-in needed), membership plans linking to `/register?plan=…`. Signed-in users are redirected to their dashboard. · Login (`/login`) · Register (`/register`): member self sign-up (name, email, KZ phone, password, plan). Creates the member + login account, sets the expiry from the plan (1 / 3 / 12 months from today) and signs the new member in. Email and phone must be unique.
 
-**Member** (`/member`) — Dashboard (plan, expiry warning, "X of 2 unpaid") · Book a trainer · Rent a hall · Payment (15-min hold countdown, card/NFC/app, simulate a declined payment) · Confirmation · My bookings (upcoming/past, status filter, booking slip, cancel) · Profile with QR
+**Member** (`/member`) — **hidden for now.** Set `MEMBER_AREA_ENABLED = true` in `src/config.ts` to bring back its pages, demo account, sign-up and sign-in. While it is `false` there are no `/member` routes, no Member demo button, members cannot register or sign in (also not through the backend), and the Register page only offers trainer registration. — Dashboard (plan, expiry warning, "X of 2 unpaid") · Book a trainer · Rent a hall · Payment (15-min hold countdown, card/NFC/app, simulate a declined payment) · Confirmation · My bookings (upcoming/past, status filter, booking slip, cancel) · Profile with QR
 
 **Trainer** (`/trainer`) — six pages in `src/pages/trainer/`:
 
