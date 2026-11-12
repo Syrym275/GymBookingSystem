@@ -5,7 +5,8 @@ import { ApiError } from './ApiError';
 import { clone, delay } from './helpers';
 import { requireUser } from './session';
 import {
-  backendBookingToView,
+  getBooking,
+  loadSavedBookingDetails,
   type BackendBooking,
 } from './bookingsApi';
 
@@ -65,21 +66,44 @@ export async function payBooking(
 
   return {
     payment: data.payment as Payment,
-    booking: backendBookingToView(
+    booking: await loadSavedBookingDetails(
       data.booking as BackendBooking,
     ),
   };
 }
 
-/** Payment attempts for one booking: the owner (member) and admin only. Never reception/trainer. */
+/** Client-side owner/role checks; verified backend authorization is still required. */
 export async function listPaymentsForBooking(booking_id: number): Promise<Payment[]> {
-  await delay();
   const viewer = requireUser(['member', 'admin']);
-  const db = getDb();
-  const b = db.bookings.find((x) => x.booking_id === booking_id);
-  if (!b) throw new ApiError('NOT_FOUND', 'Booking not found.');
-  if (viewer.role === 'member' && b.member_id !== viewer.member_id) throw new ApiError('FORBIDDEN', 'This is not your booking.');
-  return clone(db.payments.filter((p) => p.booking_id === booking_id));
+  if (viewer.role === 'member') {
+    const booking = await getBooking(booking_id);
+    if (!viewer.member_id || booking.member_id !== viewer.member_id) {
+      throw new ApiError('FORBIDDEN', 'This is not your booking.');
+    }
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`/api/bookings/${booking_id}/payments`);
+  } catch {
+    throw new ApiError('VALIDATION', 'Could not load payment history. Check the backend connection and try again.');
+  }
+
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new ApiError('VALIDATION', 'The payment history service returned an invalid response.');
+  }
+
+  if (!response.ok || !Array.isArray(data)) {
+    const detail = typeof data === 'object' && data !== null && 'detail' in data && typeof data.detail === 'string'
+      ? data.detail
+      : 'Could not load payment history.';
+    throw new ApiError(response.status === 404 ? 'NOT_FOUND' : 'VALIDATION', detail);
+  }
+
+  return data as Payment[];
 }
 
 /** Full payments log: admin only (reception has no access to payments). */

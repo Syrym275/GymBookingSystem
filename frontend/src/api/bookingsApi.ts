@@ -45,29 +45,18 @@ export interface BackendBooking extends Booking {
 }
 
 export function backendBookingToView(booking: BackendBooking): BookingView {
-  const db = getDb();
-  const member = db.members.find(
-    (item) => item.member_id === booking.member_id,
-  );
-  const trainer = db.trainers.find(
-    (item) => item.trainer_id === booking.trainer_id,
-  );
-  const hall = db.halls.find(
-    (item) => item.hall_id === booking.hall_id,
-  );
-
   return {
     ...booking,
     member_id: booking.member_id,
     member: {
       member_id: booking.member_id,
-      full_name: booking.member_name ?? member?.full_name ?? 'Member',
-      phone: booking.member_phone ?? member?.phone,
-      membership_plan: booking.member_membership_plan ?? member?.membership_plan,
-      membership_expires_on: booking.member_membership_expires_on ?? member?.membership_expires_on,
+      full_name: booking.member_name ?? 'Member',
+      phone: booking.member_phone ?? undefined,
+      membership_plan: booking.member_membership_plan ?? undefined,
+      membership_expires_on: booking.member_membership_expires_on ?? undefined,
     },
-    trainer_name: booking.trainer_name ?? trainer?.full_name ?? null,
-    hall_name: booking.hall_name ?? hall?.hall_name ?? null,
+    trainer_name: booking.trainer_name ?? null,
+    hall_name: booking.hall_name ?? null,
     paid: ['confirmed', 'completed', 'no_show'].includes(booking.status),
   };
 }
@@ -203,6 +192,17 @@ export async function getBooking(id: number): Promise<BookingView> {
   return backendBookingToView(data as BackendBooking);
 }
 
+/** Read joined details after a successful write that returns only booking fields. */
+export async function loadSavedBookingDetails(booking: BackendBooking): Promise<BookingView> {
+  try {
+    return await getBooking(booking.booking_id);
+  } catch {
+    // The write has already succeeded. A failed refresh must not encourage a
+    // duplicate booking/payment. Keep its real response, without demo lookups.
+    return backendBookingToView(booking);
+  }
+}
+
 /** Hours (07..21) whose [h, h+1) window is blocked for a trainer or hall on a date. */
 export async function getTakenHours(kind: 'trainer' | 'hall', id: number, date: string, memberId?: number): Promise<number[]> {
   const viewer = requireUser();
@@ -312,7 +312,7 @@ export async function createBooking(
     throw new ApiError(code, detail);
   }
 
-  return backendBookingToView(data as BackendBooking);
+  return loadSavedBookingDetails(data as BackendBooking);
 }
 
 
@@ -332,7 +332,7 @@ export async function cancelBooking(id: number): Promise<BookingView> {
     );
   }
 
-  return backendBookingToView(data as BackendBooking);
+  return loadSavedBookingDetails(data as BackendBooking);
 }
   
 

@@ -19,6 +19,45 @@ router = APIRouter(prefix="/bookings", tags=["Payments"])
 logger = logging.getLogger(__name__)
 
 
+@router.get(
+    "/{booking_id}/payments",
+    response_model=list[PaymentResponse],
+    description=(
+        "Read payment attempts for a booking. Local development API: verified "
+        "session authentication and server-side ownership checks are not yet implemented."
+    ),
+)
+def list_booking_payments(booking_id: int) -> list[PaymentResponse]:
+    try:
+        with connect(row_factory=dict_row) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT booking_id FROM bookings WHERE booking_id = %s",
+                    (booking_id,),
+                )
+                if cursor.fetchone() is None:
+                    raise HTTPException(status_code=404, detail="Booking not found.")
+
+                cursor.execute(
+                    """
+                    SELECT payment_id, booking_id, amount_kzt, method,
+                           payment_status, provider_txn_ref, created_at
+                    FROM payments
+                    WHERE booking_id = %s
+                    ORDER BY created_at DESC, payment_id DESC
+                    """,
+                    (booking_id,),
+                )
+                rows = cursor.fetchall()
+        return [PaymentResponse(**row) for row in rows]
+    except psycopg.Error as error:
+        logger.exception("Payment history database error (SQLSTATE %s)", error.sqlstate)
+        raise HTTPException(
+            status_code=503,
+            detail="Payment history service unavailable.",
+        ) from None
+
+
 @router.post(
     "/{booking_id}/payment",
     response_model=PayResultResponse,

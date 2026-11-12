@@ -49,7 +49,8 @@ export function BookingsTable({ mode }: { mode: 'reception' | 'admin' }) {
   };
 
   const bookings = useAsync(() => listBookings(filters), [sp.toString()]);
-  const trainers = useAsync(() => listTrainers({ includeInactive: true }), []);
+  // The existing backend endpoint lists active trainers from the catalogue.
+  const trainers = useAsync(() => listTrainers(), []);
   const halls = useAsync(() => listHalls({ includeInactive: true }), []);
   const members = useAsync(() => listMembers(), []);
 

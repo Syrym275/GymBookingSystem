@@ -17,10 +17,11 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function Payments({ bookingId }: { bookingId: number }) {
-  const { data, loading } = useAsync(() => listPaymentsForBooking(bookingId), [bookingId]);
+  const { data, loading, error } = useAsync(() => listPaymentsForBooking(bookingId), [bookingId]);
   return (
     <div className="mt-4 border-t border-dashed border-ink/20 pt-3">
       <p className="label">Payment attempts</p>
+      {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
       {loading && !data && <p className="text-sm text-ink/50">Loading…</p>}
       {data && data.length === 0 && <p className="text-sm text-ink/50">No payment attempts yet.</p>}
       <ul className="space-y-2">

@@ -4,13 +4,32 @@ import { ApiError } from './ApiError';
 import { clone, delay } from './helpers';
 import { requireUser } from './session';
 
-export async function listHalls(opts: { includeInactive?: boolean } = {}): Promise<Hall[]> {
-  await delay();
-  const viewer = requireUser();
-  const staff = viewer.role === 'admin' || viewer.role === 'receptionist';
-  const all = getDb().halls;
-  const rows = opts.includeInactive && staff ? all : all.filter((h) => h.is_active);
-  return clone(rows);
+// The public endpoint returns active halls only. Keep the options argument for
+// existing callers; inactive-hall management needs a separate staff endpoint.
+export async function listHalls(_opts: { includeInactive?: boolean } = {}): Promise<Hall[]> {
+  requireUser();
+  let response: Response;
+  try {
+    response = await fetch('/api/halls');
+  } catch {
+    throw new ApiError('VALIDATION', 'Could not load halls. Check the backend connection and try again.');
+  }
+
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new ApiError('VALIDATION', 'The hall service returned an invalid response.');
+  }
+
+  if (!response.ok || !Array.isArray(data)) {
+    const detail = typeof data === 'object' && data !== null && 'detail' in data && typeof data.detail === 'string'
+      ? data.detail
+      : 'Could not load halls.';
+    throw new ApiError('VALIDATION', detail);
+  }
+
+  return data.map((hall) => ({ ...(hall as Omit<Hall, 'is_active'>), is_active: true }));
 }
 
 export interface HallInput {

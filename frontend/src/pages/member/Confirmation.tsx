@@ -13,6 +13,7 @@ export default function Confirmation() {
   const payments = useAsync(() => listPaymentsForBooking(id), [id]);
 
   if (booking.error) return <ErrorNote message={booking.error} />;
+  if (payments.error) return <ErrorNote message={payments.error} />;
   if (!booking.data) return <Loading />;
   const b = booking.data;
   const paid = payments.data?.find((p) => p.payment_status === 'approved');
