@@ -8,6 +8,7 @@ import { ErrorNote } from '../components/ui';
 
 const ROLE_COLOR: Record<string, string> = {
   member: 'bg-brand text-onaccent',
+  trainer: 'bg-mint text-onaccent',
   receptionist: 'bg-sun text-ink',
 };
 

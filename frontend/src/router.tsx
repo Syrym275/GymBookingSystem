@@ -17,9 +17,15 @@ import ReceptionBookings from './pages/reception/AllBookings';
 import ReceptionUnpaid from './pages/reception/Unpaid';
 import MemberLookup from './pages/reception/MemberLookup';
 import NewBooking from './pages/reception/NewBooking';
+import TrainerDashboard from './pages/trainer/Dashboard';
+import TrainerSchedule from './pages/trainer/Schedule';
+import TrainerStats from './pages/trainer/Stats';
+import TrainerClients from './pages/trainer/Clients';
+import TrainerHistory from './pages/trainer/History';
+import TrainerStatus from './pages/trainer/Status';
 
-// Trainer and admin areas are hidden for now (pages removed).
-const guarded = (role: 'member' | 'receptionist') => (
+// The admin area is hidden for now (pages removed).
+const guarded = (role: 'member' | 'trainer' | 'receptionist') => (
   <RequireRole role={role}>
     <AppLayout />
   </RequireRole>
@@ -40,6 +46,18 @@ export const router = createBrowserRouter([
       { path: 'confirmation/:bookingId', element: <Confirmation /> },
       { path: 'bookings', element: <MyBookings /> },
       { path: 'profile', element: <Profile /> },
+    ],
+  },
+  {
+    path: '/trainer',
+    element: guarded('trainer'),
+    children: [
+      { index: true, element: <TrainerDashboard /> },
+      { path: 'schedule', element: <TrainerSchedule /> },
+      { path: 'stats', element: <TrainerStats /> },
+      { path: 'clients', element: <TrainerClients /> },
+      { path: 'history', element: <TrainerHistory /> },
+      { path: 'status', element: <TrainerStatus /> },
     ],
   },
   {
