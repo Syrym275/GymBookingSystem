@@ -111,7 +111,7 @@ export const TESTIMONIALS = [
 export const CONTACT = {
   address: 'ЖК Амаль, Алматы',
   phone: '+7 (700) 255-85-47',
-  email: 'hello@pulsegym.example',
+  email: 'pulsegym@gmail.com',
   whatsapp: 'https://wa.me/77002558547',
   // Our place in 2GIS (used by the "Get directions" button).
   twoGisUrl: 'https://go.2gis.com/GZIOY',

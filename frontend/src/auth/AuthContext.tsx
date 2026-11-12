@@ -25,10 +25,9 @@
  */
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import { ApiError } from '../api/ApiError';
-import { delay } from '../api/helpers';
 import { setSessionUser } from '../api/session';
 import type { CurrentUser } from '../types';
-import { authenticate, ENABLED_ROLES, registerMember, type RegisterInput } from './mockUsers';
+import { authenticate, ENABLED_ROLES, type RegisterInput } from './mockUsers';
 
 const STORAGE_KEY = 'gbs_current_user';
 
@@ -68,23 +67,96 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const login = useCallback(async (email: string, password: string) => {
-    await delay();
-    const found = authenticate(email, password); // (1) REPLACE with the real login request
-    if (!found) throw new ApiError('AUTH', 'Wrong email or password.');
-    setSessionUser(found); // (3) mock-only
-    writeStored(found); // (2)
-    setUser(found);
-    return found;
+    const signIn = (found: CurrentUser) => {
+      setSessionUser(found);
+      writeStored(found);
+      setUser(found);
+      return found;
+    };
+
+    let response: Response;
+    try {
+      response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+    } catch {
+      const demoUser = import.meta.env.DEV ? authenticate(email, password) : null;
+      if (demoUser) return signIn(demoUser);
+      throw new ApiError('AUTH', 'Could not reach the sign-in service. Check that the backend is running.');
+    }
+
+    const responseText = await response.text();
+    // The receptionist demo exists in the local seed, not necessarily in PostgreSQL.
+    if (!response.ok && import.meta.env.DEV) {
+      const demoUser = authenticate(email, password);
+      if (demoUser) return signIn(demoUser);
+    }
+
+    let data: { detail?: unknown } & Partial<CurrentUser>;
+    try {
+      data = JSON.parse(responseText) as { detail?: unknown } & Partial<CurrentUser>;
+    } catch {
+      if (!response.ok) {
+        throw new ApiError(
+          'AUTH',
+          `Sign-in failed (HTTP ${response.status}); the backend returned a non-JSON error. Check the backend terminal for the cause.`,
+        );
+      }
+      throw new ApiError('AUTH', `The sign-in service returned an invalid response (HTTP ${response.status}).`);
+    }
+
+    if (!response.ok) {
+      throw new ApiError(
+        'AUTH',
+        typeof data.detail === 'string'
+          ? data.detail
+          : response.status >= 500
+            ? 'Sign-in is temporarily unavailable. Check that the backend database is configured and running.'
+            : 'Wrong email or password.',
+      );
+    }
+
+    return signIn(data as CurrentUser);
   }, []);
 
   const register = useCallback(async (input: RegisterInput) => {
-    await delay();
-    const created = registerMember(input); // (1b) REPLACE with the real sign-up request
-    setSessionUser(created); // (3) mock-only
-    writeStored(created); // (2)
-    setUser(created);
-    return created;
-  }, []);
+  let response: Response;
+  try {
+    response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    });
+  } catch {
+    throw new ApiError('VALIDATION', 'Could not reach the registration service. Check that the backend is running.');
+  }
+
+  // A proxy or server crash can send an empty or non-JSON body.
+  const data = (await response.json().catch(() => ({}))) as { detail?: unknown } & Partial<CurrentUser>;
+
+  if (!response.ok) {
+    throw new ApiError(
+      'VALIDATION',
+      typeof data.detail === 'string'
+        ? data.detail
+        : response.status >= 500
+          ? 'Registration is temporarily unavailable. Check that the backend is running.'
+          : 'Registration failed.',
+    );
+  }
+
+  const created = data as CurrentUser;
+
+  setSessionUser(created);
+  writeStored(created);
+  setUser(created);
+
+  return created;
+}, []);
 
   const logout = useCallback(() => {
     setSessionUser(null);

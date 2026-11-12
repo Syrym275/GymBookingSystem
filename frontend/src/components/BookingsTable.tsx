@@ -7,7 +7,7 @@ import { listMembers } from '../api/membersApi';
 import { listTrainers } from '../api/trainersApi';
 import { useAsync } from '../hooks/useAsync';
 import type { BookingStatus, BookingType, BookingView } from '../types';
-import { ALL_STATUSES, STATUS_LABEL, bkNumber, fmtDay, kzt, timeOf } from '../utils/format';
+import { ALL_STATUSES, STATUS_LABEL, bkNumber, fmtDateTime, fmtDay, kzt, timeOf } from '../utils/format';
 import { BookingSlip } from './BookingSlip';
 import { DataTable, type Column } from './DataTable';
 import { PaidBadge, StatusBadge } from './StatusBadge';
@@ -138,7 +138,21 @@ export function BookingsTable({ mode }: { mode: 'reception' | 'admin' }) {
           <StatusBadge status={b.status} />
         ),
     },
-    { key: 'paid', header: 'Paid', render: (b) => <PaidBadge status={b.status} /> },
+    {
+      key: 'paid',
+      header: mode === 'reception' ? 'Payment audit' : 'Paid',
+      render: (b) => mode === 'reception' ? (
+        <div className="text-sm">
+          <div className="font-bold capitalize">{b.payment_status ?? (b.paid ? 'paid' : 'unpaid')}</div>
+          {b.paid_at && (
+            <div className="text-xs text-ink/60">
+              {b.payment_status === 'refunded' ? 'Originally paid ' : 'Paid '}{fmtDateTime(b.paid_at)}
+            </div>
+          )}
+          {b.payment_method && <div className="text-xs capitalize text-ink/50">{b.payment_method}</div>}
+        </div>
+      ) : <PaidBadge status={b.status} />,
+    },
   ];
   if (mode === 'admin') {
     columns.push({

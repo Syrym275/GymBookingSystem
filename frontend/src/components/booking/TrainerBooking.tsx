@@ -22,7 +22,7 @@ export function TrainerBooking({ memberId, onBooked }: { memberId?: number; onBo
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
 
-  const taken = useAsync(() => (trainerId ? getTakenHours('trainer', trainerId, date) : Promise.resolve([])), [trainerId, date]);
+  const taken = useAsync(() => (trainerId ? getTakenHours('trainer', trainerId, date, memberId) : Promise.resolve([])), [trainerId, date, memberId]);
   const trainer = trainers.data?.find((t) => t.trainer_id === trainerId);
 
   const submit = async () => {
@@ -117,6 +117,8 @@ export function TrainerBooking({ memberId, onBooked }: { memberId?: number; onBo
             <div>
               <p className="label">3 · Pick a start time (60 min)</p>
               <SlotPicker date={date} hours={HOURS} taken={taken.data ?? []} selected={hour} onSelect={setHour} />
+              {taken.loading && <p className="mt-2 text-sm text-ink/60">Checking availability…</p>}
+              {taken.error && <ErrorNote message={taken.error} />}
               <p className="mt-2 text-xs text-ink/50">Striped slots are already booked. Open 07:00–22:00.</p>
             </div>
             <BookingError error={error} onPick={pick} />
@@ -135,7 +137,7 @@ export function TrainerBooking({ memberId, onBooked }: { memberId?: number; onBo
                 </>
               )}
             </div>
-            <button className="btn-primary w-full sm:w-auto" disabled={hour === null || busy} onClick={submit}>
+            <button className="btn-primary w-full sm:w-auto" disabled={hour === null || busy || taken.loading || Boolean(taken.error)} onClick={submit}>
               {busy ? 'Reserving…' : 'Reserve this slot'}
             </button>
           </div>

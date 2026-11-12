@@ -6,9 +6,30 @@ import { requireUser } from './session';
 
 /** Booking pages only ever see active trainers; staff may ask for inactive ones too (filters, admin). */
 export async function listTrainers(opts: { includeInactive?: boolean } = {}): Promise<Trainer[]> {
-  await delay();
   const viewer = requireUser();
   const staff = viewer.role === 'admin' || viewer.role === 'receptionist';
+  if (!opts.includeInactive || !staff) {
+    let response: Response;
+    try {
+      response = await fetch('/api/trainers');
+    } catch {
+      throw new ApiError('VALIDATION', 'Could not load trainers. Check the backend connection and try again.');
+    }
+    let data: unknown;
+    try {
+      data = await response.json();
+    } catch {
+      throw new ApiError('VALIDATION', 'The trainer service returned an invalid response.');
+    }
+    if (!response.ok || !Array.isArray(data)) {
+      const detail = typeof data === 'object' && data !== null && 'detail' in data && typeof data.detail === 'string'
+        ? data.detail
+        : 'Could not load trainers.';
+      throw new ApiError('VALIDATION', detail);
+    }
+    return data.map((trainer) => ({ ...(trainer as Omit<Trainer, 'is_active'>), is_active: true }));
+  }
+  await delay();
   const all = getDb().trainers;
   const rows = opts.includeInactive && staff ? all : all.filter((t) => t.is_active);
   return clone(rows);

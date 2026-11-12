@@ -12,19 +12,19 @@ import {
   Phone,
 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
+import { getPublicCatalog } from "../api/publicApi";
+import { useAsync } from "../hooks/useAsync";
 import { HOME } from "../auth/RequireRole";
 import { Barbell, Glove, Group, Kettlebell, Mat } from "../components/GymIcons";
 import { CLOSE_HOUR, OPEN_HOUR, TODAY_DATE } from "../config";
 import {
   CONTACT,
   GYM_NAME,
-  HALLS,
   PLANS,
   INSTAGRAM,
   SERVICES,
   STEPS,
   TESTIMONIALS,
-  TRAINERS,
   type ServiceIcon,
 } from "../data/gymData";
 import { hourLabel, kzt } from "../utils/format";
@@ -61,10 +61,12 @@ const initials = (name: string) =>
     .map((w) => w[0])
     .join("")
     .slice(0, 2);
-const years = (n: number) => `${n} ${n === 1 ? "year" : "years"}`;
 
 export default function Landing() {
   const { user, logout } = useAuth();
+  const catalog = useAsync(getPublicCatalog, []);
+  const trainers = catalog.data?.trainers ?? [];
+  const halls = catalog.data?.halls ?? [];
 
   // Logged out -> sign up; logged in -> the user's own dashboard.
   const target = user ? HOME[user.role] : "/register";
@@ -225,69 +227,44 @@ export default function Landing() {
           id="trainers"
           className="mx-auto max-w-6xl scroll-mt-20 px-4 py-14 sm:px-6 lg:py-20"
         >
-          <SectionHead
-            title="Our trainers"
-            note="Pick a coach for a one-hour personal session."
-          />
-          <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {TRAINERS.map((t) => (
-              <li
-                key={t.name}
-                className="flex flex-col overflow-hidden rounded-xl border border-line bg-white"
-              >
+          <SectionHead title="Our trainers" note="Choose your coach for a one-hour personal session." />
+          {catalog.loading && <p className="mt-6 text-ink/70" role="status">Loading trainers and halls...</p>}
+          {catalog.error && (
+            <div className="mt-6" role="alert">
+              <p className="text-berry">{catalog.error}</p>
+              <button type="button" className="btn-ghost mt-3" onClick={catalog.reload}>Try again</button>
+            </div>
+          )}
+          {!catalog.loading && !catalog.error && trainers.length === 0 && (
+            <p className="mt-6 text-ink/70">No trainers are available at the moment.</p>
+          )}
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {trainers.map((trainer) => (
+              <article key={trainer.trainer_id} className="flex flex-col overflow-hidden rounded-xl border border-line bg-white">
                 <div className="flex flex-1 flex-col px-5 pt-6 text-center">
-                  <h3 className="font-display text-2xl font-bold uppercase tracking-wide underline decoration-2 underline-offset-[6px]">
-                    {t.name}
-                  </h3>
-                  <p className="mt-2 text-ink/70">{t.specialization}</p>
-                  <dl className="mt-auto grid grid-cols-2 gap-2 pt-5 text-left">
-                    <div className="rounded-lg bg-cream p-3">
-                      <dt className="text-xs text-ink/60">Per session</dt>
-                      <dd className="mt-0.5 font-display text-xl font-bold">
-                        {kzt(t.priceKzt)}
-                      </dd>
-                    </div>
-                    <div className="rounded-lg bg-cream p-3">
-                      <dt className="text-xs text-ink/60">Experience</dt>
-                      <dd className="mt-0.5 font-display text-xl font-bold">
-                        {years(t.experienceYears)}
-                      </dd>
-                    </div>
-                  </dl>
+                  <h3 className="font-display text-xl font-bold uppercase tracking-wide">{trainer.full_name}</h3>
+                  <p className="mt-2 text-sm text-ink/70">{trainer.specialization}</p>
+                  <p className="mt-auto pt-5 font-display text-2xl font-bold">
+                    {kzt(trainer.session_price_kzt)} <span className="font-body text-sm font-normal text-ink/60">/ session</span>
+                  </p>
                 </div>
-
-                {/* Picture area: brand chevrons + initials instead of a photo */}
-                <div
-                  className="relative mt-5 flex h-36 items-center justify-center overflow-hidden bg-sun-soft"
-                  aria-hidden="true"
-                >
-                  <svg
-                    viewBox="0 0 200 140"
-                    className="absolute -left-6 bottom-0 h-full text-brand"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="20"
-                  >
+                <div className="relative mt-5 flex h-36 items-center justify-center overflow-hidden bg-sun-soft" aria-hidden="true">
+                  <svg viewBox="0 0 200 140" className="absolute -left-6 bottom-0 h-full text-brand" fill="none" stroke="currentColor" strokeWidth="20">
                     <path d="M30 150 L90 80 L150 150" />
                     <path d="M30 95 L90 25 L150 95" opacity="0.55" />
                   </svg>
-                  <span className="relative ml-16 flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-ink font-display text-3xl font-bold text-white dark:border-surface dark:bg-brand dark:text-onaccent">
-                    {initials(t.name)}
+                  <span className="relative ml-16 flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-ink font-display text-2xl font-bold text-white">
+                    {initials(trainer.full_name)}
                   </span>
                 </div>
-
                 <div className="p-5 pt-4">
-                  <Link
-                    to={target}
-                    className="btn-primary min-h-[44px] w-full"
-                    aria-label={`Book a session with ${t.name}`}
-                  >
+                  <Link to={target} className="btn-primary min-h-[44px] w-full" aria-label={`Book a session with ${trainer.full_name}`}>
                     Book a session
                   </Link>
                 </div>
-              </li>
+              </article>
             ))}
-          </ul>
+          </div>
         </section>
 
         {/* ---- Hall rental: drawn to scale by capacity ---- */}
@@ -299,22 +276,30 @@ export default function Landing() {
             title="Hall rental"
             note="For your class, team or group. Each block is drawn to scale by how many people the hall holds."
           />
+          {catalog.loading && <p className="mt-6 text-ink/70" role="status">Loading halls...</p>}
+          {catalog.error && (
+            <div className="mt-6" role="alert">
+              <p className="text-berry">{catalog.error}</p>
+              <button type="button" className="btn-ghost mt-3" onClick={catalog.reload}>Try again</button>
+            </div>
+          )}
+          {!catalog.loading && !catalog.error && halls.length === 0 && (
+            <p className="mt-6 text-ink/70">No halls are available at the moment.</p>
+          )}
           <div className="mt-8 flex flex-col gap-3 md:h-80 md:flex-row">
-            {HALLS.map((h) => (
+            {halls.map((h) => (
               <div
-                key={h.name}
+                key={h.hall_id}
                 style={{ flexGrow: h.capacity }}
                 className="relative flex min-h-[12rem] basis-0 flex-col justify-between overflow-hidden rounded-lg border-2 border-dashed border-ink/25 bg-white p-5"
               >
-                <h3 className="relative text-xl font-bold">{h.name}</h3>
+                <h3 className="relative text-xl font-bold">{h.hall_name}</h3>
                 <dl className="relative grid grid-cols-[auto_1fr] gap-x-3 text-sm">
                   <dt className="text-ink/60">Capacity</dt>
                   <dd className="font-semibold">up to {h.capacity} people</dd>
-                  <dt className="text-ink/60">Size</dt>
-                  <dd className="font-semibold">{h.sizeM2} m²</dd>
                   <dt className="sr-only">Price</dt>
                   <dd className="col-span-2 mt-2 font-display text-2xl font-bold">
-                    {kzt(h.pricePerHourKzt)}{" "}
+                    {kzt(h.hourly_rate_kzt)}{" "}
                     <span className="font-body text-sm font-normal text-ink/60">
                       / hour
                     </span>
@@ -323,7 +308,7 @@ export default function Landing() {
                 <Link
                   to={target}
                   className="btn-primary mt-4 min-h-[44px] self-start"
-                  aria-label={`Rent the ${h.name}`}
+                  aria-label={`Rent the ${h.hall_name}`}
                 >
                   Rent this hall
                 </Link>
