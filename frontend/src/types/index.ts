@@ -88,6 +88,9 @@ export interface CurrentUser {
   role: Role;
   member_id?: number;
   trainer_id?: number;
+  trainer_specialization?: string | null;
+  trainer_session_price_kzt?: number | null;
+  trainer_is_active?: boolean | null;
 }
 
 // ---- Role-filtered views (what the API is allowed to return) -------------

@@ -68,6 +68,9 @@ class CurrentUserResponse(BaseModel):
     role: Literal["member", "trainer", "receptionist", "admin"]
     member_id: int | None = None
     trainer_id: int | None = None
+    trainer_specialization: str | None = None
+    trainer_session_price_kzt: float | None = None
+    trainer_is_active: bool | None = None
 
 
 class MemberResponse(BaseModel):

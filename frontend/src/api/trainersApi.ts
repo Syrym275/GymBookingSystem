@@ -8,9 +8,18 @@ import { requireUser } from './session';
 export async function getMyTrainerProfile(): Promise<Trainer> {
   await delay();
   const viewer = requireUser(['trainer']);
+  if (viewer.trainer_id && viewer.trainer_specialization && viewer.trainer_session_price_kzt != null && viewer.trainer_is_active != null) {
+    return {
+      trainer_id: viewer.trainer_id,
+      full_name: viewer.full_name,
+      specialization: viewer.trainer_specialization,
+      session_price_kzt: viewer.trainer_session_price_kzt,
+      is_active: viewer.trainer_is_active,
+    };
+  }
   const t = getDb().trainers.find((x) => x.trainer_id === viewer.trainer_id);
   if (!t) throw new ApiError('NOT_FOUND', 'Trainer profile not found.');
-  return clone(t);
+  return clone({ ...t, full_name: viewer.full_name });
 }
 
 /** Booking pages only ever see active trainers; staff may ask for inactive ones too (filters, admin). */

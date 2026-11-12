@@ -109,7 +109,7 @@ export default function Register() {
         <div className="space-y-4 rounded-xl border border-line bg-white p-6">
           <h1 className="text-4xl font-bold">Registration received</h1>
           <p className="text-ink/70">
-            Your trainer profile is waiting for approval and is not public yet. Trainer sign-in is not available yet.
+            Your trainer profile is waiting for approval and is not public yet. You can log in while your profile is reviewed.
           </p>
           <Link to="/" className="btn-primary inline-flex min-h-[48px] w-full items-center justify-center text-base">
             Back to home

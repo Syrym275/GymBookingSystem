@@ -181,11 +181,14 @@ class TrainerRegistrationTests(unittest.TestCase):
                 response = self.client.post(path, json={**payload, "password": "Abcdef1!"})
                 self.assertEqual(response.status_code, 201)
 
-    def test_trainer_login_is_refused_only_with_the_right_password(self):
+    def test_trainer_login_returns_linked_trainer_id(self):
         password_hash = bcrypt.hashpw(b"secret123", bcrypt.gensalt()).decode()
-        self.cursor.fetchone.return_value = (1, "t@example.kz", password_hash, "trainer", None, None)
+        self.cursor.fetchone.return_value = (1, "t@example.kz", password_hash, "trainer", None, 8, "Trainer Name", "Yoga", Decimal("5000"), True)
         credentials = {"email": "t@example.kz", "password": "secret123"}
-        self.assertEqual(self.client.post("/auth/login", json=credentials).status_code, 403)
+        response = self.client.post("/auth/login", json=credentials)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["trainer_id"], 8)
+        self.assertEqual(response.json()["full_name"], "Trainer Name")
         wrong = self.client.post("/auth/login", json={**credentials, "password": "wrong-password"})
         self.assertEqual(wrong.status_code, 401)
 
@@ -265,6 +268,54 @@ class ValidationFixTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 422)
                 self.assertIn(message, response.json()["detail"])
         self.connect.assert_not_called()
+
+
+class BookingWriteTests(unittest.TestCase):
+    booking = {
+        "member_id": 18,
+        "booking_type": "training",
+        "trainer_id": 5,
+        "start_time": "2026-11-12T17:00:00",
+        "end_time": "2026-11-12T18:00:00",
+    }
+
+    def setUp(self):
+        environment = patch.dict(os.environ, {"DATABASE_URL": "postgresql://test"})
+        environment.start()
+        self.addCleanup(environment.stop)
+        connect = patch("app.bookings.connect")
+        self.connect = connect.start()
+        self.addCleanup(connect.stop)
+        self.cursor = self.connect.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
+        self.client = TestClient(app)
+        self.addCleanup(self.client.close)
+
+    def test_past_time_booking_is_rejected_before_insert(self):
+        self.cursor.fetchone.return_value = {"starts_in_past": True}
+        response = self.client.post("/bookings", json=self.booking)
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("future", response.json()["detail"])
+        self.assertEqual(self.cursor.execute.call_count, 1)
+
+    def test_existing_completed_overlap_is_rejected(self):
+        self.cursor.fetchone.side_effect = [
+            {"starts_in_past": False},
+            {"session_price_kzt": Decimal("7000")},
+            {"trainer_busy": True},
+        ]
+        response = self.client.post("/bookings", json=self.booking)
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("already booked", response.json()["detail"])
+        executed_sql = [call.args[0] for call in self.cursor.execute.call_args_list]
+        self.assertFalse(any("INSERT INTO bookings" in query for query in executed_sql))
+
+    def test_early_attendance_is_rejected(self):
+        self.cursor.fetchone.side_effect = [None, {"trainer_id": 5, "status": "confirmed", "start_time": None}]
+        response = self.client.post("/bookings/41/attendance?status=completed&trainer_id=5")
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("sessions that have ended", response.json()["detail"])
+        update_sql = self.cursor.execute.call_args_list[0].args[0]
+        self.assertIn("end_time <= LOCALTIMESTAMP", update_sql)
 
 
 if __name__ == "__main__":

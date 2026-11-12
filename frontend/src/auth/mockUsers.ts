@@ -27,7 +27,7 @@ const ALL_DEMO_ACCOUNTS: DemoAccount[] = [
 ];
 
 // Only the demo accounts of roles that can sign in are offered on the login page and in the DEV role switcher.
-// Trainers sign in through the demo account only: the backend refuses trainer sign-in (backend/app/auth.py).
+// The backend authenticates registered trainers; demo sign-in remains available in mock mode.
 export const DEMO_ACCOUNTS: DemoAccount[] = ALL_DEMO_ACCOUNTS.filter((d) => ENABLED_ROLES.includes(d.role));
 
 export function authenticate(email: string, password: string): CurrentUser | null {
