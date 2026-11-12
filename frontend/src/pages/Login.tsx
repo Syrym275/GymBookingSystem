@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { ApiError } from '../api/ApiError';
 import { useAuth } from '../auth/AuthContext';
 import { DEMO_ACCOUNTS } from '../auth/mockUsers';
 import { HOME } from '../auth/RequireRole';
@@ -17,6 +18,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   if (user) return <Navigate to={HOME[user.role]} replace />;
@@ -24,11 +26,13 @@ export default function Login() {
   const attempt = async (e: string, p: string) => {
     setBusy(true);
     setError(null);
+    setUnverifiedEmail(null);
     try {
       const u = await login(e, p);
       navigate(HOME[u.role], { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not log in.');
+      if (err instanceof ApiError && err.code === 'UNVERIFIED') setUnverifiedEmail(e.trim().toLowerCase());
       setBusy(false);
     }
   };
@@ -76,6 +80,14 @@ export default function Login() {
           />
         </div>
         {error && <ErrorNote message={error} />}
+        {unverifiedEmail && (
+          <Link
+            to={`/verify-email?${new URLSearchParams({ email: unverifiedEmail, resend: '1' })}`}
+            className="btn-secondary inline-flex min-h-[48px] w-full items-center justify-center text-base"
+          >
+            Enter confirmation code
+          </Link>
+        )}
         <button className="btn-primary min-h-[48px] w-full text-base" disabled={busy}>
           {busy ? 'Logging in…' : 'Log in'}
         </button>

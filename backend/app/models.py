@@ -58,7 +58,24 @@ class TrainerRegistrationResponse(BaseModel):
     trainer_id: int
     full_name: str
     email: str
-    status: Literal["pending_approval"] = "pending_approval"
+    status: Literal["verification_required"] = "verification_required"
+    email_sent: bool = True
+
+
+class RegistrationPendingResponse(BaseModel):
+    """Sign-up saved; the account works once the emailed code is entered."""
+    email: str
+    status: Literal["verification_required"] = "verification_required"
+    email_sent: bool = True
+
+
+class VerifyEmailRequest(BaseModel):
+    email: str = Field(min_length=5, max_length=255)
+    code: str = Field(max_length=20)  # format checked in the endpoint for a clearer message
+
+
+class ResendCodeRequest(BaseModel):
+    email: str = Field(min_length=5, max_length=255)
 
 
 class CurrentUserResponse(BaseModel):

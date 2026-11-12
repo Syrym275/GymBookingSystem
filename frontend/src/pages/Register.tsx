@@ -6,7 +6,6 @@ import { useAuth } from '../auth/AuthContext';
 import { normalizePhone, PLAN_MONTHS } from '../auth/mockUsers';
 import { HOME } from '../auth/RequireRole';
 import { AuthLayout } from '../components/AuthLayout';
-import { useToast } from '../components/Toast';
 import { ErrorNote } from '../components/ui';
 import { TODAY_DATE } from '../config';
 import { PLANS as PLAN_INFO } from '../data/gymData';
@@ -40,7 +39,6 @@ const expiryFor = (plan: MembershipPlan) => toDate(addMonths(new Date(`${TODAY_D
 export default function Register() {
   const { user, register } = useAuth();
   const navigate = useNavigate();
-  const toast = useToast();
   const [params] = useSearchParams();
   const planParam = params.get('plan') as MembershipPlan | null;
   const [fullName, setFullName] = useState('');
@@ -52,7 +50,6 @@ export default function Register() {
   const [accountType, setAccountType] = useState<AccountType>('member');
   const [specialization, setSpecialization] = useState('');
   const [sessionPrice, setSessionPrice] = useState('');
-  const [trainerSubmitted, setTrainerSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -79,45 +76,18 @@ export default function Register() {
 
     setBusy(true);
     try {
-      if (isTrainer) {
-        await registerTrainer({ full_name: fullName, email, password, specialization, session_price_kzt: priceKzt });
-        setTrainerSubmitted(true);
-        setBusy(false);
-        return;
-      }
-      const u = await register({ full_name: fullName, email, phone, password, membership_plan: plan });
-      toast.success(`Welcome, ${u.full_name.split(' ')[0]}! Your account is ready.`);
-      navigate(HOME[u.role], { replace: true });
+      // Both account types confirm their email with a code before they can be used.
+      const { emailSent } = isTrainer
+        ? await registerTrainer({ full_name: fullName, email, password, specialization, session_price_kzt: priceKzt })
+        : await register({ full_name: fullName, email, phone, password, membership_plan: plan });
+      const query = new URLSearchParams({ email: email.trim().toLowerCase() });
+      if (!emailSent) query.set('sent', '0');
+      navigate(`/verify-email?${query}`, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create the account.');
       setBusy(false);
     }
   };
-
-  if (trainerSubmitted) {
-    return (
-      <AuthLayout
-        aside={{
-          title: (
-            <>
-              Thanks for applying. <span className="block text-brand-dark">We will review it soon.</span>
-            </>
-          ),
-          text: 'Approved trainers are listed on PulseGym with their specialization and session price.',
-        }}
-      >
-        <div className="space-y-4 rounded-xl border border-line bg-white p-6">
-          <h1 className="text-4xl font-bold">Registration received</h1>
-          <p className="text-ink/70">
-            Your trainer profile is waiting for approval and is not public yet. Trainer sign-in is not available yet.
-          </p>
-          <Link to="/" className="btn-primary inline-flex min-h-[48px] w-full items-center justify-center text-base">
-            Back to home
-          </Link>
-        </div>
-      </AuthLayout>
-    );
-  }
 
   return (
     <AuthLayout
@@ -133,7 +103,9 @@ export default function Register() {
       <div>
         <h1 className="text-4xl font-bold">Sign up</h1>
         <p className="mt-1 text-ink/70">
-          {isTrainer ? 'Takes a minute. Your profile is reviewed before it goes public.' : 'Takes a minute. You are logged in straight away.'}
+          {isTrainer
+            ? 'Takes a minute. Confirm your email, then your profile is reviewed before it goes public.'
+            : 'Takes a minute. Confirm your email with the code we send, and you are in.'}
         </p>
       </div>
 
