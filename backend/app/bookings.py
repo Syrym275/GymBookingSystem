@@ -314,10 +314,33 @@ def cancel_booking(booking_id: int) -> BookingResponse:
 
                 cursor.execute(
                     """
+                    SELECT status
+                    FROM bookings
+                    WHERE booking_id = %s
+                    FOR UPDATE
+                    """,
+                    (booking_id,),
+                )
+                existing = cursor.fetchone()
+
+                if existing is None:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Booking not found.",
+                    )
+
+                if existing["status"] not in {"pending", "confirmed"}:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Only pending or paid bookings can be cancelled.",
+                    )
+
+                cursor.execute(
+                    """
                     UPDATE bookings
                     SET status = 'cancelled'
                     WHERE booking_id = %s
-                      AND status = 'pending'
+                      AND status IN ('pending', 'confirmed')
                     RETURNING
                         booking_id,
                         member_id,
@@ -337,26 +360,20 @@ def cancel_booking(booking_id: int) -> BookingResponse:
                 row = cursor.fetchone()
 
                 if row is None:
-                    cursor.execute(
-                        """
-                        SELECT status
-                        FROM bookings
-                        WHERE booking_id = %s
-                        """,
-                        (booking_id,),
-                    )
-
-                    existing = cursor.fetchone()
-
-                    if existing is None:
-                        raise HTTPException(
-                            status_code=404,
-                            detail="Booking not found.",
-                        )
-
                     raise HTTPException(
                         status_code=409,
-                        detail="Only pending bookings can be cancelled.",
+                        detail="This booking can no longer be cancelled.",
+                    )
+
+                if existing["status"] == "confirmed":
+                    cursor.execute(
+                        """
+                        UPDATE payments
+                        SET payment_status = 'refunded'
+                        WHERE booking_id = %s
+                          AND payment_status = 'approved'
+                        """,
+                        (booking_id,),
                     )
 
         return BookingResponse(**row)

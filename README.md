@@ -35,7 +35,7 @@ $env:PGPASSWORD = "YOUR_POSTGRES_PASSWORD"
 
 & $psql -U postgres -c "CREATE DATABASE gym_booking;"
 
-foreach ($file in "task09_reference", "auth_schema", "booking_hold", "email_verification") {
+foreach ($file in "task09_reference", "auth_schema", "booking_hold", "email_verification", "booking_cancellation") {
   & $psql -U postgres -d gym_booking -v ON_ERROR_STOP=1 -q -o NUL -f "backend/sql/$file.sql"
 }
 ```
@@ -101,6 +101,7 @@ If your database was created before trainer registration or email verification w
 ```powershell
 & $psql -U postgres -d gym_booking -v ON_ERROR_STOP=1 -f backend/sql/auth_schema.sql
 & $psql -U postgres -d gym_booking -v ON_ERROR_STOP=1 -f backend/sql/email_verification.sql
+& $psql -U postgres -d gym_booking -v ON_ERROR_STOP=1 -f backend/sql/booking_cancellation.sql
 ```
 
 ## Running it again
