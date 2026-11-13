@@ -6,20 +6,36 @@ import { requireUser } from './session';
 
 /** The signed-in trainer's own profile, including is_active (false = registration still pending approval). */
 export async function getMyTrainerProfile(): Promise<Trainer> {
-  await delay();
   const viewer = requireUser(['trainer']);
-  if (viewer.trainer_id && viewer.trainer_specialization && viewer.trainer_session_price_kzt != null && viewer.trainer_is_active != null) {
-    return {
-      trainer_id: viewer.trainer_id,
-      full_name: viewer.full_name,
-      specialization: viewer.trainer_specialization,
-      session_price_kzt: viewer.trainer_session_price_kzt,
-      is_active: viewer.trainer_is_active,
-    };
+  if (!viewer.trainer_id) {
+    throw new ApiError('NOT_FOUND', 'Your account is not linked to a trainer profile.');
   }
-  const t = getDb().trainers.find((x) => x.trainer_id === viewer.trainer_id);
-  if (!t) throw new ApiError('NOT_FOUND', 'Trainer profile not found.');
-  return clone({ ...t, full_name: viewer.full_name });
+  let response: Response;
+  try {
+    response = await fetch(`/api/trainers/${viewer.trainer_id}`);
+  } catch {
+    throw new ApiError('VALIDATION', 'Could not load your trainer profile. Check the backend connection and try again.');
+  }
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new ApiError('VALIDATION', 'The trainer profile service returned an invalid response.');
+  }
+  if (!response.ok) {
+    const detail = typeof data === 'object' && data !== null && 'detail' in data && typeof data.detail === 'string'
+      ? data.detail
+      : 'Could not load your trainer profile.';
+    throw new ApiError(response.status === 404 ? 'NOT_FOUND' : 'VALIDATION', detail);
+  }
+  if (typeof data !== 'object' || data === null || !('trainer_id' in data) || data.trainer_id !== viewer.trainer_id
+    || !('full_name' in data) || typeof data.full_name !== 'string'
+    || !('specialization' in data) || typeof data.specialization !== 'string'
+    || !('session_price_kzt' in data) || typeof data.session_price_kzt !== 'number'
+    || !('is_active' in data) || typeof data.is_active !== 'boolean') {
+    throw new ApiError('VALIDATION', 'The trainer profile service returned an invalid response.');
+  }
+  return data as Trainer;
 }
 
 /** Booking pages only ever see active trainers; staff may ask for inactive ones too (filters, admin). */

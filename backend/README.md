@@ -1,5 +1,9 @@
 # FastAPI backend
 
+> Historical milestone notes below. For current setup follow the root README.
+> The runtime catalogue now requires PostgreSQL (`DATABASE_URL`) and never serves samples.
+> Trainer Dashboard/Status read `/trainers/{trainer_id}` for current professional profile data.
+
 This first backend milestone serves fictional trainer and hall records over HTTP.
 It matches the existing frontend public catalogue fields. The updated PulseGym landing page loads this public catalogue over HTTP.
 Login, booking, payment, and dashboard functions still use the frontend mock API.

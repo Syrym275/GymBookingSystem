@@ -57,7 +57,7 @@ $env:DATABASE_URL = "postgresql://postgres:YOUR_POSTGRES_PASSWORD@localhost:5432
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Wait for `Application startup complete`, then open http://127.0.0.1:8000/. The response must contain `"data_source":"postgresql"`. If it says `sample`, `DATABASE_URL` is not set in that terminal.
+Wait for `Application startup complete`, then open http://127.0.0.1:8000/. The response must contain `"data_source":"postgresql"`. If it says `unconfigured`, set `DATABASE_URL` in that terminal. This label indicates configuration, not database readiness: also check `/trainers`.
 
 `DATABASE_URL` lasts only as long as the terminal, and `.env` files are not loaded by the backend. If the password contains characters such as `@`, `:` or `/`, URL-encode them.
 
@@ -143,7 +143,11 @@ Stop either server with **Ctrl+C**.
 
 ### Running without PostgreSQL
 
-If `DATABASE_URL` is not set, the backend serves built-in sample trainers and halls, so the landing page works. Registration, login, bookings and payments return a 503 error that says the database is not configured.
+`DATABASE_URL` is required. Without it, catalogue and trainer-profile requests return HTTP 503 instead of demo records. `/health` still checks API liveness independently of PostgreSQL.
+
+### Trainer profile
+
+`GET /trainers/{trainer_id}` reads the current professional profile from PostgreSQL: ID, name, specialization, session price and active flag. Inactive/pending trainers can also have profiles. This public read exposes no account or contact fields and does not authenticate the caller. Trainer Dashboard and Status pages use it instead of cached login details or mock profile records. Missing trainers return 404; database failures return 503. No table changes are needed.
 
 ## Tests and build
 
@@ -158,7 +162,7 @@ cd frontend
 npm.cmd run build
 ```
 
-The backend tests use sample data and mocked connections, so they do not need PostgreSQL.
+The backend tests use test-only fixtures and mocked connections, so they do not need PostgreSQL. Runtime catalogue routes have no sample-data fallback.
 
 ## Resetting the database
 

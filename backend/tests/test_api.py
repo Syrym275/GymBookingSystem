@@ -1,9 +1,7 @@
 """Run from backend/: python -m unittest discover -s tests -v."""
 
-import ast
 from decimal import Decimal
 import os
-from pathlib import Path
 import re
 import unittest
 from unittest.mock import patch
@@ -23,9 +21,17 @@ from app.models import PublicTrainer
 
 class PublicApiTests(unittest.TestCase):
     def setUp(self):
-        environment = patch.dict(os.environ, {"DATABASE_URL": ""})
+        environment = patch.dict(os.environ, {"DATABASE_URL": "postgresql://test"})
         environment.start()
         self.addCleanup(environment.stop)
+        database = patch("app.catalog.psycopg.connect")
+        self.connect = database.start()
+        self.addCleanup(database.stop)
+        self.cursor = self.connect.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
+        # Database fixtures stay in tests, never in runtime catalogue code.
+        self.trainers = [dict(trainer_id=i, full_name=f"Database trainer {i}", specialization="Boxing", session_price_kzt=7000) for i in range(1, 5)]
+        self.halls = [dict(hall_id=i, hall_name=f"Database hall {i}", capacity=20, hourly_rate_kzt=9000) for i in range(1, 4)]
+        self.cursor.fetchall.side_effect = lambda: self.trainers if "public.trainers" in self.cursor.execute.call_args.args[0] else self.halls
         # Sign-ups must not depend on real DNS in tests.
         domain = patch("app.auth.email_domain_exists", return_value=True)
         self.domain_exists = domain.start()
@@ -75,18 +81,46 @@ class PublicApiTests(unittest.TestCase):
         for path in ["/health", "/trainers", "/halls", "/public/catalog"]:
             self.assertIn("get", schema["paths"][path])
 
-    def test_sample_catalog_matches_supplied_task9_sql(self):
-        sql = (Path(__file__).parents[1] / "sql" / "task09_reference.sql").read_text(encoding="utf-8")
-        catalog = self.client.get("/public/catalog").json()
-        for table in ["trainers", "halls"]:
-            match = re.search(r"INSERT INTO " + table + r"\s*\((.*?)\) VALUES(.*?);", sql, re.S)
-            self.assertIsNotNone(match)
-            columns = [field.strip() for field in match[1].split(",")]
-            values = re.sub(r"--[^\n]*", "", match[2]).strip().rstrip(",")
-            records = ast.literal_eval("[" + values + "]")
-            expected = [dict(zip(columns, row)) for row in records]
-            actual = [{key: value for key, value in row.items() if key != table[:-1] + "_id"} for row in catalog[table]]
-            self.assertEqual(actual, expected)
+    def test_missing_configuration_returns_503_without_sample_data(self):
+        for value in ["", "   "]:
+            with self.subTest(value=value), patch.dict(os.environ, {"DATABASE_URL": value}):
+                for path in ["/trainers", "/halls", "/public/catalog", "/trainers/1"]:
+                    response = self.client.get(path)
+                    self.assertEqual(response.status_code, 503)
+                    self.assertIn("DATABASE_URL", response.json()["detail"])
+                    self.assertNotIn("trainers", response.json())
+                self.assertEqual(self.client.get("/").json()["data_source"], "unconfigured")
+                self.assertEqual(self.client.get("/health").status_code, 200)
+        self.connect.assert_not_called()
+
+    def test_trainer_profile_returns_only_professional_database_fields(self):
+        self.cursor.fetchone.return_value = {
+            **self.trainers[0], "is_active": False, "email": "not-public@example.kz",
+        }
+        response = self.client.get("/trainers/1")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {**self.trainers[0], "is_active": False})
+        query, params = self.cursor.execute.call_args.args
+        self.assertIn("WHERE trainer_id = %s", query)
+        self.assertEqual(params, (1,))
+        self.assertIn("default_transaction_read_only=on", self.connect.call_args.kwargs["options"])
+
+    def test_missing_trainer_returns_404(self):
+        self.cursor.fetchone.return_value = None
+        response = self.client.get("/trainers/999")
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["detail"], "Trainer not found.")
+
+    def test_invalid_trainer_id_does_not_query_database(self):
+        for value in ["0", "-1", "abc"]:
+            self.assertEqual(self.client.get(f"/trainers/{value}").status_code, 422)
+        self.connect.assert_not_called()
+
+    def test_profile_database_failure_returns_503_without_secrets(self):
+        self.connect.side_effect = OperationalError("private connection information")
+        response = self.client.get("/trainers/1")
+        self.assertEqual(response.status_code, 503)
+        self.assertNotIn("private", response.text)
 
     def test_sql_money_precision_and_json_number_contract(self):
         fields = dict(trainer_id=1, full_name="Trainer", specialization="Boxing")

@@ -22,6 +22,10 @@ class PublicTrainer(BaseModel):
     session_price_kzt: Money
 
 
+class TrainerProfile(PublicTrainer):
+    is_active: bool
+
+
 class PublicHall(BaseModel):
     hall_id: int = Field(gt=0)
     hall_name: str = Field(min_length=1, max_length=60)

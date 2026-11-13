@@ -1,5 +1,11 @@
 # Task 9 SQL compatibility
 
+> Historical milestone notes below. The current catalogue and trainer-profile routes
+> require `DATABASE_URL`; there is no sample-data mode. `/` reports `unconfigured`
+> when it is missing, and database-backed catalogue/profile requests return 503.
+> Follow the root README for current setup. Do not rerun the Task 9 reset script
+> to enable the trainer-profile endpoint; it uses the existing `trainers` table.
+
 `task09_reference.sql` is an unchanged copy of the supplied Week 9 script. It is
 not executed by the app. It drops and recreates tables and contains server-wide
 role creation, report queries, and a rolled-back payment demonstration. Only run

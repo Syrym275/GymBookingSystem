@@ -1,6 +1,6 @@
-"""Week 10: read-only FastAPI foundation and public sample catalogue."""
+"""Gym booking API backed by PostgreSQL."""
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Path, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -12,17 +12,16 @@ from .members import router as members_router
 from .payments import router as payments_router
 from .verification import router as verification_router
 
-from .catalog import data_source, get_catalog
-from .models import HealthResponse, PublicCatalog, PublicHall, PublicTrainer
+from .catalog import data_source, get_catalog, get_trainer_profile
+from .models import HealthResponse, PublicCatalog, PublicHall, PublicTrainer, TrainerProfile
 
 
 app = FastAPI(
     title="Gym Booking System API",
     version="0.2.0",
     description=(
-        "Week 10 public catalogue. Sample data by default; optional read-only "
-        "PostgreSQL access to the Task 9 trainers and halls tables. "
-        "Authentication, bookings and payments remain future work."
+        "PostgreSQL-backed catalogue, trainer profiles, registration, bookings and payments. "
+        "DATABASE_URL is required for database-backed routes; no sample catalogue fallback."
     ),
 )
 FIELD_LABELS = {
@@ -89,6 +88,15 @@ def health() -> HealthResponse:
 def list_trainers() -> list[PublicTrainer]:
     """List active trainers and public prices; no login required."""
     return load_catalog().trainers
+
+
+@app.get("/trainers/{trainer_id}", response_model=TrainerProfile, tags=["Public catalogue"])
+def trainer_profile(trainer_id: int = Path(gt=0)) -> TrainerProfile:
+    """Public professional fields only, including inactive/pending profiles; no account or contact data."""
+    try:
+        return get_trainer_profile(trainer_id)
+    except (DatabaseError, ValidationError):
+        raise HTTPException(status_code=503, detail="The trainer profile is temporarily unavailable.") from None
 
 
 @app.get("/halls", response_model=list[PublicHall], tags=["Public catalogue"])
