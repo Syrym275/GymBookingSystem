@@ -1,5 +1,6 @@
 """Run from backend/: python -m unittest discover -s tests -v."""
 
+from datetime import date
 from decimal import Decimal
 import os
 import re
@@ -7,6 +8,7 @@ import unittest
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
+from fastapi import HTTPException
 import bcrypt
 import dns.exception
 import dns.resolver
@@ -16,7 +18,7 @@ from pydantic import ValidationError
 
 from app.main import app
 from app.catalog import get_database_catalog
-from app.models import PublicTrainer
+from app.models import BookingCreateRequest, CurrentUserResponse, PublicTrainer
 
 
 class PublicApiTests(unittest.TestCase):
@@ -372,7 +374,7 @@ class BookingWriteTests(unittest.TestCase):
     def test_existing_completed_overlap_is_rejected(self):
         self.cursor.fetchone.side_effect = [
             {"starts_in_past": False},
-            {"session_price_kzt": Decimal("7000")},
+            {"session_price_kzt": Decimal("7000"), "availability_status": "available", "availability_break_until": None},
             {"trainer_busy": True},
         ]
         response = self.client.post("/bookings", json=self.booking)
@@ -380,6 +382,47 @@ class BookingWriteTests(unittest.TestCase):
         self.assertIn("already booked", response.json()["detail"])
         executed_sql = [call.args[0] for call in self.cursor.execute.call_args_list]
         self.assertFalse(any("INSERT INTO bookings" in query for query in executed_sql))
+
+    def test_day_off_rejects_new_training_booking(self):
+        from app.bookings import create_booking
+
+        self.cursor.fetchone.side_effect = [
+            {"starts_in_past": False},
+            {"session_price_kzt": Decimal("7000"), "availability_status": "off", "availability_break_until": None},
+        ]
+        user = CurrentUserResponse(
+            user_id=1,
+            full_name="Admin",
+            email="admin@example.kz",
+            role="admin",
+        )
+
+        with self.assertRaises(HTTPException) as error:
+            create_booking(BookingCreateRequest(**self.booking), user)
+
+        self.assertEqual(error.exception.status_code, 409)
+        self.assertIn("day off", error.exception.detail)
+        executed_sql = [call.args[0] for call in self.cursor.execute.call_args_list]
+        self.assertFalse(any("INSERT INTO bookings" in query for query in executed_sql))
+
+    def test_available_trainer_returns_hourly_availability(self):
+        from app.bookings import booking_availability
+
+        self.cursor.fetchone.side_effect = [
+            ("available",),
+            *[(False,) for _ in range(15)],
+        ]
+        user = CurrentUserResponse(
+            user_id=18,
+            full_name="Member",
+            email="member@example.kz",
+            role="member",
+            member_id=18,
+        )
+
+        result = booking_availability("training", 5, date(2026, 11, 15), user=user)
+
+        self.assertEqual(result, {"taken_hours": []})
 
     def test_early_attendance_is_rejected(self):
         self.cursor.fetchone.side_effect = [None, {"trainer_id": 5, "status": "confirmed", "start_time": None}]

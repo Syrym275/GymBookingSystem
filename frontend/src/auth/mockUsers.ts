@@ -26,7 +26,7 @@ const ALL_DEMO_ACCOUNTS: DemoAccount[] = [
   { role: 'receptionist', label: 'Receptionist', name: 'Anel Rakhimova', email: 'reception@gym.kz', password: DEMO_PASSWORD, note: 'Today, lookups, unpaid' },
 ];
 
-// Only the demo accounts of roles that can sign in are offered on the login page and in the DEV role switcher.
+// Legacy mock data used by dashboard-only compatibility code.
 // The backend authenticates registered trainers; demo sign-in remains available in mock mode.
 export const DEMO_ACCOUNTS: DemoAccount[] = ALL_DEMO_ACCOUNTS.filter((d) => ENABLED_ROLES.includes(d.role));
 

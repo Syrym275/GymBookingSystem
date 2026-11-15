@@ -1,17 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { DEMO_ACCOUNTS } from '../auth/mockUsers';
 import { HOME } from '../auth/RequireRole';
 import { MEMBER_AREA_ENABLED } from '../config';
 import { AuthLayout } from '../components/AuthLayout';
 import { ErrorNote } from '../components/ui';
-
-const ROLE_COLOR: Record<string, string> = {
-  member: 'bg-brand text-onaccent',
-  trainer: 'bg-mint text-onaccent',
-  receptionist: 'bg-sun text-ink',
-};
 
 export default function Login() {
   const { user, login } = useAuth();
@@ -91,35 +84,6 @@ export default function Login() {
         </p>
       </form>
 
-      <div>
-        <p className="label">Demo accounts · log in with one click</p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {DEMO_ACCOUNTS.map((d) => (
-            <button
-              key={d.role}
-              disabled={busy}
-              onClick={() => attempt(d.email, d.password)}
-              className="flex min-h-[56px] items-center gap-3 rounded-xl border border-line bg-white p-3 text-left transition hover:border-ink/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/60 disabled:opacity-60"
-            >
-              <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-display font-bold ${ROLE_COLOR[d.role]}`}>
-                {d.name[0]}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold">{d.label}</span>
-                <span className="block truncate text-xs text-ink/60">{d.name}</span>
-              </span>
-            </button>
-          ))}
-        </div>
-        <p className="mt-3 text-xs text-ink/60">
-          Password for every demo account: <b>demo123</b>.
-          {MEMBER_AREA_ENABLED && (
-            <>
-              {' '}Try <i>yerassyl.omarov@example.kz</i> (2 unpaid bookings) or <i>timur.abenov@example.kz</i> (expired membership) to see the booking limits.
-            </>
-          )}
-        </p>
-      </div>
     </AuthLayout>
   );
 }

@@ -1,16 +1,19 @@
 import psycopg
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from psycopg.rows import dict_row
 
 from .db import connect
-from .models import MemberDirectoryResponse, MemberResponse
+from .models import CurrentUserResponse, MemberDirectoryResponse, MemberResponse
+from .security import current_user, ensure_member_access
 
 
 router = APIRouter(prefix="/members", tags=["Members"])
 
 
 @router.get("", response_model=list[MemberDirectoryResponse])
-def list_members(q: str = "") -> list[MemberDirectoryResponse]:
+def list_members(q: str = "", user: CurrentUserResponse = Depends(current_user)) -> list[MemberDirectoryResponse]:
+    if user.role not in {"receptionist", "admin"}:
+        raise HTTPException(status_code=403, detail="Your account is not allowed to access the member directory.")
     needle = q.strip().lower()
     digits = "".join(character for character in needle if character.isdigit())
     try:
@@ -38,7 +41,8 @@ def list_members(q: str = "") -> list[MemberDirectoryResponse]:
 
 
 @router.get("/{member_id}", response_model=MemberResponse)
-def get_member(member_id: int) -> MemberResponse:
+def get_member(member_id: int, user: CurrentUserResponse = Depends(current_user)) -> MemberResponse:
+    ensure_member_access(user, member_id)
     try:
         with connect(
             row_factory=dict_row,

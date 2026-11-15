@@ -6,7 +6,8 @@
 
 This first backend milestone serves fictional trainer and hall records over HTTP.
 It matches the existing frontend public catalogue fields. The updated PulseGym landing page loads this public catalogue over HTTP.
-Login, booking, payment, and dashboard functions still use the frontend mock API.
+Authentication, booking, and payment routes use PostgreSQL. Some dashboard
+views in the frontend still use local mock data.
 
 Implemented routes:
 
@@ -20,8 +21,11 @@ Implemented routes:
 | GET | `/docs` | Interactive API documentation |
 
 Sample mode works without PostgreSQL. An optional read-only PostgreSQL catalogue
-connection uses the existing trainers and halls tables. Real login, booking
-writes, payment processing, and the audit log are later work. Sample records come
+connection uses the existing trainers and halls tables. The authentication,
+booking, and payment routes require the database schema and an HttpOnly session
+cookie. Run `sql/auth_schema.sql`, `sql/email_verification.sql`, and
+`sql/trainer_availability.sql` after the base schema so session, verification,
+and trainer status tables exist. The audit log is later work. Sample records come
 from code and match the public rows in sql/task09_reference.sql.
 The health check proves only that the server responds. Public endpoints require
 no login and expose no member records. CORS permits browser GET requests from
@@ -89,7 +93,8 @@ only the `cd` and `npm.cmd run dev` commands are needed unless dependencies chan
 Keep both terminals open to run both servers; stop each with **Ctrl+C**.
 The landing page now calls `/api/public/catalog`; Vite forwards that request to
 FastAPI at `http://127.0.0.1:8000/public/catalog`. Trainer and hall cards come
-from this server. Other signed-in features still use frontend mock data.
+from this server. Some signed-in dashboard reports still use frontend mock data,
+but backend member, booking, and payment routes require authentication.
 
 To prove the connection, stop FastAPI with Ctrl+C, refresh the homepage, and check
 that a catalogue error and Try again button appear. Restart FastAPI and click
@@ -112,7 +117,8 @@ Expected: nine passing tests. They check service health, public response fields,
 inactive-resource filtering, CORS response headers, rejected writes, and API docs.
 They also compare sample records with the supplied SQL and check decimal money
 validation and the read-only adapter using mocked database connections. They do
-not prove a live PostgreSQL connection, booking conflicts, or authentication.
+not prove a live PostgreSQL connection, booking conflicts, or the full session
+authentication flow.
 
 ## If something fails
 

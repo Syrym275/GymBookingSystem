@@ -3,9 +3,9 @@
 A bright, mobile-friendly front end for a gym where members book a **60-minute personal training session** or **rent a hall/studio**, pay, and get a confirmation. Its core promise: *one trainer or one hall is never booked twice for the same time.*
 
 Week 10 update: the latest PulseGym design is imported from frontend branch commit
-`b9fd75d59fb4b1e8c72e4c63c5ddababc494fd8b`. The landing page now fetches its trainers
-and halls from FastAPI via `/api/public/catalog`. Run the backend on port 8000 and
-the frontend in a separate terminal. Other flows still use the mock API.
+`b9fd75d59fb4b1e8c72e4c63c5ddababc494fd8b`. The landing page and account flows
+use FastAPI via the Vite proxy. Run the backend on port 8000 and the frontend in
+a separate terminal. Some dashboard reports still use local mock data.
 See `../backend/README.md` for the current beginner setup and scope.
 
 This folder is the **front end**; the backend lives next to it in `../backend/`. Except for the public catalogue, data comes from a mock API layer (`src/api` + `src/mock`) that mirrors the real PostgreSQL schema, so it can later be swapped for real HTTP calls.
@@ -27,22 +27,11 @@ npm run build    # type-check + production build into dist/
 npm run preview  # serve the production build
 ```
 
-## Demo accounts
+## Accounts
 
-Password for every account: **`demo123`**. The login page has one-click buttons for the four roles.
-
-| Role | Email | Notes |
-|---|---|---|
-| Member | `aruzhan.bekova@example.kz` | **Hidden for now** (see the member area note below) |
-| Trainer | `aigerim.sadykova@gym.kz` | Demo trainer (mock data, dev mode only, see below) |
-| Receptionist | `reception@gym.kz` | |
-
-Handy extras (member accounts, only when the member area is enabled; all use `demo123`):
-- `yerassyl.omarov@example.kz` — already has **2 unpaid bookings** → try booking a third (error `GB001`).
-- `timur.abenov@example.kz` — membership **expired** 2026-10-31 → booking is refused (error `GB002`).
-- `madina.rakhimova@example.kz` — membership ends in 4 days → warning banner.
-
-In development (`npm run dev`) the top bar shows a **DEV role switcher** and a **Reset demo data** button. Neither exists in a production build.
+Create member or trainer accounts through the registration page, or provision
+staff accounts directly in PostgreSQL. Login uses the backend's HttpOnly session
+cookie; the browser does not use demo credentials or a client-side role switcher.
 
 > The app treats **2 Nov 2026, 08:00** as "now" (`src/config.ts → TODAY`) so the sample data always looks right.
 
@@ -50,7 +39,7 @@ In development (`npm run dev`) the top bar shows a **DEV role switcher** and a *
 
 **Public** — Landing (`/`): hero, features, how it works, live list of active trainers and halls with prices (`getPublicCatalog()` in `src/api/publicApi.ts`, no sign-in needed), membership plans linking to `/register?plan=…`. Signed-in users are redirected to their dashboard. · Login (`/login`) · Register (`/register`): member self sign-up (name, email, KZ phone, password, plan). Creates the member + login account, sets the expiry from the plan (1 / 3 / 12 months from today) and signs the new member in. Email and phone must be unique.
 
-**Member** (`/member`) — **hidden for now.** Set `MEMBER_AREA_ENABLED = true` in `src/config.ts` to bring back its pages, demo account, sign-up and sign-in. While it is `false` there are no `/member` routes, no Member demo button, members cannot register or sign in (also not through the backend), and the Register page only offers trainer registration. — Dashboard (plan, expiry warning, "X of 2 unpaid") · Book a trainer · Rent a hall · Payment (15-min hold countdown, card/NFC/app, simulate a declined payment) · Confirmation · My bookings (upcoming/past, status filter, booking slip, cancel) · Profile with QR
+**Member** (`/member`) — **hidden for now.** Set `MEMBER_AREA_ENABLED = true` in `src/config.ts` to bring back its pages and member sign-up/sign-in UI. — Dashboard (plan, expiry warning, "X of 2 unpaid") · Book a trainer · Rent a hall · Payment (15-min hold countdown, card/NFC/app, simulate a declined payment) · Confirmation · My bookings (upcoming/past, status filter, booking slip, cancel) · Profile with QR
 
 **Trainer** (`/trainer`) — six pages in `src/pages/trainer/`:
 
@@ -65,7 +54,10 @@ In development (`npm run dev`) the top bar shows a **DEV role switcher** and a *
 
 Privacy: a trainer only ever sees a client's **name** (no phone, email, QR or member id) and only their **own** sessions. All numbers are computed in `src/pages/trainer/analytics.ts` from the trainer's own bookings (`listBookings()`).
 
-Trainer limits for now: the backend refuses trainer sign-in (`backend/app/auth.py`: "not available yet") and has no trainer-scoped booking routes, so the trainer area runs on the **mock data** and the demo account works in **development mode only** (`npm run dev`). The availability choice is stored in this browser (`localStorage`) until the backend has a field for it. The mock seed adds eight weeks of demo history for the demo trainer, generated relative to today, so the charts always show recent data.
+Trainer limits for now: some trainer reports still run on mock data. The backend
+authenticates trainer sessions, applies trainer-scoped booking access, and stores
+the trainer's availability status in PostgreSQL. The availability note is
+private to the trainer area and is not exposed to members.
 
 **Admin / Manager** area is hidden for now: its pages were removed and that role cannot sign in (`ENABLED_ROLES` in `src/auth/mockUsers.ts`).
 
@@ -106,7 +98,7 @@ Pages never import mock data directly — they only call functions in `src/api/`
 
 1. **`src/api/*.ts`** — keep the function names, parameters and return types; replace each body with a `fetch`/axios call. Map backend errors to `new ApiError(code, message)` using the same codes (`23P01`, `GB001`, `GB002`, `GB003`, `NOT_FOUND`, `FORBIDDEN`). Drop the `delay()` calls.
 2. **`src/api/session.ts`** — delete it. The real API identifies the caller from the token/cookie and applies the role-based field filtering server-side.
-3. **`src/auth/AuthContext.tsx`** — read the comment block at the top. Replace the `authenticate(...)` call with the real login request and `registerMember(...)` with the real sign-up request; the `useAuth()` contract (`user`, `login`, `register`, `logout`) stays the same.
+3. **`src/auth/AuthContext.tsx`** — the `useAuth()` contract (`user`, `login`, `register`, `logout`) is backed by the FastAPI session endpoints.
 4. Delete **`src/mock/`** and **`src/auth/mockUsers.ts`** (also remove the demo-account buttons from `Login.tsx` and the DEV switcher in `AppLayout.tsx`).
 5. Datetimes are plain local strings `"YYYY-MM-DDTHH:mm"` (gym local time) — keep them as-is, do not convert time zones.
 

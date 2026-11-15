@@ -12,25 +12,15 @@
  *      markEmailVerified(email) : void  (after the emailed link is opened)
  *      logout() : void
  *
- *  To connect the real backend replace ONLY the marked parts below:
- *   1. login():     replace the `authenticate(...)` call (mock list in ./mockUsers.ts)
- *                   with e.g. POST /auth/login and map the response to CurrentUser.
- *   1b. register(): replace the `registerMember(...)` call with e.g. POST /auth/register.
- *   2. Storage:     the user is kept in localStorage under STORAGE_KEY. With real auth keep the
- *                   token in an httpOnly cookie (or memory) and load the user from GET /me on start.
- *   3. Session:     `setSessionUser(...)` tells the MOCK api who is calling. Delete it once the
- *                   real API identifies the caller from the token/cookie.
- *   4. src/mock/ and ./mockUsers.ts can then be deleted.
- *  Route protection (RequireRole.tsx) and every page keep working unchanged.
+ *  Authentication is provided by the backend with an HttpOnly session cookie.
+ *  The browser never stores credentials or treats a client-supplied user as authenticated.
  * ============================================================================
  */
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ApiError } from '../api/ApiError';
 import { setSessionUser } from '../api/session';
 import type { CurrentUser } from '../types';
-import { authenticate, ENABLED_ROLES, type RegisterInput } from './mockUsers';
-
-const STORAGE_KEY = 'gbs_current_user';
+import type { RegisterInput } from './mockUsers';
 
 interface AuthValue {
   user: CurrentUser | null;
@@ -43,63 +33,39 @@ interface AuthValue {
 
 const AuthContext = createContext<AuthValue | null>(null);
 
-function readStored(): CurrentUser | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const u = raw ? (JSON.parse(raw) as CurrentUser) : null;
-    return u && ENABLED_ROLES.includes(u.role) ? u : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeStored(user: CurrentUser | null) {
-  try {
-    if (user) localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    else localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    /* storage blocked - session lasts until refresh */
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<CurrentUser | null>(() => {
-    const stored = readStored();
-    setSessionUser(stored); // (3) mock-only
-    return stored;
-  });
+  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(async (response) => {
+        if (response.status === 401) return null;
+        if (!response.ok) throw new Error('Could not restore the sign-in session.');
+        return (await response.json()) as CurrentUser;
+      })
+      .then((signedIn) => {
+        setSessionUser(signedIn);
+        setUser(signedIn);
+      })
+      .catch(() => setUser(null))
+      .finally(() => setReady(true));
+  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const signIn = (found: CurrentUser) => {
-      if (!ENABLED_ROLES.includes(found.role)) {
-        throw new ApiError('AUTH', 'This type of account cannot sign in yet. It will be available soon.');
-      }
-      setSessionUser(found);
-      writeStored(found);
-      setUser(found);
-      return found;
-    };
-
     let response: Response;
     try {
       response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email, password }),
       });
     } catch {
-      const demoUser = import.meta.env.DEV ? authenticate(email, password) : null;
-      if (demoUser) return signIn(demoUser);
       throw new ApiError('AUTH', 'Could not reach the sign-in service. Check that the backend is running.');
     }
 
     const responseText = await response.text();
-    // The receptionist demo exists in the local seed, not necessarily in PostgreSQL.
-    if (!response.ok && import.meta.env.DEV) {
-      const demoUser = authenticate(email, password);
-      if (demoUser) return signIn(demoUser);
-    }
-
     let data: { detail?: unknown } & Partial<CurrentUser>;
     try {
       data = JSON.parse(responseText) as { detail?: unknown } & Partial<CurrentUser>;
@@ -124,7 +90,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
     }
 
-    return signIn(data as CurrentUser);
+    const signedIn = data as CurrentUser;
+    setSessionUser(signedIn);
+    setUser(signedIn);
+    return signedIn;
   }, []);
 
   const register = useCallback(async (input: RegisterInput) => {
@@ -135,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify(input),
     });
   } catch {
@@ -158,7 +128,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const created = data as CurrentUser;
 
   setSessionUser(created);
-  writeStored(created);
   setUser(created);
 
   return created;
@@ -169,14 +138,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!current || current.email !== email.trim().toLowerCase() || current.email_verified !== false) return current;
       const updated = { ...current, email_verified: true };
       setSessionUser(updated);
-      writeStored(updated);
       return updated;
     });
   }, []);
 
   const logout = useCallback(() => {
+    void fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     setSessionUser(null);
-    writeStored(null);
     setUser(null);
   }, []);
 
@@ -184,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({ user, login, register, markEmailVerified, logout }),
     [user, login, register, markEmailVerified, logout],
   );
+  if (!ready) return null;
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

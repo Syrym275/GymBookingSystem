@@ -1,4 +1,4 @@
-// The public landing page uses FastAPI. Other app functions still use mock APIs.
+// Public catalogue and account registration use FastAPI. Some dashboard reports remain mock-backed.
 
 export interface PublicTrainer {
   trainer_id: number;

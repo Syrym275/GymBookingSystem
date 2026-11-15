@@ -38,11 +38,6 @@ export function saveDb() {
   }
 }
 
-export function resetDb() {
-  db = buildSeed();
-  saveDb();
-}
-
 export function nextId(kind: keyof DB['seq']): number {
   db.seq[kind] += 1;
   return db.seq[kind];

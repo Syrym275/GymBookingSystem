@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom';
 import { Activity, ArrowRight, BarChart3, CalendarDays, History, Users } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { listBookings } from '../../api/bookingsApi';
-import { getMyTrainerProfile } from '../../api/trainersApi';
-import { useAuth } from '../../auth/AuthContext';
+import { getMyAvailability, getMyTrainerProfile } from '../../api/trainersApi';
 import { AttendanceButtons } from '../../components/AttendanceButtons';
 import { BookingSlip } from '../../components/BookingSlip';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -15,7 +14,6 @@ import { useChartColors } from '../../theme/ThemeContext';
 import type { BookingView } from '../../types';
 import { dateOf, fmtDate, fmtDay, kzt, timeOf } from '../../utils/format';
 import { before, dailyBuckets, deltaText, holdsSlot, isLive, lastDays, liveStatus, pct, summarize } from './analytics';
-import { readAvailability } from './availability';
 import { AvailabilityChip, LiveStatusLine, NO_SHOW_COLOR, initials, tooltipStyle } from './common';
 
 const LINKS = [
@@ -28,15 +26,16 @@ const LINKS = [
 
 /** Trainer home: profile, what is happening now, the key numbers, today's sessions. */
 export default function TrainerDashboard() {
-  const { user } = useAuth();
   const colors = useChartColors();
   const bookings = useAsync(() => listBookings(), []);
   const profile = useAsync(getMyTrainerProfile, []);
+  const availability = useAsync(getMyAvailability, []);
   const [slip, setSlip] = useState<BookingView | null>(null);
 
   if (bookings.error) return <ErrorNote message={bookings.error} />;
   if (profile.error) return <ErrorNote message={profile.error} />;
-  if (!bookings.data || !profile.data) return <Loading />;
+  if (availability.error) return <ErrorNote message={availability.error} />;
+  if (!bookings.data || !profile.data || !availability.data) return <Loading />;
 
   const all = bookings.data;
   const me = profile.data;
@@ -45,7 +44,7 @@ export default function TrainerDashboard() {
   const s7prev = summarize(all, before(w7, 7));
   const s30 = summarize(all, lastDays(30));
   const live = liveStatus(all);
-  const avail = readAvailability(user?.trainer_id);
+  const avail = availability.data;
 
   const todays = all.filter((b) => isLive(b) && dateOf(b.start_time) === TODAY_DATE);
   const coming = all.filter((b) => holdsSlot(b) && dateOf(b.start_time) > TODAY_DATE).slice(0, 5);

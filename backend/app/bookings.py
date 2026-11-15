@@ -7,8 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from psycopg.rows import dict_row
 
 from .db import connect
-from .models import BookingCreateRequest, BookingResponse
-from .verification import require_verified_member
+from .models import BookingCreateRequest, BookingResponse, CurrentUserResponse
+from .security import current_user, ensure_booking_access
+from .verification import ensure_email_verified
 
 
 router = APIRouter(prefix="/bookings", tags=["Bookings"])
@@ -20,10 +21,17 @@ def booking_availability(
     resource_id: int,
     date: date,
     member_id: int | None = None,
+    user: CurrentUserResponse = Depends(current_user),
 ) -> dict[str, list[int]]:
     """Return hourly slots blocked by pending or confirmed bookings."""
     if resource_id < 1:
         raise HTTPException(status_code=422, detail="Invalid resource.")
+    if user.role == "member":
+        if member_id is not None and member_id != user.member_id:
+            raise HTTPException(status_code=403, detail="You are not allowed to view another member's availability.")
+        member_id = user.member_id
+    elif user.role == "trainer" and booking_type != "training":
+        raise HTTPException(status_code=403, detail="Your account is not allowed to view this availability.")
 
     start_of_day = datetime.combine(date, time.min)
     try:
@@ -31,9 +39,37 @@ def booking_availability(
             with connection.cursor() as cursor:
                 cursor.execute("SELECT expire_pending_bookings()")
                 taken: list[int] = []
+                trainer = None
+                if booking_type == "training":
+                    cursor.execute(
+                        """
+                        SELECT
+                            availability_status,
+                            availability_break_until
+                        FROM trainers
+                        WHERE trainer_id = %s
+                          AND is_active = TRUE
+                        """,
+                        (resource_id,),
+                    )
+                    trainer = cursor.fetchone()
+                    if trainer is None:
+                        raise HTTPException(status_code=404, detail="Trainer not found.")
+                    if trainer[0] == "off":
+                        return {"taken_hours": list(range(7, 22))}
+
                 for hour in range(7, 22):
                     start = start_of_day + timedelta(hours=hour)
                     end = start + timedelta(hours=1)
+                    if (
+                        trainer is not None
+                        and trainer[0] == "break"
+                        and trainer[1] is not None
+                        and start < trainer[1]
+                        and end > datetime.now()
+                    ):
+                        taken.append(hour)
+                        continue
                     cursor.execute(
                         """
                         SELECT EXISTS (
@@ -90,9 +126,17 @@ def database_error(error: psycopg.Error) -> HTTPException:
     "",
     response_model=BookingResponse,
     status_code=201,
-    dependencies=[Depends(require_verified_member)],
 )
-def create_booking(input: BookingCreateRequest) -> BookingResponse:
+def create_booking(
+    input: BookingCreateRequest,
+    user: CurrentUserResponse = Depends(current_user),
+) -> BookingResponse:
+    if user.role == "member":
+        if input.member_id != user.member_id:
+            raise HTTPException(status_code=403, detail="You can only create bookings for yourself.")
+        ensure_email_verified(member_id=user.member_id)
+    elif user.role not in {"receptionist", "admin"}:
+        raise HTTPException(status_code=403, detail="Your account is not allowed to create bookings.")
     try:
         with connect(
             row_factory=dict_row,
@@ -110,7 +154,10 @@ def create_booking(input: BookingCreateRequest) -> BookingResponse:
                 if input.booking_type == "training":
                     cursor.execute(
                         """
-                        SELECT session_price_kzt
+                        SELECT
+                            session_price_kzt,
+                            availability_status,
+                            availability_break_until
                         FROM trainers
                         WHERE trainer_id = %s
                           AND is_active = TRUE
@@ -124,6 +171,22 @@ def create_booking(input: BookingCreateRequest) -> BookingResponse:
                         raise HTTPException(
                             status_code=404,
                             detail="Trainer not found.",
+                        )
+
+                    on_break = (
+                        resource["availability_status"] == "break"
+                        and resource["availability_break_until"] is not None
+                        and input.start_time < resource["availability_break_until"]
+                        and input.end_time > datetime.now()
+                    )
+                    if resource["availability_status"] == "off" or on_break:
+                        raise HTTPException(
+                            status_code=409,
+                            detail=(
+                                "This trainer is taking a day off and is not accepting new bookings."
+                                if resource["availability_status"] == "off"
+                                else "This trainer is on a break during that time. Choose a later slot."
+                            ),
                         )
 
                     price = resource["session_price_kzt"]
@@ -242,7 +305,16 @@ def create_booking(input: BookingCreateRequest) -> BookingResponse:
 def list_member_bookings(
     member_id: int | None = None,
     trainer_id: int | None = None,
+    user: CurrentUserResponse = Depends(current_user),
 ) -> list[BookingResponse]:
+    if user.role == "member":
+        member_id = user.member_id
+        trainer_id = None
+    elif user.role == "trainer":
+        trainer_id = user.trainer_id
+        member_id = None
+    elif user.role not in {"receptionist", "admin"}:
+        raise HTTPException(status_code=403, detail="Your account is not allowed to list bookings.")
     try:
         with connect(
             row_factory=dict_row,
@@ -304,7 +376,13 @@ def list_member_bookings(
 
 
 @router.post("/{booking_id}/cancel", response_model=BookingResponse)
-def cancel_booking(booking_id: int) -> BookingResponse:
+def cancel_booking(
+    booking_id: int,
+    user: CurrentUserResponse = Depends(current_user),
+) -> BookingResponse:
+    ensure_booking_access(user, booking_id, write=True)
+    if user.role == "member":
+        ensure_email_verified(booking_id=booking_id)
     try:
         with connect(
             row_factory=dict_row,
@@ -389,7 +467,12 @@ def mark_booking_attendance(
     booking_id: int,
     status: Literal["completed", "no_show"],
     trainer_id: int | None = None,
+    user: CurrentUserResponse = Depends(current_user),
 ) -> BookingResponse:
+    if user.role == "trainer":
+        trainer_id = user.trainer_id
+    elif user.role not in {"receptionist", "admin"}:
+        raise HTTPException(status_code=403, detail="Your account is not allowed to mark attendance.")
     try:
         with connect(
             row_factory=dict_row,
@@ -447,7 +530,11 @@ def mark_booking_attendance(
 
 @router.get("/{booking_id}", response_model=BookingResponse)
 
-def get_booking(booking_id: int) -> BookingResponse:
+def get_booking(
+    booking_id: int,
+    user: CurrentUserResponse = Depends(current_user),
+) -> BookingResponse:
+    ensure_booking_access(user, booking_id)
     try:
         with connect(
             row_factory=dict_row,
@@ -498,7 +585,11 @@ def get_booking(booking_id: int) -> BookingResponse:
 
 
 @router.post("/{booking_id}/expire", response_model=BookingResponse)
-def expire_booking(booking_id: int) -> BookingResponse:
+def expire_booking(
+    booking_id: int,
+    user: CurrentUserResponse = Depends(current_user),
+) -> BookingResponse:
+    ensure_booking_access(user, booking_id, write=True)
     try:
         with connect(
             row_factory=dict_row,

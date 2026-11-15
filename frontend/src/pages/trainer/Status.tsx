@@ -1,22 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BadgeCheck, Hourglass } from 'lucide-react';
 import { listBookings } from '../../api/bookingsApi';
-import { getMyTrainerProfile } from '../../api/trainersApi';
-import { useAuth } from '../../auth/AuthContext';
+import { getMyAvailability, getMyTrainerProfile, updateMyAvailability } from '../../api/trainersApi';
 import { AttendanceButtons, canMarkAttendance } from '../../components/AttendanceButtons';
 import { StatusBadge } from '../../components/StatusBadge';
 import { useToast } from '../../components/Toast';
 import { EmptyState, ErrorNote, Loading, PageHeader } from '../../components/ui';
 import { useAsync } from '../../hooks/useAsync';
 import type { BookingStatus } from '../../types';
-import { STATUS_LABEL, bkNumber, fmtDay, kzt, timeOf, toLocal } from '../../utils/format';
+import { STATUS_LABEL, bkNumber, fmtDay, kzt, timeOf } from '../../utils/format';
 import { holdsSlot, liveStatus, statusCounts } from './analytics';
 import {
   AVAILABILITY_HINT,
   AVAILABILITY_LABEL,
-  readAvailability,
-  writeAvailability,
   type Availability,
   type AvailabilityState,
 } from './availability';
@@ -31,21 +28,33 @@ const BAR: Record<BookingStatus, string> = {
   expired: 'bg-ink/10',
 };
 
+function localDateTimeInputValue() {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
 /**
  * "Status": where the trainer stands right now.
  *  1. live status from the schedule, 2. own availability, 3. profile approval, 4. a board of booking statuses,
  *  5. the to-do list of sessions still waiting for attendance.
  */
 export default function TrainerStatus() {
-  const { user } = useAuth();
   const toast = useToast();
   const bookings = useAsync(() => listBookings(), []);
   const profile = useAsync(getMyTrainerProfile, []);
-  const [avail, setAvail] = useState<AvailabilityState>(() => readAvailability(user?.trainer_id));
+  const availability = useAsync(getMyAvailability, []);
+  const [avail, setAvail] = useState<AvailabilityState | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (availability.data) setAvail(availability.data);
+  }, [availability.data]);
 
   if (bookings.error) return <ErrorNote message={bookings.error} />;
   if (profile.error) return <ErrorNote message={profile.error} />;
-  if (!bookings.data || !profile.data) return <Loading />;
+  if (availability.error) return <ErrorNote message={availability.error} />;
+  if (!bookings.data || !profile.data || !availability.data) return <Loading />;
+  if (!avail) return <Loading />;
 
   const all = bookings.data;
   const me = profile.data;
@@ -55,12 +64,23 @@ export default function TrainerStatus() {
   const waiting = all.filter(canMarkAttendance).sort((a, b) => a.start_time.localeCompare(b.start_time));
   const unpaidAhead = all.filter((b) => b.status === 'pending' && holdsSlot(b)).sort((a, b) => a.start_time.localeCompare(b.start_time));
 
-  const choose = (state: Availability) => setAvail((a) => ({ ...a, state }));
-  const save = () => {
-    const next = { ...avail, updatedAt: toLocal(new Date()) };
-    writeAvailability(user?.trainer_id, next);
-    setAvail(next);
-    toast.success(`Status saved: ${AVAILABILITY_LABEL[next.state]}.`);
+  const choose = (state: Availability) => setAvail((a) => (a ? { ...a, state } : a));
+  const save = async () => {
+    if (!avail) return;
+    setSaving(true);
+    try {
+      const saved = await updateMyAvailability({
+        state: avail.state,
+        note: avail.note,
+        breakUntil: avail.state === 'break' ? avail.breakUntil : null,
+      });
+      setAvail(saved);
+      toast.success(`Status saved: ${AVAILABILITY_LABEL[saved.state]}.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not save your availability.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -121,6 +141,23 @@ export default function TrainerStatus() {
             </button>
           ))}
         </div>
+        {avail.state === 'break' && (
+          <div className="mt-4 max-w-sm">
+            <label className="label" htmlFor="st-break-until">
+              Break until
+            </label>
+            <input
+              id="st-break-until"
+              className="input"
+              type="datetime-local"
+              min={localDateTimeInputValue()}
+              value={avail.breakUntil ? avail.breakUntil.slice(0, 16) : ''}
+              onChange={(e) => setAvail((a) => (a ? { ...a, breakUntil: e.target.value || null } : a))}
+              required
+            />
+            <p className="mt-1 text-xs text-ink/50">New bookings are blocked from now until this time.</p>
+          </div>
+        )}
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <div className="min-w-[220px] flex-1">
             <label className="label" htmlFor="st-note">
@@ -132,16 +169,16 @@ export default function TrainerStatus() {
               maxLength={120}
               placeholder="e.g. back at 15:00"
               value={avail.note}
-              onChange={(e) => setAvail((a) => ({ ...a, note: e.target.value }))}
+              onChange={(e) => setAvail((a) => (a ? { ...a, note: e.target.value } : a))}
             />
           </div>
-          <button className="btn-primary" onClick={save}>
-            Save status
+          <button className="btn-primary" onClick={() => void save()} disabled={saving}>
+            {saving ? 'Saving…' : 'Save status'}
           </button>
         </div>
         <p className="mt-2 text-xs text-ink/50">
           {avail.updatedAt ? `Last saved ${fmtDay(avail.updatedAt)}, ${timeOf(avail.updatedAt)}. ` : ''}
-          Demo: for now this is stored in this browser only. The backend has no availability field yet.
+          Saved to the gym database.
         </p>
       </section>
 

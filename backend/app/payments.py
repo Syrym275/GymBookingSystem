@@ -12,7 +12,8 @@ from .models import (
     PaymentResponse,
     PayResultResponse,
 )
-from .verification import require_verified_booking_owner
+from .models import CurrentUserResponse
+from .security import current_user, ensure_booking_access
 
 
 router = APIRouter(prefix="/bookings", tags=["Payments"])
@@ -23,11 +24,16 @@ logger = logging.getLogger(__name__)
     "/{booking_id}/payments",
     response_model=list[PaymentResponse],
     description=(
-        "Read payment attempts for a booking. Local development API: verified "
-        "session authentication and server-side ownership checks are not yet implemented."
+        "Read payment attempts for a booking owned by the signed-in member or an administrator."
     ),
 )
-def list_booking_payments(booking_id: int) -> list[PaymentResponse]:
+def list_booking_payments(
+    booking_id: int,
+    user: CurrentUserResponse = Depends(current_user),
+) -> list[PaymentResponse]:
+    ensure_booking_access(user, booking_id)
+    if user.role not in {"member", "admin"}:
+        raise HTTPException(status_code=403, detail="Your account is not allowed to access payment history.")
     try:
         with connect(row_factory=dict_row) as connection:
             with connection.cursor() as cursor:
@@ -61,12 +67,19 @@ def list_booking_payments(booking_id: int) -> list[PaymentResponse]:
 @router.post(
     "/{booking_id}/payment",
     response_model=PayResultResponse,
-    dependencies=[Depends(require_verified_booking_owner)],
 )
 def pay_booking(
     booking_id: int,
     input: PaymentRequest,
+    user: CurrentUserResponse = Depends(current_user),
 ) -> PayResultResponse:
+    ensure_booking_access(user, booking_id, write=True)
+    if user.role not in {"member", "admin"}:
+        raise HTTPException(status_code=403, detail="Only members and administrators can make payments.")
+    if user.role == "member":
+        from .verification import ensure_email_verified
+
+        ensure_email_verified(booking_id=booking_id)
     try:
         with connect(
             row_factory=dict_row,

@@ -3,6 +3,7 @@ import { getDb, nextId, saveDb } from '../mock/db';
 import { ApiError } from './ApiError';
 import { clone, delay } from './helpers';
 import { requireUser } from './session';
+import type { Availability, AvailabilityState } from '../pages/trainer/availability';
 
 /** The signed-in trainer's own profile, including is_active (false = registration still pending approval). */
 export async function getMyTrainerProfile(): Promise<Trainer> {
@@ -10,6 +11,7 @@ export async function getMyTrainerProfile(): Promise<Trainer> {
   if (!viewer.trainer_id) {
     throw new ApiError('NOT_FOUND', 'Your account is not linked to a trainer profile.');
   }
+
   let response: Response;
   try {
     response = await fetch(`/api/trainers/${viewer.trainer_id}`);
@@ -36,6 +38,92 @@ export async function getMyTrainerProfile(): Promise<Trainer> {
     throw new ApiError('VALIDATION', 'The trainer profile service returned an invalid response.');
   }
   return data as Trainer;
+}
+
+export async function getMyAvailability(): Promise<AvailabilityState> {
+  requireUser(['trainer']);
+  let response: Response;
+  try {
+    response = await fetch('/api/trainers/me/availability');
+  } catch {
+    throw new ApiError('VALIDATION', 'Could not load your availability. Check the backend connection and try again.');
+  }
+  const data = await response.json().catch(() => null);
+  if (!response.ok || typeof data !== 'object' || data === null) {
+    const detail = typeof data === 'object' && data !== null && 'detail' in data && typeof data.detail === 'string'
+      ? data.detail
+      : 'Could not load your availability.';
+    throw new ApiError(response.status === 403 ? 'FORBIDDEN' : 'VALIDATION', detail);
+  }
+  const body = data as Record<string, unknown>;
+  return {
+    state: body.state as Availability,
+    note: typeof body.note === 'string' ? body.note : '',
+    breakUntil: typeof body.break_until === 'string' ? body.break_until : null,
+    updatedAt: typeof body.updated_at === 'string' ? body.updated_at : null,
+  };
+}
+
+export async function updateMyAvailability(
+  input: Pick<AvailabilityState, 'state' | 'note' | 'breakUntil'>,
+): Promise<AvailabilityState> {
+  requireUser(['trainer']);
+  let response: Response;
+  try {
+    response = await fetch('/api/trainers/me/availability', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        state: input.state,
+        note: input.note,
+        break_until: input.breakUntil,
+      }),
+    });
+  } catch {
+    throw new ApiError('VALIDATION', 'Could not save your availability. Check the backend connection and try again.');
+  }
+  const data = await response.json().catch(() => null);
+  if (!response.ok || typeof data !== 'object' || data === null) {
+    const detail = typeof data === 'object' && data !== null && 'detail' in data && typeof data.detail === 'string'
+      ? data.detail
+      : 'Could not save your availability.';
+    throw new ApiError(response.status === 403 ? 'FORBIDDEN' : 'VALIDATION', detail);
+  }
+  const body = data as Record<string, unknown>;
+  return {
+    state: body.state as Availability,
+    note: typeof body.note === 'string' ? body.note : '',
+    breakUntil: typeof body.break_until === 'string' ? body.break_until : null,
+    updatedAt: typeof body.updated_at === 'string' ? body.updated_at : null,
+  };
+}
+
+export async function getTrainerAvailability(
+  trainerId: number,
+): Promise<{ state: Availability; breakUntil: string | null }> {
+  requireUser();
+  let response: Response;
+  try {
+    response = await fetch(`/api/trainers/${trainerId}/availability`);
+  } catch {
+    throw new ApiError('VALIDATION', 'Could not load trainer availability. Check the backend connection and try again.');
+  }
+  const data = await response.json().catch(() => null);
+  if (!response.ok || typeof data !== 'object' || data === null) {
+    const detail = typeof data === 'object' && data !== null && 'detail' in data && typeof data.detail === 'string'
+      ? data.detail
+      : 'Could not load trainer availability.';
+    throw new ApiError(response.status === 403 ? 'FORBIDDEN' : 'VALIDATION', detail);
+  }
+  const state = (data as Record<string, unknown>).state;
+  if (state !== 'available' && state !== 'break' && state !== 'off') {
+    throw new ApiError('VALIDATION', 'The trainer availability service returned an invalid status.');
+  }
+  const body = data as Record<string, unknown>;
+  return {
+    state,
+    breakUntil: typeof body.break_until === 'string' ? body.break_until : null,
+  };
 }
 
 /** Booking pages only ever see active trainers; staff may ask for inactive ones too (filters, admin). */

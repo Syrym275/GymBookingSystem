@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { Dumbbell } from 'lucide-react';
 import { createBooking, getTakenHours } from '../../api/bookingsApi';
 import type { Suggestion } from '../../api/ApiError';
-import { listTrainers } from '../../api/trainersApi';
+import { getTrainerAvailability, listTrainers } from '../../api/trainersApi';
 import { CLOSE_HOUR, OPEN_HOUR, TODAY_DATE } from '../../config';
 import { useAsync } from '../../hooks/useAsync';
+import { AvailabilityChip } from '../../pages/trainer/common';
 import type { BookingView } from '../../types';
 import { addDaysStr, fmtDate, hourLabel, hourOf, kzt, mk } from '../../utils/format';
 import { SlotPicker } from '../SlotPicker';
@@ -16,6 +17,11 @@ const HOURS = Array.from({ length: CLOSE_HOUR - OPEN_HOUR }, (_, i) => OPEN_HOUR
 /** Book a 60-minute session. Used by members (self) and reception (memberId given). */
 export function TrainerBooking({ memberId, onBooked }: { memberId?: number; onBooked: (b: BookingView) => void }) {
   const trainers = useAsync(() => listTrainers(), []);
+  const availability = useAsync(
+    () => Promise.all((trainers.data ?? []).map(async (trainer) => [trainer.trainer_id, await getTrainerAvailability(trainer.trainer_id)] as const)),
+    [trainers.data],
+  );
+  const availabilityByTrainer = new Map(availability.data ?? []);
   const [trainerId, setTrainerId] = useState<number | null>(null);
   const [date, setDate] = useState(TODAY_DATE);
   const [hour, setHour] = useState<number | null>(null);
@@ -34,6 +40,12 @@ export function TrainerBooking({ memberId, onBooked }: { memberId?: number; onBo
       setTakenError(null);
       return () => { current = false; };
     }
+    if (availabilityByTrainer.get(trainerId)?.state === 'off') {
+      setTakenHours(HOURS);
+      setTakenLoading(false);
+      setTakenError(null);
+      return () => { current = false; };
+    }
     setTakenHours([]);
     setTakenLoading(true);
     setTakenError(null);
@@ -42,7 +54,7 @@ export function TrainerBooking({ memberId, onBooked }: { memberId?: number; onBo
       .catch((cause: unknown) => { if (current) setTakenError(cause instanceof Error ? cause.message : String(cause)); })
       .finally(() => { if (current) setTakenLoading(false); });
     return () => { current = false; };
-  }, [trainerId, date, memberId, availabilityVersion]);
+  }, [trainerId, date, memberId, availability.data, availabilityVersion]);
   const trainer = trainers.data?.find((t) => t.trainer_id === trainerId);
 
   const submit = async () => {
@@ -78,6 +90,7 @@ export function TrainerBooking({ memberId, onBooked }: { memberId?: number; onBo
   if (trainers.loading && !trainers.data) return <Loading />;
   if (trainers.error) return <ErrorNote message={trainers.error} />;
   if (!trainers.data?.length) return <EmptyState title="No trainers available" text="Please check back later." />;
+  if (availability.error) return <ErrorNote message={availability.error} />;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
@@ -107,6 +120,11 @@ export function TrainerBooking({ memberId, onBooked }: { memberId?: number; onBo
               <span className="min-w-0 flex-1">
                 <span className="block font-display text-lg font-bold">{t.full_name}</span>
                 <span className="block text-sm text-ink/60">{t.specialization}</span>
+                {availabilityByTrainer.has(t.trainer_id) && (
+                  <span className="mt-2 inline-flex">
+                    <AvailabilityChip state={availabilityByTrainer.get(t.trainer_id)!.state} />
+                  </span>
+                )}
               </span>
               <span className="text-right text-sm font-bold">
                 {kzt(t.session_price_kzt)}

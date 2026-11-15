@@ -13,7 +13,6 @@ import {
   MailWarning,
   Menu,
   PlusCircle,
-  RotateCcw,
   History,
   Search,
   ShieldCheck,
@@ -23,9 +22,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
-import { DEMO_ACCOUNTS } from '../auth/mockUsers';
 import { HOME, ROLE_LABEL } from '../auth/RequireRole';
-import { resetDb } from '../mock/db';
 import type { Role } from '../types';
 import { fmtDateTime } from '../utils/format';
 import { TODAY } from '../config';
@@ -65,23 +62,12 @@ const NAV: Partial<Record<Role, NavItem[]>> = {
 };
 
 export function AppLayout() {
-  const { user, login, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   if (!user) return null;
 
   const items = NAV[user.role] ?? [];
-
-  const switchRole = async (role: Role) => {
-    const demo = DEMO_ACCOUNTS.find((d) => d.role === role)!;
-    await login(demo.email, demo.password);
-    navigate(HOME[role]);
-  };
-
-  const onReset = () => {
-    resetDb();
-    window.location.href = HOME[user.role];
-  };
 
   const sidebar = (
     <nav className="flex h-full flex-col gap-1 p-4">
@@ -144,27 +130,6 @@ export function AppLayout() {
             <p className="truncate text-sm font-extrabold">{user.full_name}</p>
             <p className="text-xs text-ink/60">{ROLE_LABEL[user.role]}</p>
           </div>
-
-          {import.meta.env.DEV && (
-            <div className="flex items-center gap-2 rounded-md border border-dashed border-brand/60 bg-brand-soft px-2 py-1 text-xs">
-              <span className="font-bold text-brand-dark">DEV</span>
-              <select
-                aria-label="Switch role (dev only)"
-                className="rounded border border-line bg-white px-1 py-1 font-semibold text-ink"
-                value={user.role}
-                onChange={(e) => switchRole(e.target.value as Role)}
-              >
-                {DEMO_ACCOUNTS.map((d) => (
-                  <option key={d.role} value={d.role}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
-              <button className="btn-ghost btn-sm" onClick={onReset} title="Restore the original sample data">
-                <RotateCcw className="h-3 w-3" /> Reset demo data
-              </button>
-            </div>
-          )}
 
           <ThemeToggle />
           <button

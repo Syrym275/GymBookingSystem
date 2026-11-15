@@ -9,5 +9,5 @@ export const MAX_PENDING = 2; // unpaid bookings per member
 export const HOLD_MINUTES = 15; // payment hold
 export const DEMO_PASSWORD = 'demo123';
 
-// Member pages, demo accounts, sign-up and sign-in are available.
+// Member pages, sign-up and sign-in are available.
 export const MEMBER_AREA_ENABLED = true;

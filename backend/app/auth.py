@@ -4,7 +4,7 @@ import logging
 
 import bcrypt
 import psycopg
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from psycopg.errors import UniqueViolation
 
 from .db import connect, is_valid_email
@@ -17,6 +17,7 @@ from .models import (
     TrainerRegisterRequest,
     TrainerRegistrationResponse,
 )
+from .security import clear_session, create_session, current_user
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -84,7 +85,7 @@ def check_email_domain(email: str) -> None:
     response_model=CurrentUserResponse,
     status_code=201,
 )
-def register(input: RegisterRequest) -> CurrentUserResponse:
+def register(input: RegisterRequest, response: Response) -> CurrentUserResponse:
     full_name = " ".join(input.full_name.split())
     email = input.email.strip().lower()
     phone = normalize_phone(input.phone)
@@ -175,7 +176,7 @@ def register(input: RegisterRequest) -> CurrentUserResponse:
         raise database_unavailable("Registration") from None
 
     # Sent after the commit: if mail fails the account is kept and the user can resend.
-    return CurrentUserResponse(
+    result = CurrentUserResponse(
         user_id=user_id,
         full_name=full_name,
         email=email,
@@ -184,6 +185,8 @@ def register(input: RegisterRequest) -> CurrentUserResponse:
         email_verified=False,
         verification_email_sent=send_verification_email(email, token),
     )
+    create_session(user_id, response)
+    return result
 
 
 @router.post(
@@ -191,7 +194,7 @@ def register(input: RegisterRequest) -> CurrentUserResponse:
     response_model=TrainerRegistrationResponse,
     status_code=201,
 )
-def register_trainer(input: TrainerRegisterRequest) -> TrainerRegistrationResponse:
+def register_trainer(input: TrainerRegisterRequest, response: Response) -> TrainerRegistrationResponse:
     full_name = " ".join(input.full_name.split())
     specialization = " ".join(input.specialization.split())
     email = input.email.strip().lower()
@@ -243,7 +246,8 @@ def register_trainer(input: TrainerRegisterRequest) -> TrainerRegistrationRespon
                     (email, password_hash, trainer_id),
                 )
 
-                token = issue_token(cursor, cursor.fetchone()[0])
+                user_id = cursor.fetchone()[0]
+                token = issue_token(cursor, user_id)
 
     except UniqueViolation:
         raise HTTPException(
@@ -253,19 +257,20 @@ def register_trainer(input: TrainerRegisterRequest) -> TrainerRegistrationRespon
     except psycopg.Error:
         raise database_unavailable("Trainer registration") from None
 
-    return TrainerRegistrationResponse(
+    result = TrainerRegistrationResponse(
         trainer_id=trainer_id,
         full_name=full_name,
         email=email,
         verification_email_sent=send_verification_email(email, token),
     )
+    return result
 
 
 @router.post(
     "/login",
     response_model=CurrentUserResponse,
 )
-def login(input: LoginRequest) -> CurrentUserResponse:
+def login(input: LoginRequest, response: Response) -> CurrentUserResponse:
     email = input.email.strip().lower()
 
     try:
@@ -324,7 +329,7 @@ def login(input: LoginRequest) -> CurrentUserResponse:
             detail="Wrong email or password.",
         )
 
-    return CurrentUserResponse(
+    result = CurrentUserResponse(
         user_id=row[0],
         email=row[1],
         role=row[3],
@@ -336,3 +341,15 @@ def login(input: LoginRequest) -> CurrentUserResponse:
         trainer_is_active=row[9],
         email_verified=row[10],
     )
+    create_session(row[0], response)
+    return result
+
+
+@router.get("/me", response_model=CurrentUserResponse)
+def me(user: CurrentUserResponse = Depends(current_user)) -> CurrentUserResponse:
+    return user
+
+
+@router.post("/logout", status_code=204)
+def logout(request: Request, response: Response) -> None:
+    clear_session(request, response)

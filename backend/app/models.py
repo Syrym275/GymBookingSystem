@@ -26,6 +26,37 @@ class TrainerProfile(PublicTrainer):
     is_active: bool
 
 
+class TrainerAvailabilityUpdateRequest(BaseModel):
+    state: Literal["available", "break", "off"]
+    note: str = Field(default="", max_length=120)
+    break_until: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_break_until(self) -> "TrainerAvailabilityUpdateRequest":
+        if self.state == "break":
+            if self.break_until is None:
+                raise ValueError("Break until is required when the trainer is on a break.")
+            now = datetime.now(self.break_until.tzinfo) if self.break_until.tzinfo else datetime.now()
+            if self.break_until <= now:
+                raise ValueError("Break until must be in the future.")
+        return self
+
+
+class TrainerAvailabilityResponse(BaseModel):
+    trainer_id: int = Field(gt=0)
+    state: Literal["available", "break", "off"]
+    note: str
+    break_until: datetime | None
+    updated_at: datetime | None
+
+
+class PublicTrainerAvailabilityResponse(BaseModel):
+    trainer_id: int = Field(gt=0)
+    state: Literal["available", "break", "off"]
+    break_until: datetime | None
+    updated_at: datetime | None
+
+
 class PublicHall(BaseModel):
     hall_id: int = Field(gt=0)
     hall_name: str = Field(min_length=1, max_length=60)
