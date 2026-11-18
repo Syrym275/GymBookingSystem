@@ -58,9 +58,13 @@ def issue_token(cursor, user_id: int) -> str:
     return token
 
 
+def app_url() -> str:
+    """Where the frontend runs; emailed links point here."""
+    return os.environ.get("APP_URL", "http://localhost:5173").rstrip("/")
+
+
 def verification_link(token: str) -> str:
-    app_url = os.environ.get("APP_URL", "http://localhost:5173").rstrip("/")
-    return f"{app_url}/verify-email?{urlencode({'token': token})}"
+    return f"{app_url()}/verify-email?{urlencode({'token': token})}"
 
 
 def send_verification_email(email: str, token: str) -> bool:

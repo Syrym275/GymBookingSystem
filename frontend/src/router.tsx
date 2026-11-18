@@ -8,6 +8,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import CheckEmail from './pages/CheckEmail';
 import VerifyEmail from './pages/VerifyEmail';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import MemberDashboard from './pages/member/Dashboard';
 import BookTrainer from './pages/member/BookTrainer';
 import RentHall from './pages/member/RentHall';
@@ -59,6 +61,8 @@ export const router = createBrowserRouter([
   { path: '/register', element: <Register /> },
   { path: '/check-email', element: <CheckEmail /> },
   { path: '/verify-email', element: <VerifyEmail /> },
+  { path: '/forgot-password', element: <ForgotPassword /> },
+  { path: '/reset-password', element: <ResetPassword /> },
   ...memberRoutes,
   {
     path: '/trainer',

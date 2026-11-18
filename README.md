@@ -35,7 +35,7 @@ $env:PGPASSWORD = "YOUR_POSTGRES_PASSWORD"
 
 & $psql -U postgres -c "CREATE DATABASE gym_booking;"
 
-foreach ($file in "task09_reference", "auth_schema", "booking_hold", "email_verification", "booking_cancellation") {
+foreach ($file in "task09_reference", "auth_schema", "booking_hold", "email_verification", "booking_cancellation", "password_reset") {
   & $psql -U postgres -d gym_booking -v ON_ERROR_STOP=1 -q -o NUL -f "backend/sql/$file.sql"
 }
 ```
@@ -102,6 +102,16 @@ If your database was created before trainer registration or email verification w
 & $psql -U postgres -d gym_booking -v ON_ERROR_STOP=1 -f backend/sql/auth_schema.sql
 & $psql -U postgres -d gym_booking -v ON_ERROR_STOP=1 -f backend/sql/email_verification.sql
 & $psql -U postgres -d gym_booking -v ON_ERROR_STOP=1 -f backend/sql/booking_cancellation.sql
+```
+
+#### Forgotten passwords
+
+**Forgot password?** on the login page emails a link to `/reset-password`. It goes through the same email settings as verification (console, Mailtrap or Gmail; see [Configuration](#configuration)). The link works once and expires after an hour, and each account can request 3 links per hour. Changing the password signs the account out on every device and also marks the email as verified.
+
+If your database was created before this was added, apply it once:
+
+```powershell
+& $psql -U postgres -d gym_booking -v ON_ERROR_STOP=1 -f backend/sql/password_reset.sql
 ```
 
 ## Running it again

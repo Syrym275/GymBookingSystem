@@ -22,7 +22,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
-import { HOME, ROLE_LABEL } from '../auth/RequireRole';
+import { ROLE_LABEL } from '../auth/RequireRole';
 import type { Role } from '../types';
 import { fmtDateTime } from '../utils/format';
 import { TODAY } from '../config';

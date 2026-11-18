@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from .auth import router as auth_router
 from .bookings import router as bookings_router
 from .members import router as members_router
+from .password_reset import router as password_reset_router
 from .payments import router as payments_router
 from .trainer_status import router as trainer_status_router
 from .verification import router as verification_router
@@ -55,6 +56,7 @@ app.include_router(members_router)
 app.include_router(payments_router)
 app.include_router(trainer_status_router)
 app.include_router(verification_router)
+app.include_router(password_reset_router)
 
 # For the React dev server. This is browser configuration, not authentication.
 app.add_middleware(

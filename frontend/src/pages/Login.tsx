@@ -59,9 +59,18 @@ export default function Login() {
           <input id="email" type="email" required className="input min-h-[44px]" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" />
         </div>
         <div>
-          <label className="label" htmlFor="password">
-            Password
-          </label>
+          <div className="flex items-center justify-between gap-2">
+            <label className="label" htmlFor="password">
+              Password
+            </label>
+            <Link
+              to="/forgot-password"
+              state={{ email }}
+              className="inline-flex min-h-[44px] items-center text-sm font-semibold text-brand-dark underline-offset-2 hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <input
             id="password"
             type="password"

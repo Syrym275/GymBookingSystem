@@ -126,6 +126,15 @@ class ResendVerificationRequest(BaseModel):
     email: str = Field(min_length=5, max_length=255)
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: str = Field(min_length=5, max_length=255)
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(max_length=200)
+    password: str = Field(max_length=200)
+
+
 class MemberResponse(BaseModel):
     member_id: int
     full_name: str
