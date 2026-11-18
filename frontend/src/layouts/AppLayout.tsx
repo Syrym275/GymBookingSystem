@@ -1,33 +1,37 @@
 import { useState, type ReactNode } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
+  Activity,
+  BarChart3,
   Building2,
   CalendarCheck,
+  CalendarDays,
   Dumbbell,
   LayoutDashboard,
   ListChecks,
   LogOut,
+  MailWarning,
   Menu,
   PlusCircle,
-  RotateCcw,
+  History,
   Search,
   ShieldCheck,
   User,
+  Users,
   Wallet,
   X,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
-import { DEMO_ACCOUNTS } from '../auth/mockUsers';
-import { HOME, ROLE_LABEL } from '../auth/RequireRole';
-import { resetDb } from '../mock/db';
+import { ROLE_LABEL } from '../auth/RequireRole';
 import type { Role } from '../types';
 import { fmtDateTime } from '../utils/format';
 import { TODAY } from '../config';
 import { ThemeToggle } from '../theme/ThemeContext';
+import { LanguageSwitcher, useT, type Key } from '../i18n';
 
 interface NavItem {
   to: string;
-  label: string;
+  label: Key;
   icon: ReactNode;
   end?: boolean;
 }
@@ -35,39 +39,37 @@ interface NavItem {
 const i = 'h-4 w-4';
 const NAV: Partial<Record<Role, NavItem[]>> = {
   member: [
-    { to: '/member', label: 'Dashboard', icon: <LayoutDashboard className={i} />, end: true },
-    { to: '/member/trainers', label: 'Book a trainer', icon: <Dumbbell className={i} /> },
-    { to: '/member/halls', label: 'Rent a hall', icon: <Building2 className={i} /> },
-    { to: '/member/bookings', label: 'My bookings', icon: <ListChecks className={i} /> },
-    { to: '/member/profile', label: 'Profile & QR', icon: <User className={i} /> },
+    { to: '/member', label: 'common.dashboard', icon: <LayoutDashboard className={i} />, end: true },
+    { to: '/member/trainers', label: 'nav.bookTrainer', icon: <Dumbbell className={i} /> },
+    { to: '/member/halls', label: 'landing.rentHall', icon: <Building2 className={i} /> },
+    { to: '/member/bookings', label: 'nav.myBookings', icon: <ListChecks className={i} /> },
+    { to: '/member/profile', label: 'nav.profile', icon: <User className={i} /> },
+  ],
+  trainer: [
+    { to: '/trainer', label: 'nav.overview', icon: <LayoutDashboard className={i} />, end: true },
+    { to: '/trainer/schedule', label: 'nav.schedule', icon: <CalendarDays className={i} /> },
+    { to: '/trainer/stats', label: 'nav.stats', icon: <BarChart3 className={i} /> },
+    { to: '/trainer/clients', label: 'nav.clients', icon: <Users className={i} /> },
+    { to: '/trainer/history', label: 'nav.history', icon: <History className={i} /> },
+    { to: '/trainer/status', label: 'nav.status', icon: <Activity className={i} /> },
   ],
   receptionist: [
-    { to: '/reception', label: 'Today', icon: <CalendarCheck className={i} />, end: true },
-    { to: '/reception/bookings', label: 'All bookings', icon: <ListChecks className={i} /> },
-    { to: '/reception/unpaid', label: 'Unpaid bookings', icon: <Wallet className={i} /> },
-    { to: '/reception/members', label: 'Member lookup', icon: <Search className={i} /> },
-    { to: '/reception/new', label: 'New booking', icon: <PlusCircle className={i} /> },
+    { to: '/reception', label: 'nav.today', icon: <CalendarCheck className={i} />, end: true },
+    { to: '/reception/bookings', label: 'nav.allBookings', icon: <ListChecks className={i} /> },
+    { to: '/reception/unpaid', label: 'nav.unpaid', icon: <Wallet className={i} /> },
+    { to: '/reception/members', label: 'nav.memberLookup', icon: <Search className={i} /> },
+    { to: '/reception/new', label: 'nav.newBooking', icon: <PlusCircle className={i} /> },
   ],
 };
 
 export function AppLayout() {
-  const { user, login, logout } = useAuth();
+  const { t } = useT();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   if (!user) return null;
 
   const items = NAV[user.role] ?? [];
-
-  const switchRole = async (role: Role) => {
-    const demo = DEMO_ACCOUNTS.find((d) => d.role === role)!;
-    await login(demo.email, demo.password);
-    navigate(HOME[role]);
-  };
-
-  const onReset = () => {
-    resetDb();
-    window.location.href = HOME[user.role];
-  };
 
   const sidebar = (
     <nav className="flex h-full flex-col gap-1 p-4">
@@ -77,7 +79,7 @@ export function AppLayout() {
         </span>
         <span className="font-display text-lg font-bold uppercase leading-tight tracking-wide">
           Gym Booking
-          <span className="block font-body text-[11px] font-medium normal-case tracking-normal text-ink/50">{ROLE_LABEL[user.role]} area</span>
+          <span className="block font-body text-[11px] font-medium normal-case tracking-normal text-ink/50">{t('nav.area', { role: ROLE_LABEL[user.role] })}</span>
         </span>
       </div>
       {items.map((it) => (
@@ -93,14 +95,14 @@ export function AppLayout() {
           }
         >
           {it.icon}
-          {it.label}
+          {t(it.label)}
         </NavLink>
       ))}
       <div className="mt-auto rounded-md border border-line bg-cream p-3 text-xs">
         <p className="flex items-center gap-1 font-semibold uppercase tracking-wide text-ink/70">
-          <ShieldCheck className="h-3 w-3 text-brand-dark" /> Demo clock
+          <ShieldCheck className="h-3 w-3 text-brand-dark" /> {t('nav.clock')}
         </p>
-        <p className="mt-0.5 text-ink/50">{fmtDateTime(TODAY)} (fixed for the sample data)</p>
+        <p className="mt-0.5 text-ink/50">{fmtDateTime(TODAY)} {t('nav.clockNote')}</p>
       </div>
     </nav>
   );
@@ -113,7 +115,7 @@ export function AppLayout() {
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
           <aside className="relative h-full w-64 border-r border-line bg-white">
-            <button className="absolute right-3 top-3 text-ink/60 hover:text-ink" onClick={() => setOpen(false)} aria-label="Close menu">
+            <button className="absolute right-3 top-3 text-ink/60 hover:text-ink" onClick={() => setOpen(false)} aria-label={t('nav.closeMenu')}>
               <X className="h-5 w-5" />
             </button>
             {sidebar}
@@ -123,7 +125,7 @@ export function AppLayout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex flex-wrap items-center gap-3 border-b border-line bg-cream/80 px-4 py-3 backdrop-blur">
-          <button className="rounded-md border border-line p-1.5 lg:hidden" onClick={() => setOpen(true)} aria-label="Open menu">
+          <button className="rounded-md border border-line p-1.5 lg:hidden" onClick={() => setOpen(true)} aria-label={t('nav.openMenu')}>
             <Menu className="h-5 w-5" />
           </button>
           <div className="mr-auto min-w-0">
@@ -131,27 +133,7 @@ export function AppLayout() {
             <p className="text-xs text-ink/60">{ROLE_LABEL[user.role]}</p>
           </div>
 
-          {import.meta.env.DEV && (
-            <div className="flex items-center gap-2 rounded-md border border-dashed border-brand/60 bg-brand-soft px-2 py-1 text-xs">
-              <span className="font-bold text-brand-dark">DEV</span>
-              <select
-                aria-label="Switch role (dev only)"
-                className="rounded border border-line bg-white px-1 py-1 font-semibold text-ink"
-                value={user.role}
-                onChange={(e) => switchRole(e.target.value as Role)}
-              >
-                {DEMO_ACCOUNTS.map((d) => (
-                  <option key={d.role} value={d.role}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
-              <button className="btn-ghost btn-sm" onClick={onReset} title="Restore the original sample data">
-                <RotateCcw className="h-3 w-3" /> Reset demo data
-              </button>
-            </div>
-          )}
-
+          <LanguageSwitcher />
           <ThemeToggle />
           <button
             className="btn-ghost btn-sm"
@@ -160,10 +142,24 @@ export function AppLayout() {
               navigate('/login');
             }}
           >
-            <LogOut className="h-3 w-3" /> Log out
+            <LogOut className="h-3 w-3" /> {t('common.logOut')}
           </button>
         </header>
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
+          {user.email_verified === false && (
+            <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-cream p-4 text-sm" role="status">
+              <MailWarning className="h-5 w-5 shrink-0 text-brand-dark" />
+              <p className="min-w-0 flex-1">
+                <b>{t('nav.verifyBanner')}</b> {t('nav.verifySent')} <span className="break-all">{user.email}</span>.
+              </p>
+              <Link
+                to={`/check-email?${new URLSearchParams({ email: user.email })}`}
+                className="btn-secondary inline-flex min-h-[44px] items-center justify-center"
+              >
+                {t('nav.resend')}
+              </Link>
+            </div>
+          )}
           <Outlet />
         </main>
       </div>

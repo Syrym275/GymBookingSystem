@@ -1,5 +1,6 @@
 import { TODAY } from '../config';
 import { hourLabel, mk } from '../utils/format';
+import { useT } from '../i18n';
 
 interface Props {
   date: string;
@@ -12,6 +13,7 @@ interface Props {
 
 /** Grid of hourly slots. Taken + past slots are disabled; pass no onSelect for a read-only view. */
 export function SlotPicker({ date, hours, taken, selected, range, onSelect }: Props) {
+  const { t } = useT();
   return (
     <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
       {hours.map((h) => {
@@ -31,7 +33,7 @@ export function SlotPicker({ date, hours, taken, selected, range, onSelect }: Pr
             type="button"
             disabled={disabled && !isSel}
             onClick={() => onSelect?.(h)}
-            title={isTaken ? 'Already booked' : isPast ? 'Time has passed' : 'Free'}
+            title={isTaken ? t('slot.taken') : isPast ? t('slot.past') : t('slot.free')}
             className={`rounded-xl border px-2 py-2 text-sm font-bold transition ${style} ${
               disabled && !isSel ? 'cursor-not-allowed' : ''
             }`}

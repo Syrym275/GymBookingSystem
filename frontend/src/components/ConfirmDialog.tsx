@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal } from './Modal';
+import { useT } from '../i18n';
 
 interface Props {
   open: boolean;
@@ -11,7 +12,8 @@ interface Props {
   onCancel: () => void;
 }
 
-export function ConfirmDialog({ open, title, message, confirmLabel = 'Confirm', danger, onConfirm, onCancel }: Props) {
+export function ConfirmDialog({ open, title, message, confirmLabel, danger, onConfirm, onCancel }: Props) {
+  const { t } = useT();
   const [busy, setBusy] = useState(false);
   const run = async () => {
     setBusy(true);
@@ -29,10 +31,10 @@ export function ConfirmDialog({ open, title, message, confirmLabel = 'Confirm', 
       footer={
         <>
           <button className="btn-ghost" onClick={onCancel} disabled={busy}>
-            Keep it
+            {t('dialog.keep')}
           </button>
           <button className={danger ? 'btn-danger' : 'btn-primary'} onClick={run} disabled={busy}>
-            {busy ? 'Working…' : confirmLabel}
+            {busy ? t('dialog.working') : confirmLabel ?? t('dialog.confirm')}
           </button>
         </>
       }

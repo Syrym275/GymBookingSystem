@@ -1,10 +1,12 @@
 import { BookingsTable } from '../../components/BookingsTable';
 import { PageHeader } from '../../components/ui';
+import { useT } from '../../i18n';
 
 export default function ReceptionBookings() {
+  const { t } = useT();
   return (
     <div>
-      <PageHeader title="All bookings" subtitle="Filters are saved in the page address, so you can bookmark a view." />
+      <PageHeader title={t('nav.allBookings')} subtitle={t('rec.allSub')} />
       <BookingsTable mode="reception" />
     </div>
   );

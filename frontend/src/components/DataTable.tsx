@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react';
+import { useT } from '../i18n';
 
 export interface Column<T> {
   key: string;
@@ -21,6 +22,7 @@ interface Props<T> {
 }
 
 export function DataTable<T>({ rows, columns, rowKey, pageSize = 10, initialSort, onRowClick, empty, busy }: Props<T>) {
+  const { t } = useT();
   const [sort, setSort] = useState(initialSort ?? null);
   const [page, setPage] = useState(1);
 
@@ -90,16 +92,16 @@ export function DataTable<T>({ rows, columns, rowKey, pageSize = 10, initialSort
       {pages > 1 && (
         <div className="flex items-center justify-between border-t border-ink/10 px-4 py-2 text-xs text-ink/70">
           <span>
-            {(cur - 1) * pageSize + 1}–{Math.min(cur * pageSize, sorted.length)} of {sorted.length}
+            {t('table.range', { from: (cur - 1) * pageSize + 1, to: Math.min(cur * pageSize, sorted.length), total: sorted.length })}
           </span>
           <div className="flex items-center gap-1">
-            <button className="btn-ghost btn-sm" disabled={cur <= 1} onClick={() => setPage(cur - 1)} aria-label="Previous page">
+            <button className="btn-ghost btn-sm" disabled={cur <= 1} onClick={() => setPage(cur - 1)} aria-label={t('table.prev')}>
               <ChevronLeft className="h-3 w-3" />
             </button>
             <span className="px-2 font-bold">
               {cur} / {pages}
             </span>
-            <button className="btn-ghost btn-sm" disabled={cur >= pages} onClick={() => setPage(cur + 1)} aria-label="Next page">
+            <button className="btn-ghost btn-sm" disabled={cur >= pages} onClick={() => setPage(cur + 1)} aria-label={t('table.next')}>
               <ChevronRight className="h-3 w-3" />
             </button>
           </div>

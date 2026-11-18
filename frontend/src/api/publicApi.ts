@@ -1,4 +1,4 @@
-// The public landing page uses FastAPI. Other app functions still use mock APIs.
+// Public catalogue and account registration use FastAPI. Some dashboard reports remain mock-backed.
 
 export interface PublicTrainer {
   trainer_id: number;
@@ -27,8 +27,8 @@ export interface TrainerRegistrationInput {
   session_price_kzt: number;
 }
 
-/** Saves a trainer for approval. Does not sign them in. */
-export async function registerTrainer(input: TrainerRegistrationInput): Promise<void> {
+/** Saves a trainer for approval and emails a verification link. Does not sign them in. */
+export async function registerTrainer(input: TrainerRegistrationInput): Promise<{ verificationEmailSent: boolean }> {
   const fallback = 'Could not send your registration. Please try again shortly.';
   let response: Response;
   try {
@@ -44,6 +44,8 @@ export async function registerTrainer(input: TrainerRegistrationInput): Promise<
     const data = await response.json().catch(() => null);
     throw new Error(typeof data?.detail === 'string' ? data.detail : fallback);
   }
+  const data = await response.json().catch(() => null);
+  return { verificationEmailSent: data?.verification_email_sent !== false };
 }
 
 export async function getPublicCatalog(): Promise<PublicCatalog> {

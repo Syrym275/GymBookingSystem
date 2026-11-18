@@ -10,11 +10,13 @@ import { addDaysStr, fmtDate, hourLabel, hourOf, kzt, mk } from '../../utils/for
 import { SlotPicker } from '../SlotPicker';
 import { EmptyState, ErrorNote, Loading } from '../ui';
 import { BookingError } from './BookingError';
+import { useT } from '../../i18n';
 
 const HOURS = Array.from({ length: CLOSE_HOUR - OPEN_HOUR }, (_, i) => OPEN_HOUR + i);
 
 /** Rent a hall for any whole-hour interval. Used by members (self) and reception (memberId given). */
 export function HallBooking({ memberId, onBooked }: { memberId?: number; onBooked: (b: BookingView) => void }) {
+  const { t, tp } = useT();
   const halls = useAsync(() => listHalls(), []);
   const [hallId, setHallId] = useState<number | null>(null);
   const [date, setDate] = useState(TODAY_DATE);
@@ -65,12 +67,12 @@ export function HallBooking({ memberId, onBooked }: { memberId?: number; onBooke
 
   if (halls.loading && !halls.data) return <Loading />;
   if (halls.error) return <ErrorNote message={halls.error} />;
-  if (!halls.data?.length) return <EmptyState title="No halls available" text="Please check back later." />;
+  if (!halls.data?.length) return <EmptyState title={t('hb.noHalls')} text={t('tb.checkLater')} />;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
       <div>
-        <p className="label">1 · Choose a hall</p>
+        <p className="label">{t('hb.step1')}</p>
         <div className="space-y-3">
           {halls.data.map((h) => (
             <button
@@ -89,12 +91,12 @@ export function HallBooking({ memberId, onBooked }: { memberId?: number; onBooke
               <span className="min-w-0 flex-1">
                 <span className="block font-display text-lg font-bold">{h.hall_name}</span>
                 <span className="flex items-center gap-1 text-sm text-ink/60">
-                  <Users className="h-3 w-3" /> up to {h.capacity} people
+                  <Users className="h-3 w-3" /> {tp('landing.halls.upTo', h.capacity)}
                 </span>
               </span>
               <span className="text-right text-sm font-bold">
                 {kzt(h.hourly_rate_kzt)}
-                <span className="block text-xs font-normal text-ink/50">per hour</span>
+                <span className="block text-xs font-normal text-ink/50">{t('tb.perHour')}</span>
               </span>
             </button>
           ))}
@@ -103,12 +105,12 @@ export function HallBooking({ memberId, onBooked }: { memberId?: number; onBooke
 
       <div className="card">
         {!hall ? (
-          <EmptyState title="Pick a hall first" text="Then choose the day and the time interval you need." />
+          <EmptyState title={t('hb.pickFirst')} text={t('hb.pickFirstText')} />
         ) : (
           <div className="space-y-5">
             <div>
               <label className="label" htmlFor="hb-date">
-                2 · Pick a date
+                {t('tb.step2')}
               </label>
               <input
                 id="hb-date"
@@ -126,13 +128,13 @@ export function HallBooking({ memberId, onBooked }: { memberId?: number; onBooke
               />
             </div>
             <div>
-              <p className="label">Availability</p>
+              <p className="label">{t('hb.availability')}</p>
               <SlotPicker date={date} hours={HOURS} taken={taken.data ?? []} range={[start, end]} />
             </div>
             <div className="grid max-w-md grid-cols-2 gap-3">
               <div>
                 <label className="label" htmlFor="hb-start">
-                  3 · From
+                  {t('hb.from')}
                 </label>
                 <select id="hb-start" className="input" value={start} onChange={(e) => changeStart(Number(e.target.value))}>
                   {HOURS.map((h) => (
@@ -144,7 +146,7 @@ export function HallBooking({ memberId, onBooked }: { memberId?: number; onBooke
               </div>
               <div>
                 <label className="label" htmlFor="hb-end">
-                  Until
+                  {t('hb.until')}
                 </label>
                 <select
                   id="hb-end"
@@ -165,21 +167,21 @@ export function HallBooking({ memberId, onBooked }: { memberId?: number; onBooke
                 </select>
               </div>
             </div>
-            {clash && <ErrorNote message="Part of this interval is already booked (striped hours above). Choose another time." />}
-            {past && <ErrorNote message="That start time has already passed today." />}
+            {clash && <ErrorNote message={t('hb.clash')} />}
+            {past && <ErrorNote message={t('hb.past')} />}
             <BookingError error={error} onPick={pick} />
             <div className="rounded-xl bg-cream p-4 text-sm">
               <p className="font-bold">
                 {hall.hall_name} · {fmtDate(date)}
               </p>
               <p>
-                {hourLabel(start)} – {hourLabel(end)} · {hoursCount} h × {kzt(hall.hourly_rate_kzt)} ={' '}
+                {hourLabel(start)} – {hourLabel(end)} · {t('hb.hours', { n: hoursCount })} × {kzt(hall.hourly_rate_kzt)} ={' '}
                 <b className="text-brand-dark">{kzt(hall.hourly_rate_kzt * hoursCount)}</b>
               </p>
-              <p className="mt-1 text-xs text-ink/60">Booked as “pending” - the slot is held until it is paid.</p>
+              <p className="mt-1 text-xs text-ink/60">{t('tb.pendingNote')}</p>
             </div>
             <button className="btn-primary w-full sm:w-auto" disabled={busy || clash || past} onClick={submit}>
-              {busy ? 'Reserving…' : 'Reserve this hall'}
+              {busy ? t('tb.reserving') : t('hb.reserve')}
             </button>
           </div>
         )}

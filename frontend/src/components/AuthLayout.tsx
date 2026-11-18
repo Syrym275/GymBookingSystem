@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ThemeToggle } from '../theme/ThemeContext';
 import { GYM_NAME } from '../data/gymData';
+import { LanguageSwitcher, useT } from '../i18n';
 import { Barbell } from './GymIcons';
 import HeroScene from './HeroScene';
 
@@ -21,6 +22,7 @@ function Logo() {
  * gym-floor illustration panel (lg+) + form column.
  */
 export function AuthLayout({ aside, children }: { aside: { title: ReactNode; text: string }; children: ReactNode }) {
+  const { t } = useT();
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
       <aside className="relative hidden flex-col justify-between gap-10 border-r border-line bg-white p-10 lg:flex xl:p-12">
@@ -42,14 +44,17 @@ export function AuthLayout({ aside, children }: { aside: { title: ReactNode; tex
               to="/"
               className="hidden min-h-[44px] items-center text-sm font-semibold text-ink/70 hover:text-brand-dark lg:inline-flex"
             >
-              ← Back to home
+              ← {t('auth.backHome')}
             </Link>
-            <ThemeToggle className="min-h-[44px] min-w-[44px]" />
+            <div className="flex items-center gap-2">
+              <LanguageSwitcher />
+              <ThemeToggle className="min-h-[44px] min-w-[44px]" />
+            </div>
           </div>
           {children}
           <p className="text-center lg:hidden">
             <Link to="/" className="inline-flex min-h-[44px] items-center text-sm font-semibold text-ink/70 hover:text-brand-dark">
-              ← Back to home
+              ← {t('auth.backHome')}
             </Link>
           </p>
         </div>

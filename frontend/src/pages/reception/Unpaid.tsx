@@ -9,8 +9,10 @@ import { MAX_PENDING } from '../../config';
 import { useAsync } from '../../hooks/useAsync';
 import type { BookingView } from '../../types';
 import { bkNumber, fmtRange, kzt } from '../../utils/format';
+import { useT } from '../../i18n';
 
 export default function ReceptionUnpaid() {
+  const { t, tp } = useT();
   const toast = useToast();
   const { data, error, reload } = useAsync(unpaidMembers, []);
   const [target, setTarget] = useState<BookingView | null>(null);
@@ -22,9 +24,9 @@ export default function ReceptionUnpaid() {
 
   return (
     <div>
-      <PageHeader title="Unpaid bookings" subtitle={`${total} pending booking${total === 1 ? '' : 's'} across ${data.length} member${data.length === 1 ? '' : 's'}. Pending bookings hold the slot.`} />
+      <PageHeader title={t('nav.unpaid')} subtitle={t('rec.unpaidSub', { bookings: tp('unit.unpaidBookings', total), members: tp('unit.members', data.length) })} />
       {data.length === 0 ? (
-        <EmptyState title="Everything is paid 🎉" text="No pending bookings right now." />
+        <EmptyState title={t('rec.allPaid')} text={t('rec.allPaidText')} />
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {data.map((g) => {
@@ -39,7 +41,7 @@ export default function ReceptionUnpaid() {
                     </a>
                   </div>
                   <span className={`chip ${atLimit ? 'border-line bg-berry text-onaccent' : 'border-ink/20 bg-white'}`}>
-                    {g.bookings.length} of {MAX_PENDING} unpaid{atLimit ? ' · at limit' : ''}
+                    {t('rec.ofUnpaid', { n: g.bookings.length, max: MAX_PENDING })}{atLimit ? ` · ${t('rec.atLimit')}` : ''}
                   </span>
                 </div>
                 <div className="space-y-2">
@@ -54,7 +56,7 @@ export default function ReceptionUnpaid() {
                       </div>
                       <span className="font-bold">{kzt(b.price_kzt)}</span>
                       <button className="btn-danger btn-sm" onClick={() => setTarget(b)}>
-                        Cancel booking
+                        {t('mybook.cancelBooking')}
                       </button>
                     </div>
                   ))}
@@ -68,18 +70,18 @@ export default function ReceptionUnpaid() {
       <ConfirmDialog
         open={!!target}
         danger
-        title={target ? `Cancel ${bkNumber(target.booking_id)}?` : ''}
-        message={target ? `This releases the slot and frees one of ${target.member.full_name}'s ${MAX_PENDING} unpaid places.` : ''}
-        confirmLabel="Cancel booking"
+        title={target ? t('mybook.cancelQ', { id: bkNumber(target.booking_id) }) : ''}
+        message={target ? t('rec.cancelMsg', { name: target.member.full_name, max: MAX_PENDING }) : ''}
+        confirmLabel={t('mybook.cancelBooking')}
         onCancel={() => setTarget(null)}
         onConfirm={async () => {
           if (!target) return;
           try {
             await cancelBooking(target.booking_id);
-            toast.success(`${bkNumber(target.booking_id)} cancelled.`);
+            toast.success(t('mybook.cancelled', { id: bkNumber(target.booking_id) }));
             reload();
           } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Could not cancel.');
+            toast.error(e instanceof Error ? e.message : t('mybook.cancelFailed'));
           }
           setTarget(null);
         }}

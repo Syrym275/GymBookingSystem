@@ -9,6 +9,7 @@ import { CLOSE_HOUR, OPEN_HOUR, TODAY, TODAY_DATE } from '../../config';
 import { useAsync } from '../../hooks/useAsync';
 import type { BookingView } from '../../types';
 import { addMinutesStr, bkNumber, fmtDate, hourLabel, hourOf, timeOf } from '../../utils/format';
+import { useT } from '../../i18n';
 
 const HOURS = Array.from({ length: CLOSE_HOUR - OPEN_HOUR }, (_, i) => OPEN_HOUR + i);
 
@@ -32,6 +33,7 @@ function Item({ b, onOpen, onDone }: { b: BookingView; onOpen: () => void; onDon
 }
 
 export default function ReceptionToday() {
+  const { t, tp } = useT();
   const { data, error, reload } = useAsync(() => listBookings({ from: TODAY_DATE, to: TODAY_DATE }), []);
   const [slip, setSlip] = useState<BookingView | null>(null);
 
@@ -47,14 +49,14 @@ export default function ReceptionToday() {
 
   return (
     <div>
-      <PageHeader title="Today" subtitle={`${fmtDate(TODAY_DATE)} · ${data.length} booking${data.length === 1 ? '' : 's'}`} />
+      <PageHeader title={t('nav.today')} subtitle={`${fmtDate(TODAY_DATE)} · ${tp('unit.bookings', data.length)}`} />
 
       <div className="card mb-6 bg-sun-soft/60">
         <h2 className="mb-3 flex items-center gap-2 text-lg font-extrabold">
-          <Clock className="h-5 w-5" /> Starting in the next 2 hours
+          <Clock className="h-5 w-5" /> {t('rec.next2h')}
         </h2>
         {soon.length === 0 ? (
-          <p className="text-sm text-ink/60">Nothing starts between {timeOf(TODAY)} and {timeOf(limit)}.</p>
+          <p className="text-sm text-ink/60">{t('rec.nothingBetween', { from: timeOf(TODAY), to: timeOf(limit) })}</p>
         ) : (
           <div className="space-y-2">
             {soon.map((b) => (
@@ -64,9 +66,9 @@ export default function ReceptionToday() {
         )}
       </div>
 
-      <h2 className="mb-3 text-xl font-extrabold">Timeline</h2>
+      <h2 className="mb-3 text-xl font-extrabold">{t('rec.timeline')}</h2>
       {data.length === 0 ? (
-        <EmptyState title="No bookings today" />
+        <EmptyState title={t('rec.noToday')} />
       ) : (
         <div className="overflow-hidden rounded-xl border border-line bg-white shadow-hard">
           {HOURS.map((h) => {

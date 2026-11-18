@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { useT } from '../i18n';
 
 interface ModalProps {
   open: boolean;
@@ -11,6 +12,7 @@ interface ModalProps {
 }
 
 export function Modal({ open, title, onClose, children, footer, wide }: ModalProps) {
+  const { t } = useT();
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -32,7 +34,7 @@ export function Modal({ open, title, onClose, children, footer, wide }: ModalPro
       >
         <div className="sticky top-0 flex items-center justify-between border-b border-ink/10 bg-white px-5 py-3">
           <h2 className="text-lg font-extrabold">{title}</h2>
-          <button onClick={onClose} aria-label="Close" className="rounded-lg p-1 hover:bg-sun-soft">
+          <button onClick={onClose} aria-label={t('common.close')} className="rounded-lg p-1 hover:bg-sun-soft">
             <X className="h-5 w-5" />
           </button>
         </div>

@@ -88,6 +88,13 @@ export interface CurrentUser {
   role: Role;
   member_id?: number;
   trainer_id?: number;
+  trainer_specialization?: string | null;
+  trainer_session_price_kzt?: number | null;
+  trainer_is_active?: boolean | null;
+  /** False until the emailed link is opened. */
+  email_verified?: boolean;
+  /** Set by sign-up only: false when the account was saved but the email could not be sent. */
+  verification_email_sent?: boolean | null;
 }
 
 // ---- Role-filtered views (what the API is allowed to return) -------------

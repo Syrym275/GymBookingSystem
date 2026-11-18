@@ -45,29 +45,18 @@ export interface BackendBooking extends Booking {
 }
 
 export function backendBookingToView(booking: BackendBooking): BookingView {
-  const db = getDb();
-  const member = db.members.find(
-    (item) => item.member_id === booking.member_id,
-  );
-  const trainer = db.trainers.find(
-    (item) => item.trainer_id === booking.trainer_id,
-  );
-  const hall = db.halls.find(
-    (item) => item.hall_id === booking.hall_id,
-  );
-
   return {
     ...booking,
     member_id: booking.member_id,
     member: {
       member_id: booking.member_id,
-      full_name: booking.member_name ?? member?.full_name ?? 'Member',
-      phone: booking.member_phone ?? member?.phone,
-      membership_plan: booking.member_membership_plan ?? member?.membership_plan,
-      membership_expires_on: booking.member_membership_expires_on ?? member?.membership_expires_on,
+      full_name: booking.member_name ?? 'Member',
+      phone: booking.member_phone ?? undefined,
+      membership_plan: booking.member_membership_plan ?? undefined,
+      membership_expires_on: booking.member_membership_expires_on ?? undefined,
     },
-    trainer_name: booking.trainer_name ?? trainer?.full_name ?? null,
-    hall_name: booking.hall_name ?? hall?.hall_name ?? null,
+    trainer_name: booking.trainer_name ?? null,
+    hall_name: booking.hall_name ?? null,
     paid: ['confirmed', 'completed', 'no_show'].includes(booking.status),
   };
 }
@@ -75,9 +64,13 @@ export function backendBookingToView(booking: BackendBooking): BookingView {
 export async function listBookings(f: BookingFilters = {}): Promise<BookingView[]> {
     const current = requireUser();
 
-  if ((current.role === 'member' && current.member_id) || current.role === 'receptionist') {
-    const memberQuery = current.role === 'member' ? `?member_id=${current.member_id}` : '';
-    const response = await fetch(`/api/bookings${memberQuery}`);
+  if ((current.role === 'member' && current.member_id) || current.role === 'receptionist' || (current.role === 'trainer' && current.trainer_id)) {
+    const query = new URLSearchParams();
+    if (current.role === 'member') query.set('member_id', String(current.member_id));
+    if (current.role === 'trainer') query.set('trainer_id', String(current.trainer_id));
+    const encodedQuery = query.toString();
+    const suffix = encodedQuery ? `?${encodedQuery}` : '';
+    const response = await fetch(`/api/bookings${suffix}`);
 
     const data = await response.json();
 
@@ -177,7 +170,15 @@ export async function listBookings(f: BookingFilters = {}): Promise<BookingView[
 
 export async function getBooking(id: number): Promise<BookingView> {
   const response = await fetch(`/api/bookings/${id}`);
-  const data = await response.json();
+  let data: { detail?: unknown } & Partial<BackendBooking>;
+  try {
+    data = await response.json();
+  } catch {
+    throw new ApiError(
+      'VALIDATION',
+      `Booking service returned an invalid response (HTTP ${response.status}). Check the backend log.`,
+    );
+  }
 
   if (!response.ok) {
     throw new ApiError(
@@ -189,6 +190,17 @@ export async function getBooking(id: number): Promise<BookingView> {
   }
 
   return backendBookingToView(data as BackendBooking);
+}
+
+/** Read joined details after a successful write that returns only booking fields. */
+export async function loadSavedBookingDetails(booking: BackendBooking): Promise<BookingView> {
+  try {
+    return await getBooking(booking.booking_id);
+  } catch {
+    // The write has already succeeded. A failed refresh must not encourage a
+    // duplicate booking/payment. Keep its real response, without demo lookups.
+    return backendBookingToView(booking);
+  }
 }
 
 /** Hours (07..21) whose [h, h+1) window is blocked for a trainer or hall on a date. */
@@ -274,7 +286,15 @@ export async function createBooking(
     }),
   });
 
-  const data = await response.json();
+  let data: { detail?: unknown } & Partial<BackendBooking>;
+  try {
+    data = await response.json();
+  } catch {
+    throw new ApiError(
+      'VALIDATION',
+      `Booking service returned an invalid response (HTTP ${response.status}). Check the backend log.`,
+    );
+  }
 
   if (!response.ok) {
     const detail = typeof data.detail === 'string' ? data.detail : 'Could not create booking.';
@@ -292,7 +312,7 @@ export async function createBooking(
     throw new ApiError(code, detail);
   }
 
-  return backendBookingToView(data as BackendBooking);
+  return loadSavedBookingDetails(data as BackendBooking);
 }
 
 
@@ -312,14 +332,16 @@ export async function cancelBooking(id: number): Promise<BookingView> {
     );
   }
 
-  return backendBookingToView(data as BackendBooking);
+  return loadSavedBookingDetails(data as BackendBooking);
 }
   
 
 export async function markAttendance(id: number, status: 'completed' | 'no_show'): Promise<BookingView> {
   const viewer = requireUser(['trainer', 'receptionist', 'admin']);
-  if (viewer.role === 'receptionist') {
-    const response = await fetch(`/api/bookings/${id}/attendance?status=${status}`, { method: 'POST' });
+  if (viewer.role === 'receptionist' || (viewer.role === 'trainer' && viewer.trainer_id)) {
+    const query = new URLSearchParams({ status });
+    if (viewer.role === 'trainer') query.set('trainer_id', String(viewer.trainer_id));
+    const response = await fetch(`/api/bookings/${id}/attendance?${query.toString()}`, { method: 'POST' });
     const data = await response.json();
     if (!response.ok) {
       throw new ApiError(

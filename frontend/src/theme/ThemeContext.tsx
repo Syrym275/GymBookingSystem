@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Moon, Sun } from 'lucide-react';
+import { useT } from '../i18n';
 
 export type Theme = 'dark' | 'light';
 const KEY = 'gym-theme';
@@ -45,9 +46,10 @@ export function useChartColors() {
 
 export function ThemeToggle({ className = '' }: { className?: string }) {
   const { theme, toggle } = useTheme();
-  const next = theme === 'dark' ? 'light' : 'dark';
+  const { t } = useT();
+  const label = theme === 'dark' ? t('theme.toLight') : t('theme.toDark');
   return (
-    <button type="button" onClick={toggle} className={`btn-ghost btn-sm !px-2 ${className}`} aria-label={`Switch to ${next} mode`} title={`Switch to ${next} mode`}>
+    <button type="button" onClick={toggle} className={`btn-ghost btn-sm !px-2 ${className}`} aria-label={label} title={label}>
       {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
     </button>
   );

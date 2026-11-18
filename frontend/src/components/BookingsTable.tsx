@@ -13,6 +13,7 @@ import { DataTable, type Column } from './DataTable';
 import { PaidBadge, StatusBadge } from './StatusBadge';
 import { useToast } from './Toast';
 import { EmptyState, ErrorNote } from './ui';
+import { useT, type Key } from '../i18n';
 
 const CHIP_ON: Record<BookingStatus, string> = {
   pending: 'border-sun bg-sun-soft',
@@ -28,6 +29,7 @@ const CHIP_ON: Record<BookingStatus, string> = {
  * so a filtered view can be bookmarked or shared. Admin mode adds payment info + status change.
  */
 export function BookingsTable({ mode }: { mode: 'reception' | 'admin' }) {
+  const { t, tp } = useT();
   const [sp, setSp] = useSearchParams();
   const toast = useToast();
   const [slip, setSlip] = useState<BookingView | null>(null);
@@ -49,7 +51,8 @@ export function BookingsTable({ mode }: { mode: 'reception' | 'admin' }) {
   };
 
   const bookings = useAsync(() => listBookings(filters), [sp.toString()]);
-  const trainers = useAsync(() => listTrainers({ includeInactive: true }), []);
+  // The existing backend endpoint lists active trainers from the catalogue.
+  const trainers = useAsync(() => listTrainers(), []);
   const halls = useAsync(() => listHalls({ includeInactive: true }), []);
   const members = useAsync(() => listMembers(), []);
 
@@ -70,18 +73,18 @@ export function BookingsTable({ mode }: { mode: 'reception' | 'admin' }) {
   const changeStatus = async (b: BookingView, status: BookingStatus) => {
     try {
       await setBookingStatus(b.booking_id, status);
-      toast.success(`${bkNumber(b.booking_id)} is now ${STATUS_LABEL[status].toLowerCase()}.`);
+      toast.success(t('table.statusChanged', { id: bkNumber(b.booking_id), status: STATUS_LABEL[status].toLowerCase() }));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not change status.');
+      toast.error(e instanceof Error ? e.message : t('table.statusFailed'));
     }
     bookings.reload();
   };
 
   const columns: Column<BookingView>[] = [
-    { key: 'id', header: 'Booking', sort: (b) => b.booking_id, render: (b) => <span className="font-mono font-bold">{bkNumber(b.booking_id)}</span> },
+    { key: 'id', header: t('table.booking'), sort: (b) => b.booking_id, render: (b) => <span className="font-mono font-bold">{bkNumber(b.booking_id)}</span> },
     {
       key: 'member',
-      header: 'Member',
+      header: t('role.member'),
       sort: (b) => b.member.full_name,
       render: (b) => (
         <div>
@@ -92,18 +95,18 @@ export function BookingsTable({ mode }: { mode: 'reception' | 'admin' }) {
     },
     {
       key: 'what',
-      header: 'Trainer / hall',
+      header: t('table.trainerHall'),
       sort: (b) => b.trainer_name ?? b.hall_name ?? '',
       render: (b) => (
         <div>
           <div>{b.trainer_name ?? b.hall_name}</div>
-          <div className="text-xs text-ink/50">{b.booking_type === 'training' ? 'Training' : 'Hall rental'}</div>
+          <div className="text-xs text-ink/50">{b.booking_type === 'training' ? t('type.training') : t('type.hall')}</div>
         </div>
       ),
     },
     {
       key: 'when',
-      header: 'When',
+      header: t('table.when'),
       sort: (b) => b.start_time,
       render: (b) => (
         <div>
@@ -114,15 +117,15 @@ export function BookingsTable({ mode }: { mode: 'reception' | 'admin' }) {
         </div>
       ),
     },
-    { key: 'price', header: 'Price', sort: (b) => b.price_kzt, render: (b) => kzt(b.price_kzt) },
+    { key: 'price', header: t('table.price'), sort: (b) => b.price_kzt, render: (b) => kzt(b.price_kzt) },
     {
       key: 'status',
-      header: 'Status',
+      header: t('nav.status'),
       sort: (b) => b.status,
       render: (b) =>
         mode === 'admin' ? (
           <select
-            aria-label={`Status of ${bkNumber(b.booking_id)}`}
+            aria-label={t('table.statusOf', { id: bkNumber(b.booking_id) })}
             className="rounded-lg border border-ink/20 bg-white px-2 py-1 text-xs font-bold"
             value={b.status}
             onClick={(e) => e.stopPropagation()}
@@ -140,16 +143,16 @@ export function BookingsTable({ mode }: { mode: 'reception' | 'admin' }) {
     },
     {
       key: 'paid',
-      header: mode === 'reception' ? 'Payment audit' : 'Paid',
+      header: mode === 'reception' ? t('table.audit') : t('pay.paid'),
       render: (b) => mode === 'reception' ? (
         <div className="text-sm">
-          <div className="font-bold capitalize">{b.payment_status ?? (b.paid ? 'paid' : 'unpaid')}</div>
+          <div className="font-bold">{b.payment_status ? t(`payStatus.${b.payment_status}` as Key) : b.paid ? t('pay.paid') : t('pay.unpaid')}</div>
           {b.paid_at && (
             <div className="text-xs text-ink/60">
-              {b.payment_status === 'refunded' ? 'Originally paid ' : 'Paid '}{fmtDateTime(b.paid_at)}
+              {b.payment_status === 'refunded' ? t('table.originallyPaid') : t('pay.paid')}{' '}{fmtDateTime(b.paid_at)}
             </div>
           )}
-          {b.payment_method && <div className="text-xs capitalize text-ink/50">{b.payment_method}</div>}
+          {b.payment_method && <div className="text-xs text-ink/50">{t(`method.${b.payment_method}` as Key)}</div>}
         </div>
       ) : <PaidBadge status={b.status} />,
     },
@@ -157,15 +160,15 @@ export function BookingsTable({ mode }: { mode: 'reception' | 'admin' }) {
   if (mode === 'admin') {
     columns.push({
       key: 'payment',
-      header: 'Payment',
+      header: t('table.payment'),
       render: (b) =>
         b.payment ? (
           <div className="text-xs">
-            <span className="font-bold capitalize">{b.payment.payment_status}</span> · {b.payment.method}
+            <span className="font-bold">{t(`payStatus.${b.payment.payment_status}` as Key)}</span> · {t(`method.${b.payment.method}` as Key)}
             <div className="font-mono text-ink/50">{b.payment.provider_txn_ref}</div>
           </div>
         ) : (
-          <span className="text-xs text-ink/40">none</span>
+          <span className="text-xs text-ink/40">{t('table.none')}</span>
         ),
     });
   }
@@ -176,83 +179,83 @@ export function BookingsTable({ mode }: { mode: 'reception' | 'admin' }) {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="relative sm:col-span-2">
             <label className="label" htmlFor="bt-q">
-              Search
+              {t('table.search')}
             </label>
             <Search className="pointer-events-none absolute bottom-2.5 left-3 h-4 w-4 text-ink/40" />
             <input
               id="bt-q"
               className="input pl-9"
-              placeholder="Member name, phone or BK number"
+              placeholder={t('table.searchPlaceholder')}
               value={sp.get('q') ?? ''}
               onChange={(e) => setParam('q', e.target.value)}
             />
           </div>
           <div>
             <label className="label" htmlFor="bt-from">
-              From
+              {t('table.from')}
             </label>
             <input id="bt-from" type="date" className="input" value={sp.get('from') ?? ''} onChange={(e) => setParam('from', e.target.value)} />
           </div>
           <div>
             <label className="label" htmlFor="bt-to">
-              To
+              {t('table.to')}
             </label>
             <input id="bt-to" type="date" className="input" value={sp.get('to') ?? ''} onChange={(e) => setParam('to', e.target.value)} />
           </div>
           <div>
             <label className="label" htmlFor="bt-type">
-              Type
+              {t('table.type')}
             </label>
             <select id="bt-type" className="input" value={sp.get('type') ?? ''} onChange={(e) => setParam('type', e.target.value)}>
-              <option value="">All types</option>
-              <option value="training">Training</option>
-              <option value="hall_rental">Hall rental</option>
+              <option value="">{t('table.allTypes')}</option>
+              <option value="training">{t('type.training')}</option>
+              <option value="hall_rental">{t('type.hall')}</option>
             </select>
           </div>
           <div>
             <label className="label" htmlFor="bt-paid">
-              Payment
+              {t('table.payment')}
             </label>
             <select id="bt-paid" className="input" value={sp.get('paid') ?? ''} onChange={(e) => setParam('paid', e.target.value)}>
-              <option value="">Paid &amp; unpaid</option>
-              <option value="paid">Paid</option>
-              <option value="unpaid">Unpaid</option>
+              <option value="">{t('table.paidAndUnpaid')}</option>
+              <option value="paid">{t('pay.paid')}</option>
+              <option value="unpaid">{t('pay.unpaid')}</option>
             </select>
           </div>
           <div>
             <label className="label" htmlFor="bt-trainer">
-              Trainer
+              {t('role.trainer')}
             </label>
             <select id="bt-trainer" className="input" value={sp.get('trainer') ?? ''} onChange={(e) => setParam('trainer', e.target.value)}>
-              <option value="">Any trainer</option>
-              {trainers.data?.map((t) => (
-                <option key={t.trainer_id} value={t.trainer_id}>
-                  {t.full_name}
-                  {t.is_active ? '' : ' (inactive)'}
+              <option value="">{t('table.anyTrainer')}</option>
+              {trainers.data?.map((tr) => (
+                <option key={tr.trainer_id} value={tr.trainer_id}>
+                  {tr.full_name}
+                  {tr.is_active ? '' : ` (${t('table.inactive')})`}
                 </option>
               ))}
             </select>
           </div>
           <div>
             <label className="label" htmlFor="bt-hall">
-              Hall
+              {t('table.hall')}
             </label>
             <select id="bt-hall" className="input" value={sp.get('hall') ?? ''} onChange={(e) => setParam('hall', e.target.value)}>
-              <option value="">Any hall</option>
+              <option value="">{t('table.anyHall')}</option>
               {halls.data?.map((h) => (
                 <option key={h.hall_id} value={h.hall_id}>
                   {h.hall_name}
-                  {h.is_active ? '' : ' (inactive)'}
+                  {h.is_active ? '' : ` (${t('table.inactive')})`}
                 </option>
               ))}
             </select>
           </div>
           <div className="sm:col-span-2">
             <label className="label" htmlFor="bt-member">
-              Member
+              {t('role.member')}
             </label>
             <select id="bt-member" className="input" value={sp.get('member') ?? ''} onChange={(e) => setParam('member', e.target.value)}>
-              <option value="">Any member</option>
+              <option value="">{t('table.anyMember')}</option>
               {members.data?.map((m) => (
                 <option key={m.member_id} value={m.member_id}>
                   {m.full_name}
@@ -262,7 +265,7 @@ export function BookingsTable({ mode }: { mode: 'reception' | 'admin' }) {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="label mb-0 mr-1">Status</span>
+          <span className="label mb-0 mr-1">{t('nav.status')}</span>
           {ALL_STATUSES.map((s) => (
             <button
               key={s}
@@ -275,7 +278,7 @@ export function BookingsTable({ mode }: { mode: 'reception' | 'admin' }) {
           ))}
           {anyFilter && (
             <button className="btn-ghost btn-sm ml-auto" onClick={() => setSp({}, { replace: true })}>
-              <X className="h-3 w-3" /> Clear filters
+              <X className="h-3 w-3" /> {t('table.clear')}
             </button>
           )}
         </div>
@@ -285,7 +288,7 @@ export function BookingsTable({ mode }: { mode: 'reception' | 'admin' }) {
       {bookings.data && (
         <>
           <p className="text-sm text-ink/60">
-            {bookings.data.length} booking{bookings.data.length === 1 ? '' : 's'}
+            {tp('unit.bookings', bookings.data.length)}
           </p>
           <DataTable
             rows={bookings.data}
@@ -294,11 +297,11 @@ export function BookingsTable({ mode }: { mode: 'reception' | 'admin' }) {
             initialSort={{ key: 'when', dir: 'asc' }}
             onRowClick={setSlip}
             busy={bookings.loading}
-            empty={<EmptyState title="No bookings match" text="Try removing a filter or widening the date range." />}
+            empty={<EmptyState title={t('table.emptyTitle')} text={t('table.emptyText')} />}
           />
         </>
       )}
-      {!bookings.data && !bookings.error && <p className="py-8 text-center text-sm text-ink/50">Loading bookings…</p>}
+      {!bookings.data && !bookings.error && <p className="py-8 text-center text-sm text-ink/50">{t('table.loading')}</p>}
       <BookingSlip booking={slip} onClose={() => setSlip(null)} />
     </div>
   );

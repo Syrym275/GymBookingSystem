@@ -3,16 +3,18 @@ import { HallBooking } from '../../components/booking/HallBooking';
 import { useToast } from '../../components/Toast';
 import { PageHeader } from '../../components/ui';
 import { bkNumber } from '../../utils/format';
+import { useT } from '../../i18n';
 
 export default function RentHall() {
   const navigate = useNavigate();
+  const { t } = useT();
   const toast = useToast();
   return (
     <div>
-      <PageHeader title="Rent a hall" subtitle="Choose a hall and the time interval you need - the price updates live." />
+      <PageHeader title={t('landing.rentHall')} subtitle={t('member.rentHallSub')} />
       <HallBooking
         onBooked={(b) => {
-          toast.success(`${bkNumber(b.booking_id)} reserved - now complete the payment.`);
+          toast.success(t('member.reserved', { id: bkNumber(b.booking_id) }));
           navigate(`/member/pay/${b.booking_id}`);
         }}
       />

@@ -12,8 +12,8 @@ import type {
   UserAccount,
 } from '../types';
 import type { DB } from './db';
-import { DEMO_PASSWORD } from '../config';
-import { addDaysStr, dateOf, minutesBetween, pad } from '../utils/format';
+import { DEMO_PASSWORD, TODAY_DATE } from '../config';
+import { addDaysStr, dateOf, minutesBetween, pad, parseLocal } from '../utils/format';
 
 export function qrToken(id: number) {
   let h = (id * 2654435761) >>> 0;
@@ -150,6 +150,41 @@ export function buildSeed(): DB {
   push(5, 'training', 2, null, '2026-11-05T19:00', '2026-11-05T20:00', 'confirmed', 6500); // 29
   push(1, 'training', 3, null, '2026-11-03T17:00', '2026-11-03T18:00', 'expired', 7000); // 30
   push(2, 'hall_rental', null, 3, '2026-11-07T10:00', '2026-11-07T12:00', 'confirmed', 18000); // 31
+
+  // Demo history for the trainer area (booking ids 32+): about eight weeks back and ten days ahead of
+  // "today" for trainer 1 (Aigerim), so the dashboards and charts always have recent data to show.
+  // Slots that collide with the fixed rows above are skipped. Yerassyl (4) keeps exactly 2 unpaid bookings.
+  {
+    const price = trainers[0].session_price_kzt;
+    const clientPool = [1, 2, 3, 1, 4, 2, 5, 1, 7, 3, 9, 2, 10, 1, 8, 4, 5, 2];
+    const mayBePending = [2, 3, 5, 7, 9, 10];
+    const slotTaken = new Set(bookings.filter((b) => b.trainer_id === 1).map((b) => b.start_time));
+    const memberTaken = new Set(bookings.map((b) => `${b.member_id}|${b.start_time}`));
+    const pendingMembers = new Set<number>();
+    let n = 0;
+    for (let off = -56; off <= 10; off++) {
+      const date = addDaysStr(TODAY_DATE, off);
+      const dow = parseLocal(date).getDay(); // 0 = Sunday
+      if (dow === 0) continue;
+      const hours = dow === 6 ? [11] : off % 3 === 0 ? [9, 18] : [18, 19];
+      for (const hour of hours) {
+        const start = `${date}T${pad(hour)}:00`;
+        // Beibit (11) joined recently: two sessions last week make him a "New" client.
+        const member = (off === -4 && hour === 18) || (off === -2 && hour === 19) ? 11 : clientPool[n % clientPool.length];
+        n += 1;
+        if (slotTaken.has(start) || memberTaken.has(`${member}|${start}`)) continue;
+        let status: BookingStatus;
+        if (off < 0) status = n % 9 === 0 ? 'no_show' : n % 13 === 0 ? 'cancelled' : 'completed';
+        else if (off >= 3 && n % 4 === 0 && mayBePending.includes(member) && !pendingMembers.has(member)) {
+          status = 'pending';
+          pendingMembers.add(member);
+        } else status = 'confirmed';
+        push(member, 'training', 1, null, start, `${date}T${pad(hour + 1)}:00`, status, price);
+        slotTaken.add(start);
+        memberTaken.add(`${member}|${start}`);
+      }
+    }
+  }
 
   // ---- payments ----------------------------------------------------------
   const payments: Payment[] = [];
