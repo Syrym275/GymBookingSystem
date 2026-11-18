@@ -23,7 +23,7 @@ def _connect() -> psycopg.Connection:
         raise HTTPException(status_code=503, detail="The service is missing its database configuration (DATABASE_URL).")
     return psycopg.connect(
         url,
-        connect_timeout=3,
+        connect_timeout=10,
         row_factory=dict_row,
         options="-c default_transaction_read_only=on -c statement_timeout=3000",
     )
