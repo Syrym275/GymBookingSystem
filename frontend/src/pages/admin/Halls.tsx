@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { Plus } from 'lucide-react';
-import { listAllHalls, sessionCounts } from '../../api/adminApi';
+import { Plus, Trash2 } from 'lucide-react';
+import { deleteHall, listAllHalls, sessionCounts } from '../../api/adminApi';
 import { createHall, setHallActive, updateHall } from '../../api/hallsApi';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { DataTable, type Column } from '../../components/DataTable';
@@ -22,6 +22,7 @@ export default function AdminHalls() {
   const counts = useAsync(sessionCounts, []);
   const [editing, setEditing] = useState<Hall | 'new' | null>(null);
   const [toggle, setToggle] = useState<Hall | null>(null);
+  const [remove, setRemove] = useState<Hall | null>(null);
   const [name, setName] = useState('');
   const [capacity, setCapacity] = useState('');
   const [rate, setRate] = useState('');
@@ -66,9 +67,18 @@ export default function AdminHalls() {
           <button className="btn-ghost btn-sm" onClick={() => open(h)}>
             {t('adm.edit')}
           </button>
-          <button className={h.is_active ? 'btn-danger btn-sm' : 'btn-primary btn-sm'} onClick={() => setToggle(h)}>
+          <button className={h.is_active ? 'btn-ghost btn-sm' : 'btn-primary btn-sm'} onClick={() => setToggle(h)}>
             {h.is_active ? t('adm.deactivate') : t('adm.activate')}
           </button>
+          {counts.data && (counts.data.booked.halls[h.hall_id] ?? 0) === 0 ? (
+            <button className="btn-danger btn-sm" onClick={() => setRemove(h)}>
+              <Trash2 className="h-3 w-3" /> {t('adm.delete')}
+            </button>
+          ) : (
+            <button className="btn-ghost btn-sm" disabled title={counts.data ? t('adm.hl.deleteBlocked') : undefined}>
+              <Trash2 className="h-3 w-3" /> {t('adm.delete')}
+            </button>
+          )}
         </div>
       ),
     },
@@ -86,7 +96,7 @@ export default function AdminHalls() {
         }
       />
       <DataTable rows={list.data} columns={columns} rowKey={(h) => h.hall_id} />
-      <p className="text-xs text-ink/60">{t('adm.noDelete')}</p>
+      <p className="text-xs text-ink/60">{t('adm.noDeleteUsed')}</p>
 
       <Modal
         open={editing !== null}
@@ -141,6 +151,27 @@ export default function AdminHalls() {
           toast.success(t(toggle.is_active ? 'adm.hl.nowInactive' : 'adm.hl.nowActive', { name: toggle.hall_name }));
           setToggle(null);
           list.reload();
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!remove}
+        danger
+        title={t('adm.hl.deleteQ')}
+        message={t('adm.hl.deleteText', { name: remove?.hall_name ?? '' })}
+        confirmLabel={t('adm.delete')}
+        onCancel={() => setRemove(null)}
+        onConfirm={async () => {
+          if (!remove) return;
+          try {
+            await deleteHall(remove.hall_id);
+            toast.success(t('adm.hl.deleted', { name: remove.hall_name }));
+          } catch (err) {
+            toast.error(msg(err instanceof Error ? err.message : t('common.saveFailed')));
+          }
+          setRemove(null);
+          list.reload();
+          counts.reload();
         }}
       />
     </div>

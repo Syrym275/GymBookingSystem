@@ -1,6 +1,6 @@
 import type { Hall, MemberView, Payment, Trainer } from '../types';
 import { TODAY_DATE } from '../config';
-import { getDb } from '../mock/db';
+import { getDb, saveDb } from '../mock/db';
 import { addDaysStr, membershipState } from '../utils/format';
 import { ApiError } from './ApiError';
 import { clone, delay } from './helpers';
@@ -92,14 +92,18 @@ export async function attention(): Promise<Attention> {
 export interface ResourceCounts {
   trainers: Record<number, number>; // sessions that took place (completed + no-show)
   halls: Record<number, number>;
+  /** Bookings of any status per trainer / hall. A resource with none can be deleted. */
+  booked: { trainers: Record<number, number>; halls: Record<number, number> };
 }
 
 /** Held sessions / rentals per trainer and per hall (for the management tables). */
 export async function sessionCounts(): Promise<ResourceCounts> {
   await delay();
   requireUser(['admin']);
-  const out: ResourceCounts = { trainers: {}, halls: {} };
+  const out: ResourceCounts = { trainers: {}, halls: {}, booked: { trainers: {}, halls: {} } };
   for (const b of getDb().bookings) {
+    if (b.trainer_id !== null) out.booked.trainers[b.trainer_id] = (out.booked.trainers[b.trainer_id] ?? 0) + 1;
+    if (b.hall_id !== null) out.booked.halls[b.hall_id] = (out.booked.halls[b.hall_id] ?? 0) + 1;
     if (b.status !== 'completed' && b.status !== 'no_show') continue;
     if (b.trainer_id !== null) out.trainers[b.trainer_id] = (out.trainers[b.trainer_id] ?? 0) + 1;
     if (b.hall_id !== null) out.halls[b.hall_id] = (out.halls[b.hall_id] ?? 0) + 1;
@@ -109,3 +113,34 @@ export async function sessionCounts(): Promise<ResourceCounts> {
 
 /** Default report window: the 30 days up to and including today. */
 export const defaultReportRange = () => ({ from: addDaysStr(TODAY_DATE, -29), to: TODAY_DATE });
+
+/**
+ * Deletes a trainer that was never booked (for example a registration that is rejected, or a record added by
+ * mistake). A trainer with any booking can only be deactivated, so old bookings and payment reports stay correct.
+ * The trainer's login accounts go with it. The real database enforces the same rule with its foreign keys.
+ */
+export async function deleteTrainer(id: number): Promise<void> {
+  await delay();
+  requireUser(['admin']);
+  const db = getDb();
+  if (!db.trainers.some((t) => t.trainer_id === id)) throw new ApiError('NOT_FOUND', 'Trainer not found.');
+  if (db.bookings.some((b) => b.trainer_id === id)) {
+    throw new ApiError('VALIDATION', 'This trainer has bookings, so it can only be deactivated.');
+  }
+  db.trainers = db.trainers.filter((t) => t.trainer_id !== id);
+  db.users = db.users.filter((u) => u.trainer_id !== id);
+  saveDb();
+}
+
+/** Deletes a hall that was never booked. A hall with any booking can only be deactivated. */
+export async function deleteHall(id: number): Promise<void> {
+  await delay();
+  requireUser(['admin']);
+  const db = getDb();
+  if (!db.halls.some((h) => h.hall_id === id)) throw new ApiError('NOT_FOUND', 'Hall not found.');
+  if (db.bookings.some((b) => b.hall_id === id)) {
+    throw new ApiError('VALIDATION', 'This hall has bookings, so it can only be deactivated.');
+  }
+  db.halls = db.halls.filter((h) => h.hall_id !== id);
+  saveDb();
+}

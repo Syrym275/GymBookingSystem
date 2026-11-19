@@ -797,6 +797,18 @@ export const en = {
   "adm.tr.trainer": "Trainer",
   "adm.tr.waiting": "Trainers waiting for approval: {n}.",
   "adm.tr.waitingText": "Inactive trainers are hidden from members. Approve them to make them bookable.",
+
+  // ---- admin: delete unused trainers / halls ----
+  "adm.delete": "Delete",
+  "adm.hl.deleteBlocked": "Has bookings: deactivate instead",
+  "adm.hl.deleteQ": "Delete hall?",
+  "adm.hl.deleteText": "{name} has no bookings, so the record can be deleted. This cannot be undone.",
+  "adm.hl.deleted": "{name} deleted.",
+  "adm.noDeleteUsed": "Trainers and halls that have bookings can only be deactivated, so old bookings and reports stay correct. Ones that were never booked can be deleted.",
+  "adm.tr.deleteBlocked": "Has bookings: deactivate instead",
+  "adm.tr.deleteQ": "Delete trainer?",
+  "adm.tr.deleteText": "{name} has no bookings, so the record can be deleted. This cannot be undone.",
+  "adm.tr.deleted": "{name} deleted.",
 } as const;
 
 export type Key = keyof typeof en;

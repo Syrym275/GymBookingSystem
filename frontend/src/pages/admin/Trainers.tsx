@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { BadgeCheck, Plus } from 'lucide-react';
-import { listAllTrainers, sessionCounts } from '../../api/adminApi';
+import { BadgeCheck, Plus, Trash2 } from 'lucide-react';
+import { deleteTrainer, listAllTrainers, sessionCounts } from '../../api/adminApi';
 import { createTrainer, setTrainerActive, updateTrainer } from '../../api/trainersApi';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { DataTable, type Column } from '../../components/DataTable';
@@ -22,6 +22,7 @@ export default function AdminTrainers() {
   const counts = useAsync(sessionCounts, []);
   const [editing, setEditing] = useState<Trainer | 'new' | null>(null);
   const [toggle, setToggle] = useState<Trainer | null>(null);
+  const [remove, setRemove] = useState<Trainer | null>(null);
   const [name, setName] = useState('');
   const [spec, setSpec] = useState('');
   const [price, setPrice] = useState('');
@@ -69,12 +70,21 @@ export default function AdminTrainers() {
             {t('adm.edit')}
           </button>
           {x.is_active ? (
-            <button className="btn-danger btn-sm" onClick={() => setToggle(x)}>
+            <button className="btn-ghost btn-sm" onClick={() => setToggle(x)}>
               {t('adm.deactivate')}
             </button>
           ) : (
             <button className="btn-primary btn-sm" onClick={() => setToggle(x)}>
               <BadgeCheck className="h-3 w-3" /> {t('adm.approve')}
+            </button>
+          )}
+          {counts.data && (counts.data.booked.trainers[x.trainer_id] ?? 0) === 0 ? (
+            <button className="btn-danger btn-sm" onClick={() => setRemove(x)}>
+              <Trash2 className="h-3 w-3" /> {t('adm.delete')}
+            </button>
+          ) : (
+            <button className="btn-ghost btn-sm" disabled title={counts.data ? t('adm.tr.deleteBlocked') : undefined}>
+              <Trash2 className="h-3 w-3" /> {t('adm.delete')}
             </button>
           )}
         </div>
@@ -99,7 +109,7 @@ export default function AdminTrainers() {
         </div>
       )}
       <DataTable rows={list.data} columns={columns} rowKey={(x) => x.trainer_id} />
-      <p className="text-xs text-ink/60">{t('adm.noDelete')}</p>
+      <p className="text-xs text-ink/60">{t('adm.noDeleteUsed')}</p>
 
       <Modal
         open={editing !== null}
@@ -153,6 +163,27 @@ export default function AdminTrainers() {
           toast.success(t(toggle.is_active ? 'adm.tr.nowInactive' : 'adm.tr.nowActive', { name: toggle.full_name }));
           setToggle(null);
           list.reload();
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!remove}
+        danger
+        title={t('adm.tr.deleteQ')}
+        message={t('adm.tr.deleteText', { name: remove?.full_name ?? '' })}
+        confirmLabel={t('adm.delete')}
+        onCancel={() => setRemove(null)}
+        onConfirm={async () => {
+          if (!remove) return;
+          try {
+            await deleteTrainer(remove.trainer_id);
+            toast.success(t('adm.tr.deleted', { name: remove.full_name }));
+          } catch (err) {
+            toast.error(msg(err instanceof Error ? err.message : t('common.saveFailed')));
+          }
+          setRemove(null);
+          list.reload();
+          counts.reload();
         }}
       />
     </div>

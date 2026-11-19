@@ -66,13 +66,13 @@ private to the trainer area and is not exposed to members.
 | Overview | `/admin` | KPIs (bookings this week, confirmed/pending, revenue 30 days, no-show rate), a "needs attention" list (trainers awaiting approval, unpaid bookings, memberships ending or expired), busiest day/hour, two charts |
 | Bookings | `/admin/bookings` | Every booking, filters kept in the URL, status change straight from the table, payment info, details with payment attempts, CSV export |
 | Payments log | `/admin/payments` | Every payment attempt (approved, declined, refunded) with totals, filters, search, CSV export |
-| Trainers | `/admin/trainers` | Add, edit price and specialization, **approve** new registrations, activate / deactivate |
-| Halls | `/admin/halls` | Add, edit capacity and hourly rate, activate / deactivate |
+| Trainers | `/admin/trainers` | Add, edit price and specialization, **approve** new registrations, activate / deactivate, **delete** (only if never booked) |
+| Halls | `/admin/halls` | Add, edit capacity and hourly rate, activate / deactivate, **delete** (only if never booked) |
 | Members | `/admin/members` | Search, see all details, change the plan, extend the membership |
 | Reports | `/admin/reports` | Popular trainers, popular start hours, members with unpaid bookings (date range, CSV export) |
 | Staff accounts | `/admin/staff` | Receptionist / trainer / admin logins: add, deactivate |
 
-Nothing is ever deleted, only deactivated, so old bookings and reports stay correct.
+Trainers and halls that have bookings can only be **deactivated** (the Delete button is disabled), so old bookings and payment reports stay correct. A trainer or hall that was never booked (a rejected registration, a record added by mistake) can be **deleted**. Members and staff accounts are never deleted, only deactivated.
 
 **How to see the admin area without a backend or database.** The backend has no admin routes yet, so the admin area runs on the in-browser **demo data** (`src/mock`, extended by `src/api/adminApi.ts`) and shows a "Demo data" banner. Run only the frontend:
 
