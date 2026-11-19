@@ -90,6 +90,7 @@ export function buildSeed(): DB {
     end_time: string,
     status: BookingStatus,
     price_kzt: number,
+    createdAt?: string,
   ) => {
     bookings.push({
       booking_id: bookings.length + 1,
@@ -101,9 +102,12 @@ export function buildSeed(): DB {
       end_time,
       status,
       price_kzt,
-      created_at: createdFor(start_time),
+      created_at: createdAt ?? createdFor(start_time),
     });
+    return bookings.length;
   };
+  // Generated demo bookings were created two days before the session (but never in the future).
+  const recentCreated = (date: string) => `${addDaysStr(date, -2) > TODAY_DATE ? TODAY_DATE : addDaysStr(date, -2)}T10:00`;
 
   // Past training sessions 12-25 Oct: [trainer, date, hour, member, status]
   const past: [number, string, number, number, BookingStatus][] = [
@@ -179,8 +183,75 @@ export function buildSeed(): DB {
           status = 'pending';
           pendingMembers.add(member);
         } else status = 'confirmed';
-        push(member, 'training', 1, null, start, `${date}T${pad(hour + 1)}:00`, status, price);
+        push(member, 'training', 1, null, start, `${date}T${pad(hour + 1)}:00`, status, price, recentCreated(date));
         slotTaken.add(start);
+        memberTaken.add(`${member}|${start}`);
+      }
+    }
+  }
+
+  // Demo history for the admin area: the other trainers and the halls get the same treatment (eight weeks
+  // back, ten days ahead of "today"), so revenue, reports and the payments log always show recent activity.
+  // Cancelled bookings that were paid get a refunded payment. Collisions with existing rows are skipped.
+  const refunded = new Set<number>();
+  {
+    const memberPool = [2, 3, 5, 7, 9, 10, 1, 4, 8, 2, 5, 3];
+    const mayBePending = [2, 3, 5, 7, 9, 10];
+    const slotTaken = new Set(bookings.map((b) => `${b.trainer_id !== null ? `t${b.trainer_id}` : `h${b.hall_id}`}|${b.start_time}`));
+    const memberTaken = new Set(bookings.map((b) => `${b.member_id}|${b.start_time}`));
+    const pendingMembers = new Set<number>();
+    let n = 7;
+
+    const statusFor = (off: number, member: number): BookingStatus => {
+      if (off < 0) return n % 9 === 0 ? 'no_show' : n % 11 === 0 ? 'cancelled' : 'completed';
+      if (off >= 3 && n % 4 === 0 && mayBePending.includes(member) && !pendingMembers.has(member)) {
+        pendingMembers.add(member);
+        return 'pending';
+      }
+      return 'confirmed';
+    };
+
+    // [trainer id, weekday start hours, saturday start hours]
+    const trainerPlans: [number, number[], number[]][] = [
+      [2, [17, 19], [10]],
+      [3, [11, 18], [12]],
+      [4, [8, 12], [9]],
+    ];
+    for (const [tid, weekdayHours, saturdayHours] of trainerPlans) {
+      const price = trainers.find((t) => t.trainer_id === tid)!.session_price_kzt;
+      for (let off = -56; off <= 10; off++) {
+        const date = addDaysStr(TODAY_DATE, off);
+        const dow = parseLocal(date).getDay();
+        if (dow === 0 || (off + tid) % 2 !== 0) continue; // no Sundays, every other day
+        for (const hour of dow === 6 ? saturdayHours : weekdayHours) {
+          const start = `${date}T${pad(hour)}:00`;
+          const member = memberPool[n % memberPool.length];
+          n += 1;
+          if (slotTaken.has(`t${tid}|${start}`) || memberTaken.has(`${member}|${start}`)) continue;
+          const status = statusFor(off, member);
+          const id = push(member, 'training', tid, null, start, `${date}T${pad(hour + 1)}:00`, status, price, recentCreated(date));
+          if (status === 'cancelled' && n % 2 === 0) refunded.add(id);
+          slotTaken.add(`t${tid}|${start}`);
+          memberTaken.add(`${member}|${start}`);
+        }
+      }
+    }
+
+    // Hall rentals: two-hour blocks, a few per week for each active hall.
+    for (const hall of halls.filter((h) => h.is_active)) {
+      for (let off = -56; off <= 10; off++) {
+        const date = addDaysStr(TODAY_DATE, off);
+        const dow = parseLocal(date).getDay();
+        if (dow === 0 || (off + hall.hall_id * 2) % 3 !== 0) continue; // about every third day
+        const hour = dow === 6 ? 10 : 18;
+        const start = `${date}T${pad(hour)}:00`;
+        const member = memberPool[n % memberPool.length];
+        n += 1;
+        if (slotTaken.has(`h${hall.hall_id}|${start}`) || memberTaken.has(`${member}|${start}`)) continue;
+        const status = statusFor(off, member);
+        const id = push(member, 'hall_rental', null, hall.hall_id, start, `${date}T${pad(hour + 2)}:00`, status, hall.hourly_rate_kzt * 2, recentCreated(date));
+        if (status === 'cancelled' && n % 2 === 0) refunded.add(id);
+        slotTaken.add(`h${hall.hall_id}|${start}`);
         memberTaken.add(`${member}|${start}`);
       }
     }
@@ -204,8 +275,11 @@ export function buildSeed(): DB {
   };
   for (const b of bookings) {
     if (b.status === 'confirmed' || b.status === 'completed' || b.status === 'no_show') {
-      if (b.booking_id === 24) addPayment(b, 'declined', 'card'); // payment 24 declined...
-      addPayment(b, 'approved', b.booking_id === 24 ? 'app' : methods[b.booking_id % methods.length]); // ...then 25 approved
+      // booking 24: payment 24 declined, then 25 approved; some generated bookings need a second try as well
+      if (b.booking_id === 24 || (b.booking_id > 31 && b.booking_id % 6 === 0)) addPayment(b, 'declined', 'card');
+      addPayment(b, 'approved', b.booking_id === 24 ? 'app' : methods[b.booking_id % methods.length]);
+    } else if (refunded.has(b.booking_id)) {
+      addPayment(b, 'refunded', methods[b.booking_id % methods.length]); // paid, then cancelled
     }
   }
 

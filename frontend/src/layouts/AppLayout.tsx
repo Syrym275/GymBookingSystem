@@ -14,9 +14,11 @@ import {
   Menu,
   PlusCircle,
   History,
+  Receipt,
   Search,
   ShieldCheck,
   User,
+  UserCog,
   Users,
   Wallet,
   X,
@@ -28,6 +30,7 @@ import { fmtDateTime } from '../utils/format';
 import { TODAY } from '../config';
 import { ThemeToggle } from '../theme/ThemeContext';
 import { LanguageSwitcher, useT, type Key } from '../i18n';
+import { DemoBanner } from '../pages/admin/common';
 
 interface NavItem {
   to: string;
@@ -52,6 +55,16 @@ const NAV: Partial<Record<Role, NavItem[]>> = {
     { to: '/trainer/clients', label: 'nav.clients', icon: <Users className={i} /> },
     { to: '/trainer/history', label: 'nav.history', icon: <History className={i} /> },
     { to: '/trainer/status', label: 'nav.status', icon: <Activity className={i} /> },
+  ],
+  admin: [
+    { to: '/admin', label: 'nav.overview', icon: <LayoutDashboard className={i} />, end: true },
+    { to: '/admin/bookings', label: 'adm.nav.bookings', icon: <ListChecks className={i} /> },
+    { to: '/admin/payments', label: 'adm.nav.payments', icon: <Receipt className={i} /> },
+    { to: '/admin/trainers', label: 'adm.nav.trainers', icon: <Dumbbell className={i} /> },
+    { to: '/admin/halls', label: 'adm.nav.halls', icon: <Building2 className={i} /> },
+    { to: '/admin/members', label: 'adm.nav.members', icon: <Users className={i} /> },
+    { to: '/admin/reports', label: 'adm.nav.reports', icon: <BarChart3 className={i} /> },
+    { to: '/admin/staff', label: 'adm.nav.staff', icon: <UserCog className={i} /> },
   ],
   receptionist: [
     { to: '/reception', label: 'nav.today', icon: <CalendarCheck className={i} />, end: true },
@@ -160,6 +173,7 @@ export function AppLayout() {
               </Link>
             </div>
           )}
+          {user.role === 'admin' && <DemoBanner />}
           <Outlet />
         </main>
       </div>

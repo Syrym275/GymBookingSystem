@@ -59,7 +59,32 @@ authenticates trainer sessions, applies trainer-scoped booking access, and store
 the trainer's availability status in PostgreSQL. The availability note is
 private to the trainer area and is not exposed to members.
 
-**Admin / Manager** area is hidden for now: its pages were removed and that role cannot sign in (`ENABLED_ROLES` in `src/auth/mockUsers.ts`).
+**Admin / Manager** (`/admin`) — eight pages in `src/pages/admin/`:
+
+| Page | Route | What it does |
+|---|---|---|
+| Overview | `/admin` | KPIs (bookings this week, confirmed/pending, revenue 30 days, no-show rate), a "needs attention" list (trainers awaiting approval, unpaid bookings, memberships ending or expired), busiest day/hour, two charts |
+| Bookings | `/admin/bookings` | Every booking, filters kept in the URL, status change straight from the table, payment info, details with payment attempts, CSV export |
+| Payments log | `/admin/payments` | Every payment attempt (approved, declined, refunded) with totals, filters, search, CSV export |
+| Trainers | `/admin/trainers` | Add, edit price and specialization, **approve** new registrations, activate / deactivate |
+| Halls | `/admin/halls` | Add, edit capacity and hourly rate, activate / deactivate |
+| Members | `/admin/members` | Search, see all details, change the plan, extend the membership |
+| Reports | `/admin/reports` | Popular trainers, popular start hours, members with unpaid bookings (date range, CSV export) |
+| Staff accounts | `/admin/staff` | Receptionist / trainer / admin logins: add, deactivate |
+
+Nothing is ever deleted, only deactivated, so old bookings and reports stay correct.
+
+**How to see the admin area without a backend or database.** The backend has no admin routes yet, so the admin area runs on the in-browser **demo data** (`src/mock`, extended by `src/api/adminApi.ts`) and shows a "Demo data" banner. Run only the frontend:
+
+```powershell
+cd frontend
+npm.cmd install
+npm.cmd run dev
+```
+
+Open http://localhost:5173/login and click **Open the admin area (demo data)**. That button exists only in `npm run dev`, never in a production build. Changes you make stay in your browser (`localStorage`); clear site data to start from the generated demo data again. The demo data is generated relative to today (eight weeks back, ten days ahead), so revenue, reports and the payments log always have recent activity.
+
+**Connecting the real backend later:** replace the bodies in `src/api/adminApi.ts` and the admin functions in `trainersApi`, `hallsApi`, `membersApi`, `staffApi`, `paymentsApi.listPayments`, `reportsApi` and `bookingsApi.setBookingStatus` with calls to admin-only routes (for example `GET /admin/trainers`, `PATCH /admin/trainers/{id}`, `GET /admin/payments`, `GET /admin/reports/...`), and remove the demo button (`demoLogin` in `src/auth/AuthContext.tsx`). A real admin account has to be created in the database first (there is no admin sign-up).
 
 **Receptionist** (`/reception`) — Today (timeline, check-in, next 2 hours) · All bookings (multi-filter, search, sort, pagination, filters in the URL) · Unpaid bookings (grouped by member, limit highlighted, cancel) · Member lookup · New booking for a member
 

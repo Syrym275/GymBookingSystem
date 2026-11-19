@@ -28,9 +28,16 @@ import TrainerStats from './pages/trainer/Stats';
 import TrainerClients from './pages/trainer/Clients';
 import TrainerHistory from './pages/trainer/History';
 import TrainerStatus from './pages/trainer/Status';
+import AdminOverview from './pages/admin/Overview';
+import AdminBookings from './pages/admin/Bookings';
+import AdminPayments from './pages/admin/Payments';
+import AdminTrainers from './pages/admin/Trainers';
+import AdminHalls from './pages/admin/Halls';
+import AdminMembers from './pages/admin/Members';
+import AdminReports from './pages/admin/Reports';
+import AdminStaff from './pages/admin/Staff';
 
-// The admin area is hidden for now (pages removed).
-const guarded = (role: 'member' | 'trainer' | 'receptionist') => (
+const guarded = (role: 'member' | 'trainer' | 'receptionist' | 'admin') => (
   <RequireRole role={role}>
     <AppLayout />
   </RequireRole>
@@ -85,6 +92,20 @@ export const router = createBrowserRouter([
       { path: 'unpaid', element: <ReceptionUnpaid /> },
       { path: 'members', element: <MemberLookup /> },
       { path: 'new', element: <NewBooking /> },
+    ],
+  },
+  {
+    path: '/admin',
+    element: guarded('admin'),
+    children: [
+      { index: true, element: <AdminOverview /> },
+      { path: 'bookings', element: <AdminBookings /> },
+      { path: 'payments', element: <AdminPayments /> },
+      { path: 'trainers', element: <AdminTrainers /> },
+      { path: 'halls', element: <AdminHalls /> },
+      { path: 'members', element: <AdminMembers /> },
+      { path: 'reports', element: <AdminReports /> },
+      { path: 'staff', element: <AdminStaff /> },
     ],
   },
   { path: '*', element: <NotFound /> },
