@@ -8,12 +8,14 @@ import { EmptyState, ErrorNote, KpiCard, Loading, PageHeader } from '../../compo
 import { useAsync } from '../../hooks/useAsync';
 import { fmtDate, fmtDay, kzt, timeOf } from '../../utils/format';
 import { groupClients, pct, type ClientLabel, type ClientRow } from './analytics';
-import { ClientChip, initials } from './common';
+import { ClientChip, clientLabelText, initials } from './common';
+import { useT } from '../../i18n';
 
 const LABELS: ClientLabel[] = ['Regular', 'New', 'Active', 'At risk', 'Inactive'];
 
 /** The people the trainer works with. Only names are shown: contact details belong to reception. */
 export default function TrainerClients() {
+  const { t } = useT();
   const { data, error } = useAsync(() => listBookings(), []);
   const [q, setQ] = useState('');
   const [label, setLabel] = useState<ClientLabel | ''>('');
@@ -31,7 +33,7 @@ export default function TrainerClients() {
   const columns: Column<ClientRow>[] = [
     {
       key: 'name',
-      header: 'Client',
+      header: t('clients.client'),
       sort: (c) => c.name,
       render: (c) => (
         <div className="flex items-center gap-3">
@@ -40,36 +42,36 @@ export default function TrainerClients() {
         </div>
       ),
     },
-    { key: 'label', header: 'Status', sort: (c) => c.label, render: (c) => <ClientChip label={c.label} /> },
-    { key: 'held', header: 'Sessions', sort: (c) => c.held, render: (c) => c.held },
-    { key: 'rate', header: 'Attendance', sort: (c) => c.rate ?? -1, render: (c) => pct(c.rate) },
-    { key: 'no', header: 'No-shows', sort: (c) => c.noShows, render: (c) => c.noShows },
-    { key: 'last', header: 'Last session', sort: (c) => c.last ?? '', render: (c) => (c.last ? fmtDay(c.last) : '—') },
-    { key: 'next', header: 'Next', sort: (c) => c.next ?? 'z', render: (c) => (c.next ? `${fmtDay(c.next)}, ${timeOf(c.next)}` : '—') },
+    { key: 'label', header: t('nav.status'), sort: (c) => c.label, render: (c) => <ClientChip label={c.label} /> },
+    { key: 'held', header: t('stats.sessions'), sort: (c) => c.held, render: (c) => c.held },
+    { key: 'rate', header: t('stats.attendance'), sort: (c) => c.rate ?? -1, render: (c) => pct(c.rate) },
+    { key: 'no', header: t('stats.noShows'), sort: (c) => c.noShows, render: (c) => c.noShows },
+    { key: 'last', header: t('clients.last'), sort: (c) => c.last ?? '', render: (c) => (c.last ? fmtDay(c.last) : '—') },
+    { key: 'next', header: t('clients.next'), sort: (c) => c.next ?? 'z', render: (c) => (c.next ? `${fmtDay(c.next)}, ${timeOf(c.next)}` : '—') },
   ];
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Clients" subtitle="Everyone you have trained or have booked with you." />
+      <PageHeader title={t('nav.clients')} subtitle={t('clients.sub')} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard tone="brand" label="Clients" value={clients.length} hint="Different people, all time" />
-        <KpiCard tone="mint" label="Regular" value={count('Regular')} hint="3+ sessions in 30 days" />
-        <KpiCard tone="sun" label="New" value={count('New')} hint="First session in 30 days" />
-        <KpiCard tone="berry" label="At risk" value={count('At risk')} hint="30%+ no-shows" />
+        <KpiCard tone="brand" label={t('nav.clients')} value={clients.length} hint={t('clients.allTime')} />
+        <KpiCard tone="mint" label={t('client.regular')} value={count('Regular')} hint={t('clients.regularHint')} />
+        <KpiCard tone="sun" label={t('client.new')} value={count('New')} hint={t('clients.newHint')} />
+        <KpiCard tone="berry" label={t('client.atRisk')} value={count('At risk')} hint={t('clients.riskHint')} />
       </div>
 
       <div className="card-flat flex flex-wrap items-end gap-3">
         <div className="relative min-w-[220px] flex-1">
           <label className="label" htmlFor="cl-q">
-            Search
+            {t('table.search')}
           </label>
           <Search className="pointer-events-none absolute bottom-2.5 left-3 h-4 w-4 text-ink/40" />
-          <input id="cl-q" className="input pl-9" placeholder="Client name" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input id="cl-q" className="input pl-9" placeholder={t('clients.namePh')} value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button className={`chip ${label === '' ? 'border-brand bg-brand text-onaccent' : 'border-line hover:border-ink/40'}`} onClick={() => setLabel('')} aria-pressed={label === ''}>
-            All
+            {t('clients.all')}
           </button>
           {LABELS.map((l) => (
             <button
@@ -78,7 +80,7 @@ export default function TrainerClients() {
               onClick={() => setLabel(label === l ? '' : l)}
               aria-pressed={label === l}
             >
-              {l} · {count(l)}
+              {clientLabelText(l)} · {count(l)}
             </button>
           ))}
         </div>
@@ -90,12 +92,12 @@ export default function TrainerClients() {
         rowKey={(c) => c.name}
         initialSort={{ key: 'held', dir: 'desc' }}
         onRowClick={(c) => setSelected(c.name)}
-        empty={<EmptyState title="No clients found" text="Change the search or the status filter." />}
+        empty={<EmptyState title={t('clients.none')} text={t('clients.noneText')} />}
       />
 
       <p className="flex items-start gap-2 text-xs text-ink/60">
         <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        Phone numbers, emails and QR codes are not shown here on purpose. Trainers only see a client&apos;s name and the sessions with you; reception holds the contact details.
+        {t('clients.privacy')}
       </p>
 
       <Modal open={!!current} title={current?.name ?? ''} onClose={() => setSelected(null)} wide>
@@ -104,15 +106,15 @@ export default function TrainerClients() {
             <div className="flex flex-wrap items-center gap-2">
               <ClientChip label={current.label} />
               <span className="text-sm text-ink/60">
-                {current.first ? `Training with you since ${fmtDate(current.first)}` : 'No session held yet'}
+                {current.first ? t('clients.since', { date: fmtDate(current.first) }) : t('clients.noneHeld')}
               </span>
             </div>
             <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               {[
-                ['Sessions', String(current.held)],
-                ['Attendance', pct(current.rate)],
-                ['No-shows', String(current.noShows)],
-                ['Session value', kzt(current.earned)],
+                [t('stats.sessions'), String(current.held)],
+                [t('stats.attendance'), pct(current.rate)],
+                [t('stats.noShows'), String(current.noShows)],
+                [t('stats.value'), kzt(current.earned)],
               ].map(([k, v]) => (
                 <div key={k} className="rounded-lg border border-line bg-sun-soft p-3">
                   <dt className="text-xs text-ink/60">{k}</dt>
@@ -121,7 +123,7 @@ export default function TrainerClients() {
               ))}
             </dl>
             <div>
-              <h3 className="mb-2 text-sm font-bold">Sessions with you</h3>
+              <h3 className="mb-2 text-sm font-bold">{t('clients.sessionsWith')}</h3>
               <ul className="max-h-72 space-y-1.5 overflow-y-auto text-sm">
                 {current.sessions.map((b) => (
                   <li key={b.booking_id} className="flex items-center gap-3 rounded-md border border-line px-3 py-2">

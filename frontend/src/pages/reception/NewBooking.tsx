@@ -10,8 +10,10 @@ import { useAsync } from '../../hooks/useAsync';
 import type { BookingView } from '../../types';
 import { PLAN_LABEL, bkNumber, fmtDate } from '../../utils/format';
 import { MembershipBadge } from './MemberLookup';
+import { useT } from '../../i18n';
 
 export default function NewBooking() {
+  const { t } = useT();
   const toast = useToast();
   const members = useAsync(() => listMembers(), []);
   const [memberId, setMemberId] = useState<number | null>(null);
@@ -26,11 +28,11 @@ export default function NewBooking() {
 
   return (
     <div>
-      <PageHeader title="New booking for a member" subtitle="Reception creates the booking as pending - the member pays it themself." />
+      <PageHeader title={t('rec.newTitle')} subtitle={t('rec.newSub')} />
 
       <div className="card mb-6 max-w-2xl">
         <label className="label" htmlFor="nb-member">
-          1 · Member
+          {t('rec.step1')}
         </label>
         <select
           id="nb-member"
@@ -42,7 +44,7 @@ export default function NewBooking() {
             setFormKey((k) => k + 1);
           }}
         >
-          <option value="">Choose a member…</option>
+          <option value="">{t('rec.chooseMember')}</option>
           {members.data.map((m) => (
             <option key={m.member_id} value={m.member_id}>
               {m.full_name} · {m.phone}
@@ -51,7 +53,7 @@ export default function NewBooking() {
         </select>
         {member && (
           <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl bg-cream p-3 text-sm">
-            <b>{PLAN_LABEL[member.membership_plan]}</b> plan · valid until {fmtDate(member.membership_expires_on)}
+            <b>{PLAN_LABEL[member.membership_plan]}</b> · {t('rec.validUntilLower', { date: fmtDate(member.membership_expires_on) })}
             <MembershipBadge expires={member.membership_expires_on} />
           </div>
         )}
@@ -61,19 +63,19 @@ export default function NewBooking() {
         <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-mint-soft p-4 shadow-hard">
           <CheckCircle2 className="h-6 w-6 text-mint-dark" />
           <p className="flex-1 text-sm">
-            <b>{bkNumber(created.booking_id)}</b> created for <b>{created.member.full_name}</b> - waiting for payment (pending).
+            <b>{bkNumber(created.booking_id)}</b> · <b>{created.member.full_name}</b> — {t('rec.createdWaiting')}
           </p>
           <button className="btn-ghost btn-sm" onClick={() => setSlip(created)}>
-            View slip
+            {t('rec.viewSlip')}
           </button>
           <button className="btn-secondary btn-sm" onClick={() => setCreated(null)}>
-            Book another
+            {t('rec.another')}
           </button>
         </div>
       )}
 
       {!member ? (
-        <p className="text-sm text-ink/60">Select a member to start the booking.</p>
+        <p className="text-sm text-ink/60">{t('rec.selectToStart')}</p>
       ) : (
         <>
           <div className="mb-4 inline-flex rounded-xl border border-line bg-white p-1">
@@ -83,7 +85,7 @@ export default function NewBooking() {
                 onClick={() => setKind(k)}
                 className={`rounded-lg px-4 py-1.5 text-sm font-bold ${kind === k ? 'bg-brand text-onaccent' : 'hover:bg-sun-soft'}`}
               >
-                {k === 'training' ? 'Trainer session' : 'Hall rental'}
+                {k === 'training' ? t('rec.trainerSession') : t('type.hall')}
               </button>
             ))}
           </div>
@@ -92,7 +94,7 @@ export default function NewBooking() {
               key={`t-${formKey}`}
               memberId={member.member_id}
               onBooked={(b) => {
-                toast.success(`${bkNumber(b.booking_id)} created.`);
+                toast.success(t('rec.created', { id: bkNumber(b.booking_id) }));
                 setCreated(b);
                 setFormKey((k) => k + 1);
               }}
@@ -102,7 +104,7 @@ export default function NewBooking() {
               key={`h-${formKey}`}
               memberId={member.member_id}
               onBooked={(b) => {
-                toast.success(`${bkNumber(b.booking_id)} created.`);
+                toast.success(t('rec.created', { id: bkNumber(b.booking_id) }));
                 setCreated(b);
                 setFormKey((k) => k + 1);
               }}

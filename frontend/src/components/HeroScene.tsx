@@ -1,5 +1,5 @@
 import { CalendarCheck, QrCode } from 'lucide-react';
-import { HERO_TICKET } from '../data/gymData';
+import { useT } from '../i18n';
 
 // Line-art gym floor for the landing hero: squat rack with a loaded barbell, bench,
 // punching bag, plates, kettlebell and a yoga mat on rubber flooring with marking tape.
@@ -9,9 +9,10 @@ const S = 'stroke-ink';
 const W = 3; // line weight
 
 export default function HeroScene({ ticket = true }: { ticket?: boolean }) {
+  const { t } = useT();
   return (
     <div className="relative mx-auto w-full max-w-xl">
-      <svg viewBox="0 0 560 440" className="h-auto w-full" role="img" aria-label="Illustration of a gym floor: squat rack with a barbell, bench, punching bag, weight plates, kettlebell and yoga mat">
+      <svg viewBox="0 0 560 440" className="h-auto w-full" role="img" aria-label={t('hero.alt')}>
         <g strokeLinecap="round" strokeLinejoin="round">
           {/* Rubber floor + marking tape */}
           <rect x="0" y="360" width="560" height="80" rx="6" className="fill-ink/[0.06]" />
@@ -79,13 +80,13 @@ export default function HeroScene({ ticket = true }: { ticket?: boolean }) {
       {ticket && (
       <div className="relative -mt-14 ml-auto w-60 rounded-xl border border-line bg-white p-4 shadow-hard sm:-mt-16 sm:mr-6 sm:w-64">
         <p className="inline-flex items-center gap-1.5 rounded-full bg-mint-soft px-2.5 py-1 text-xs font-semibold text-mint-dark">
-          <CalendarCheck className="h-3.5 w-3.5" aria-hidden="true" /> Booking confirmed
+          <CalendarCheck className="h-3.5 w-3.5" aria-hidden="true" /> {t('hero.confirmed')}
         </p>
-        <p className="mt-2 font-display text-2xl font-bold uppercase leading-none">{HERO_TICKET.time}</p>
-        <p className="mt-1 text-sm font-semibold">{HERO_TICKET.session}</p>
-        <p className="text-sm text-ink/70">{HERO_TICKET.coach}</p>
+        <p className="mt-2 font-display text-2xl font-bold uppercase leading-none">{t('hero.time')}</p>
+        <p className="mt-1 text-sm font-semibold">{t('hero.session')}</p>
+        <p className="text-sm text-ink/70">{t('hero.coach')}</p>
         <p className="mt-3 flex items-center gap-2 border-t border-dashed border-line pt-3 text-xs text-ink/70">
-          <QrCode className="h-6 w-6 shrink-0 text-ink" aria-hidden="true" /> Show this code at the front desk
+          <QrCode className="h-6 w-6 shrink-0 text-ink" aria-hidden="true" /> {t('hero.showCode')}
         </p>
       </div>
       )}

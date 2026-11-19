@@ -1,11 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { resendVerification } from '../api/verificationApi';
 import { ErrorNote } from './ui';
+import { useT } from '../i18n';
+import { msg } from '../i18n/messages';
 
 const COOLDOWN_SECONDS = 60; // the backend also allows only 3 resends per hour
 
 /** "Send a new link" button. Asks for the email when it is not known. */
 export function ResendVerification({ email: knownEmail, startWithCooldown = false }: { email?: string; startWithCooldown?: boolean }) {
+  const { t } = useT();
   const [email, setEmail] = useState(knownEmail ?? '');
   const [cooldown, setCooldown] = useState(startWithCooldown ? COOLDOWN_SECONDS : 0);
   const [busy, setBusy] = useState(false);
@@ -22,13 +25,13 @@ export function ResendVerification({ email: knownEmail, startWithCooldown = fals
     e.preventDefault();
     setError(null);
     setInfo(null);
-    if (!email.trim()) return setError('Enter your email first.');
+    if (!email.trim()) return setError(t('resend.enterEmail'));
     setBusy(true);
     try {
       setInfo(await resendVerification(email.trim()));
       setCooldown(COOLDOWN_SECONDS);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not send a new link.');
+      setError(err instanceof Error ? err.message : t('resend.failed'));
     } finally {
       setBusy(false);
     }
@@ -39,7 +42,7 @@ export function ResendVerification({ email: knownEmail, startWithCooldown = fals
       {!knownEmail && (
         <div>
           <label className="label" htmlFor="resend_email">
-            Email
+            {t('field.email')}
           </label>
           <input
             id="resend_email"
@@ -52,10 +55,10 @@ export function ResendVerification({ email: knownEmail, startWithCooldown = fals
           />
         </div>
       )}
-      {info && <p className="rounded-xl border border-line bg-cream p-3 text-sm">{info}</p>}
+      {info && <p className="rounded-xl border border-line bg-cream p-3 text-sm">{msg(info)}</p>}
       {error && <ErrorNote message={error} />}
       <button className="btn-secondary min-h-[48px] w-full text-base" disabled={busy || cooldown > 0}>
-        {busy ? 'Sending…' : cooldown > 0 ? `Send a new link (${cooldown}s)` : 'Send a new link'}
+        {busy ? t('resend.sending') : cooldown > 0 ? t('resend.wait', { s: cooldown }) : t('resend.send')}
       </button>
     </form>
   );

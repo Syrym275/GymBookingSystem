@@ -4,6 +4,7 @@ import type { BookingView } from '../../types';
 import { fmtDateTime, timeOf } from '../../utils/format';
 import { AVAILABILITY_LABEL, type Availability } from './availability';
 import type { ClientLabel, LiveStatus } from './analytics';
+import { t, useT, type Key } from '../../i18n';
 
 export const initials = (name: string) =>
   name
@@ -32,8 +33,19 @@ const CLIENT_CHIP: Record<ClientLabel, string> = {
   Inactive: 'border-line bg-transparent text-ink/40',
 };
 
+const CLIENT_KEY: Record<ClientLabel, Key> = {
+  'At risk': 'client.atRisk',
+  Regular: 'client.regular',
+  New: 'client.new',
+  Active: 'client.active',
+  Inactive: 'client.inactive',
+};
+/** Client label in the current language (the English label stays the internal value). */
+export const clientLabelText = (label: ClientLabel) => t(CLIENT_KEY[label]);
+
 export function ClientChip({ label }: { label: ClientLabel }) {
-  return <span className={`chip ${CLIENT_CHIP[label]}`}>{label}</span>;
+  useT();
+  return <span className={`chip ${CLIENT_CHIP[label]}`}>{clientLabelText(label)}</span>;
 }
 
 const AVAIL_STYLE: Record<Availability, string> = {
@@ -48,6 +60,7 @@ const AVAIL_ICON: Record<Availability, JSX.Element> = {
 };
 
 export function AvailabilityChip({ state }: { state: Availability }) {
+  useT();
   return (
     <span className={`chip gap-1.5 ${AVAIL_STYLE[state]}`}>
       {AVAIL_ICON[state]}
@@ -58,6 +71,7 @@ export function AvailabilityChip({ state }: { state: Availability }) {
 
 /** One sentence about what the trainer is doing right now, built from the schedule. */
 export function LiveStatusLine({ live }: { live: LiveStatus }) {
+  useT();
   const row = (b: BookingView) => `${b.member.full_name} · ${timeOf(b.start_time)}–${timeOf(b.end_time)}`;
   if (live.current) {
     return (
@@ -67,7 +81,7 @@ export function LiveStatusLine({ live }: { live: LiveStatus }) {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-60" />
             <span className="relative inline-flex h-3 w-3 rounded-full bg-brand" />
           </span>
-          In a session
+          {t('live.inSession')}
         </p>
         <p className="mt-1 text-sm text-ink/70">{row(live.current)}</p>
       </div>
@@ -77,10 +91,10 @@ export function LiveStatusLine({ live }: { live: LiveStatus }) {
     return (
       <div>
         <p className="flex items-center gap-2 font-display text-xl font-bold uppercase">
-          <Clock className="h-5 w-5 text-brand-dark" /> {live.todayLeft > 0 ? 'Free until your next session' : 'Free for the rest of today'}
+          <Clock className="h-5 w-5 text-brand-dark" /> {live.todayLeft > 0 ? t('live.freeUntil') : t('live.freeToday')}
         </p>
         <p className="mt-1 text-sm text-ink/70">
-          Next: {live.todayLeft > 0 ? row(live.next) : `${live.next.member.full_name} · ${fmtDateTime(live.next.start_time)}`}
+          {t('live.next')} {live.todayLeft > 0 ? row(live.next) : `${live.next.member.full_name} · ${fmtDateTime(live.next.start_time)}`}
         </p>
       </div>
     );
@@ -88,9 +102,9 @@ export function LiveStatusLine({ live }: { live: LiveStatus }) {
   return (
     <div>
       <p className="flex items-center gap-2 font-display text-xl font-bold uppercase">
-        <Clock className="h-5 w-5 text-brand-dark" /> Nothing booked
+        <Clock className="h-5 w-5 text-brand-dark" /> {t('live.nothing')}
       </p>
-      <p className="mt-1 text-sm text-ink/70">No upcoming sessions yet.</p>
+      <p className="mt-1 text-sm text-ink/70">{t('live.noUpcoming')}</p>
     </div>
   );
 }

@@ -11,6 +11,8 @@ import { useAsync } from '../../hooks/useAsync';
 import type { BookingStatus, BookingView } from '../../types';
 import { addDaysStr, bkNumber, dateOf, fmtDay, hourLabel, hourOf, parseLocal, timeOf, toDate } from '../../utils/format';
 import { isLive } from './analytics';
+import { useT, type Key } from '../../i18n';
+import { STATUS_LABEL } from '../../utils/format';
 
 const HOURS = Array.from({ length: CLOSE_HOUR - OPEN_HOUR }, (_, i) => OPEN_HOUR + i);
 const thisWeek = () => toDate(startOfWeek(parseLocal(TODAY_DATE), { weekStartsOn: 1 }));
@@ -26,6 +28,7 @@ const BLOCK: Record<BookingStatus, string> = {
 
 /** Week calendar + day list of the trainer's own sessions. */
 export default function TrainerSchedule() {
+  const { t } = useT();
   const [view, setView] = useState<'week' | 'day'>('week');
   const [weekStart, setWeekStart] = useState(thisWeek);
   const [day, setDay] = useState(TODAY_DATE);
@@ -46,10 +49,10 @@ export default function TrainerSchedule() {
   return (
     <div>
       <PageHeader
-        title="Schedule"
-        subtitle="Only your own training sessions. Click a session to open it."
+        title={t('nav.schedule')}
+        subtitle={t('sched.sub')}
         actions={
-          <div className="inline-flex rounded-md border border-line bg-white p-1" role="group" aria-label="View">
+          <div className="inline-flex rounded-md border border-line bg-white p-1" role="group" aria-label={t('sched.view')}>
             {(['week', 'day'] as const).map((v) => (
               <button
                 key={v}
@@ -57,7 +60,7 @@ export default function TrainerSchedule() {
                 aria-pressed={view === v}
                 className={`rounded px-4 py-1.5 text-xs font-semibold uppercase tracking-wide ${view === v ? 'bg-brand text-onaccent' : 'text-ink/70 hover:bg-sun-soft'}`}
               >
-                {v}
+                {t(`sched.${v}` as Key)}
               </button>
             ))}
           </div>
@@ -67,19 +70,19 @@ export default function TrainerSchedule() {
       {view === 'week' ? (
         <>
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <button className="btn-ghost btn-sm" onClick={() => setWeekStart(addDaysStr(weekStart, -7))} aria-label="Previous week">
+            <button className="btn-ghost btn-sm" onClick={() => setWeekStart(addDaysStr(weekStart, -7))} aria-label={t('sched.prevWeek')}>
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <button className="btn-ghost btn-sm" onClick={() => setWeekStart(addDaysStr(weekStart, 7))} aria-label="Next week">
+            <button className="btn-ghost btn-sm" onClick={() => setWeekStart(addDaysStr(weekStart, 7))} aria-label={t('sched.nextWeek')}>
               <ChevronRight className="h-4 w-4" />
             </button>
             <button className="btn-secondary btn-sm" onClick={() => setWeekStart(thisWeek())}>
-              This week
+              {t('sched.thisWeek')}
             </button>
             <span className="ml-2 text-sm font-bold">
               {fmtDay(days[0])} – {fmtDay(days[6])}
             </span>
-            {loading && <span className="text-xs text-ink/50">updating…</span>}
+            {loading && <span className="text-xs text-ink/50">{t('sched.updating')}</span>}
           </div>
           <div className="overflow-x-auto rounded-xl border border-line bg-white shadow-hard">
             <div className="grid min-w-[860px]" style={{ gridTemplateColumns: '56px repeat(7, minmax(0, 1fr))' }}>
@@ -121,7 +124,7 @@ export default function TrainerSchedule() {
           <ul className="mt-3 flex flex-wrap gap-3 text-xs text-ink/70">
             {(['confirmed', 'pending', 'completed', 'no_show'] as BookingStatus[]).map((s) => (
               <li key={s} className="flex items-center gap-1.5">
-                <span className={`h-3 w-3 rounded border ${BLOCK[s]}`} /> {s === 'no_show' ? 'No-show' : s[0].toUpperCase() + s.slice(1)}
+                <span className={`h-3 w-3 rounded border ${BLOCK[s]}`} /> {STATUS_LABEL[s]}
               </li>
             ))}
           </ul>
@@ -130,15 +133,15 @@ export default function TrainerSchedule() {
         <>
           <div className="mb-4 flex items-center gap-2">
             <label className="sr-only" htmlFor="ts-day">
-              Day
+              {t('sched.day')}
             </label>
             <input id="ts-day" type="date" className="input w-auto" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />
             <button className="btn-ghost btn-sm" onClick={() => setDay(TODAY_DATE)}>
-              Today
+              {t('nav.today')}
             </button>
           </div>
           {dayList.length === 0 ? (
-            <EmptyState title="No sessions this day" text="Enjoy the free time!" />
+            <EmptyState title={t('sched.none')} text={t('sched.noneText')} />
           ) : (
             <div className="space-y-3">
               {dayList.map((b) => (

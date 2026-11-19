@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 // Visual placeholder QR: a deterministic pattern derived from the token (finder squares + noise).
 // Swap for a real QR library when the backend issues real tokens.
 const N = 25;
@@ -35,7 +36,7 @@ function cells(token: string): boolean[][] {
 export function QrCode({ token, size = 200 }: { token: string; size?: number }) {
   const grid = cells(token);
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${N + 2} ${N + 2}`} role="img" aria-label={`QR code ${token}`} shapeRendering="crispEdges">
+    <svg width={size} height={size} viewBox={`0 0 ${N + 2} ${N + 2}`} role="img" aria-label={t('qr.label', { token })} shapeRendering="crispEdges">
       <rect width={N + 2} height={N + 2} fill="#fff" />
       {grid.map((row, r) =>
         row.map((on, c) => (on ? <rect key={`${r}-${c}`} x={c + 1} y={r + 1} width="1" height="1" fill="#1E2235" /> : null)),

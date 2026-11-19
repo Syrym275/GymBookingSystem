@@ -8,8 +8,10 @@ import { EmptyState, ErrorNote, Loading, PageHeader } from '../../components/ui'
 import { useAsync } from '../../hooks/useAsync';
 import type { BookingView, MemberView } from '../../types';
 import { PLAN_LABEL, bkNumber, fmtDate, fmtRange, kzt, membershipState } from '../../utils/format';
+import { useT } from '../../i18n';
 
 export function MembershipBadge({ expires }: { expires: string }) {
+  const { t } = useT();
   const ms = membershipState(expires);
   const style =
     ms.state === 'expired'
@@ -19,12 +21,13 @@ export function MembershipBadge({ expires }: { expires: string }) {
         : 'border-mint bg-mint-soft text-mint-dark';
   return (
     <span className={`rounded-full border px-2.5 py-0.5 text-xs font-bold ${style}`}>
-      {ms.state === 'expired' ? 'Expired' : ms.state === 'expiring' ? `Ends in ${ms.daysLeft} d` : 'Valid'}
+      {ms.state === 'expired' ? t('mdash.expiredOn') : ms.state === 'expiring' ? t('profile.endsIn', { n: ms.daysLeft }) : t('rec.valid')}
     </span>
   );
 }
 
 function MemberDetail({ member }: { member: MemberView }) {
+  const { t } = useT();
   const bookings = useAsync(() => listBookings({ member_id: member.member_id }), [member.member_id]);
   const [slip, setSlip] = useState<BookingView | null>(null);
   return (
@@ -38,19 +41,19 @@ function MemberDetail({ member }: { member: MemberView }) {
       </div>
       <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
         <div className="rounded-xl bg-cream p-3">
-          <dt className="text-xs text-ink/60">Plan</dt>
+          <dt className="text-xs text-ink/60">{t('profile.plan')}</dt>
           <dd className="font-bold">{PLAN_LABEL[member.membership_plan]}</dd>
         </div>
         <div className="rounded-xl bg-cream p-3">
-          <dt className="text-xs text-ink/60">Valid until</dt>
+          <dt className="text-xs text-ink/60">{t('register.validUntil')}</dt>
           <dd className="font-bold">{fmtDate(member.membership_expires_on)}</dd>
         </div>
       </dl>
 
-      <h3 className="mb-2 mt-5 text-lg font-extrabold">Bookings</h3>
+      <h3 className="mb-2 mt-5 text-lg font-extrabold">{t('rec.bookings')}</h3>
       {bookings.error && <ErrorNote message={bookings.error} />}
       {!bookings.data && !bookings.error && <Loading />}
-      {bookings.data && bookings.data.length === 0 && <p className="text-sm text-ink/60">No bookings yet.</p>}
+      {bookings.data && bookings.data.length === 0 && <p className="text-sm text-ink/60">{t('rec.noBookings')}</p>}
       <div className="space-y-2">
         {bookings.data?.map((b) => (
           <button
@@ -74,24 +77,25 @@ function MemberDetail({ member }: { member: MemberView }) {
 }
 
 export default function MemberLookup() {
+  const { t } = useT();
   const [q, setQ] = useState('');
   const [selected, setSelected] = useState<MemberView | null>(null);
   const { data, error } = useAsync(() => listMembers(q), [q]);
 
   return (
     <div>
-      <PageHeader title="Member lookup" subtitle="Search by name or phone number." />
+      <PageHeader title={t('nav.memberLookup')} subtitle={t('rec.lookupSub')} />
       <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
         <div>
           <div className="relative mb-3">
             <label className="sr-only" htmlFor="ml-q">
-              Search members
+              {t('rec.searchMembers')}
             </label>
             <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-ink/40" />
-            <input id="ml-q" className="input pl-9" placeholder="Name or phone…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input id="ml-q" className="input pl-9" placeholder={t('rec.namePhone')} value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           {error && <ErrorNote message={error} />}
-          {data && data.length === 0 && <EmptyState title="No member found" text="Check the spelling or try the phone number." />}
+          {data && data.length === 0 && <EmptyState title={t('rec.noMember')} text={t('rec.noMemberText')} />}
           <div className="space-y-2">
             {data?.map((m) => (
               <button
@@ -110,7 +114,7 @@ export default function MemberLookup() {
             ))}
           </div>
         </div>
-        <div>{selected ? <MemberDetail key={selected.member_id} member={selected} /> : <EmptyState title="Select a member" text="Their plan, validity and bookings appear here." />}</div>
+        <div>{selected ? <MemberDetail key={selected.member_id} member={selected} /> : <EmptyState title={t('rec.selectMember')} text={t('rec.selectMemberText')} />}</div>
       </div>
     </div>
   );

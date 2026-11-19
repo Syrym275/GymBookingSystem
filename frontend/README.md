@@ -110,3 +110,12 @@ Pages never import mock data directly — they only call functions in `src/api/`
 - Reception can cancel only **pending** bookings; members can cancel pending/confirmed future ones; admins can change any status.
 - "Sessions held" in reports = completed + no-show. "Revenue" = approved payments in the last 30 days.
 - The QR code is a visual placeholder derived from the token — swap in a real QR library when needed.
+
+## Languages (RU / KZ / EN)
+
+The switch in every page header changes the language of the whole site; the choice is remembered in the browser. The first visit uses the browser language (Russian if it is not RU/KZ/EN).
+
+- Texts live in `src/i18n/en.ts`, `ru.ts` and `kz.ts`. All three have the same keys; TypeScript reports a missing key.
+- In a component: `const { t } = useT();` then `t('landing.bookSession')` or `t('slip.title', { id })`. Counts: `tp('unit.days', n)` picks the right plural form.
+- Messages that the backend sends in English are translated in `src/i18n/messages.ts`. Add a line there when the backend gets a new message.
+- Trainer cards on the landing page show drawn portraits (`src/components/TrainerPortrait.tsx`). To use real photos, put them in `public/trainers/` and list them in `TRAINER_PHOTOS`.

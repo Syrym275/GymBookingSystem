@@ -10,11 +10,13 @@ import { TODAY } from '../../config';
 import { useAsync } from '../../hooks/useAsync';
 import type { BookingStatus, BookingView } from '../../types';
 import { ALL_STATUSES, STATUS_LABEL, bkNumber, dateOf, fmtDay, kzt, timeOf } from '../../utils/format';
+import { useT } from '../../i18n';
 
 const csvCell = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
 
 /** Every past session, with filters and a CSV export. */
 export default function TrainerHistory() {
+  const { t, tp } = useT();
   const toast = useToast();
   const { data, error } = useAsync(() => listBookings(), []);
   const [from, setFrom] = useState('');
@@ -44,7 +46,7 @@ export default function TrainerHistory() {
   const attendedValue = rows.filter((b) => b.status === 'completed').reduce((sum, b) => sum + b.price_kzt, 0);
 
   const exportCsv = () => {
-    const head = ['Booking', 'Date', 'Start', 'End', 'Client', 'Status', 'Price KZT'];
+    const head = [t('table.booking'), t('slip.date'), t('history.start'), t('history.end'), t('clients.client'), t('nav.status'), t('history.priceKzt')];
     const lines = rows.map((b) =>
       [bkNumber(b.booking_id), dateOf(b.start_time), timeOf(b.start_time), timeOf(b.end_time), b.member.full_name, STATUS_LABEL[b.status], b.price_kzt].map(csvCell).join(','),
     );
@@ -55,26 +57,26 @@ export default function TrainerHistory() {
     a.download = 'my-session-history.csv';
     a.click();
     URL.revokeObjectURL(url);
-    toast.success(`Exported ${rows.length} session${rows.length === 1 ? '' : 's'}.`);
+    toast.success(t('history.exported', { sessions: tp('unit.sessions', rows.length) }));
   };
 
   const columns: Column<BookingView>[] = [
-    { key: 'when', header: 'Date', sort: (b) => b.start_time, render: (b) => fmtDay(b.start_time) },
-    { key: 'time', header: 'Time', render: (b) => `${timeOf(b.start_time)}–${timeOf(b.end_time)}` },
-    { key: 'client', header: 'Client', sort: (b) => b.member.full_name, render: (b) => <span className="font-semibold">{b.member.full_name}</span> },
-    { key: 'id', header: 'Booking', render: (b) => <span className="font-mono text-xs">{bkNumber(b.booking_id)}</span> },
-    { key: 'price', header: 'Price', sort: (b) => b.price_kzt, render: (b) => kzt(b.price_kzt) },
-    { key: 'status', header: 'Result', sort: (b) => b.status, render: (b) => <StatusBadge status={b.status} /> },
+    { key: 'when', header: t('slip.date'), sort: (b) => b.start_time, render: (b) => fmtDay(b.start_time) },
+    { key: 'time', header: t('slip.time'), render: (b) => `${timeOf(b.start_time)}–${timeOf(b.end_time)}` },
+    { key: 'client', header: t('clients.client'), sort: (b) => b.member.full_name, render: (b) => <span className="font-semibold">{b.member.full_name}</span> },
+    { key: 'id', header: t('table.booking'), render: (b) => <span className="font-mono text-xs">{bkNumber(b.booking_id)}</span> },
+    { key: 'price', header: t('table.price'), sort: (b) => b.price_kzt, render: (b) => kzt(b.price_kzt) },
+    { key: 'status', header: t('history.result'), sort: (b) => b.status, render: (b) => <StatusBadge status={b.status} /> },
   ];
 
   return (
     <div className="space-y-4">
       <PageHeader
-        title="History"
-        subtitle="Sessions that are over. Click a row for the booking slip."
+        title={t('nav.history')}
+        subtitle={t('history.sub')}
         actions={
           <button className="btn-secondary" onClick={exportCsv} disabled={rows.length === 0}>
-            <Download className="h-4 w-4" /> Export CSV
+            <Download className="h-4 w-4" /> {t('history.export')}
           </button>
         }
       />
@@ -83,25 +85,25 @@ export default function TrainerHistory() {
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
             <label className="label" htmlFor="h-from">
-              From
+              {t('table.from')}
             </label>
             <input id="h-from" type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} />
           </div>
           <div>
             <label className="label" htmlFor="h-to">
-              To
+              {t('table.to')}
             </label>
             <input id="h-to" type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} />
           </div>
           <div>
             <label className="label" htmlFor="h-q">
-              Client or booking
+              {t('history.clientOrBooking')}
             </label>
-            <input id="h-q" className="input" placeholder="Name or BK number" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input id="h-q" className="input" placeholder={t('history.namePh')} value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="label mb-0 mr-1">Result</span>
+          <span className="label mb-0 mr-1">{t('history.result')}</span>
           {ALL_STATUSES.filter((s) => s !== 'pending').map((s) => (
             <button
               key={s}
@@ -122,14 +124,14 @@ export default function TrainerHistory() {
                 setStatuses([]);
               }}
             >
-              <X className="h-3 w-3" /> Clear filters
+              <X className="h-3 w-3" /> {t('table.clear')}
             </button>
           )}
         </div>
       </div>
 
       <p className="text-sm text-ink/60">
-        {rows.length} session{rows.length === 1 ? '' : 's'} · attended session value <b className="text-ink">{kzt(attendedValue)}</b>
+        {tp('unit.sessions', rows.length)} · {t('history.value')} <b className="text-ink">{kzt(attendedValue)}</b>
       </p>
       <DataTable
         rows={rows}
@@ -138,7 +140,7 @@ export default function TrainerHistory() {
         pageSize={12}
         initialSort={{ key: 'when', dir: 'desc' }}
         onRowClick={setSlip}
-        empty={<EmptyState title="No past sessions match" text="Try removing a filter or widening the dates." />}
+        empty={<EmptyState title={t('history.none')} text={t('history.noneText')} />}
       />
       <BookingSlip booking={slip} onClose={() => setSlip(null)} />
     </div>

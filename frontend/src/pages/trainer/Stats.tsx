@@ -33,9 +33,11 @@ import {
   type PeriodKey,
 } from './analytics';
 import { NO_SHOW_COLOR, tooltipStyle } from './common';
+import { useT, type Key } from '../../i18n';
 
 /** "Graphic": charts about the trainer's work for a chosen period. */
 export default function TrainerStats() {
+  const { t } = useT();
   const colors = useChartColors();
   const { data, error } = useAsync(() => listBookings(), []);
   const [period, setPeriod] = useState<PeriodKey>('30d');
@@ -47,25 +49,25 @@ export default function TrainerStats() {
   const range = lastDays(p.days);
   const cur = summarize(data, range);
   const prev = summarize(data, before(range, p.days));
-  const unit = `${p.days} days`;
+  const unit = p.days;
 
   const series = p.days <= 30 ? dailyBuckets(data, range) : weeklyBuckets(data, range);
   const hours = hourBuckets(data, range);
   const trend = weeklyTrend(data, 8);
   const pie = [
-    { name: 'Attended', value: cur.attended, color: colors.primary },
-    { name: 'No-show', value: cur.noShows, color: NO_SHOW_COLOR },
-    { name: 'Cancelled', value: cur.cancelled, color: colors.tertiary },
+    { name: t('attend.attended'), value: cur.attended, color: colors.primary },
+    { name: t('status.no_show'), value: cur.noShows, color: NO_SHOW_COLOR },
+    { name: t('status.cancelled'), value: cur.cancelled, color: colors.tertiary },
   ].filter((x) => x.value > 0);
   const axis = { fill: colors.axis, fontSize: 11 };
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Statistics"
-        subtitle="The work you did in the chosen period, compared with the period before it."
+        title={t('nav.stats')}
+        subtitle={t('stats.sub')}
         actions={
-          <div className="inline-flex rounded-md border border-line bg-white p-1" role="group" aria-label="Period">
+          <div className="inline-flex rounded-md border border-line bg-white p-1" role="group" aria-label={t('stats.period')}>
             {PERIODS.map((x) => (
               <button
                 key={x.key}
@@ -73,7 +75,7 @@ export default function TrainerStats() {
                 aria-pressed={period === x.key}
                 className={`rounded px-3 py-1.5 text-xs font-semibold uppercase tracking-wide ${period === x.key ? 'bg-brand text-onaccent' : 'text-ink/70 hover:bg-sun-soft'}`}
               >
-                {x.label}
+                {t(`period.${x.key}` as Key)}
               </button>
             ))}
           </div>
@@ -81,20 +83,20 @@ export default function TrainerStats() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <KpiCard tone="brand" label="Sessions held" value={cur.held} hint={deltaText(cur.held, prev.held, unit)} />
-        <KpiCard tone="mint" label="Attendance" value={pct(cur.rate)} hint={`was ${pct(prev.rate)} before`} />
-        <KpiCard tone="berry" label="No-shows" value={cur.noShows} hint={deltaText(cur.noShows, prev.noShows, unit)} />
-        <KpiCard tone="sun" label="Clients" value={cur.clients} hint={deltaText(cur.clients, prev.clients, unit)} />
-        <KpiCard label="Session value" value={kzt(cur.earned)} hint="Attended sessions" />
+        <KpiCard tone="brand" label={t('stats.held')} value={cur.held} hint={deltaText(cur.held, prev.held, unit)} />
+        <KpiCard tone="mint" label={t('stats.attendance')} value={pct(cur.rate)} hint={t('stats.was', { v: pct(prev.rate) })} />
+        <KpiCard tone="berry" label={t('stats.noShows')} value={cur.noShows} hint={deltaText(cur.noShows, prev.noShows, unit)} />
+        <KpiCard tone="sun" label={t('nav.clients')} value={cur.clients} hint={deltaText(cur.clients, prev.clients, unit)} />
+        <KpiCard label={t('stats.value')} value={kzt(cur.earned)} hint={t('stats.valueHint')} />
       </div>
 
       {cur.held === 0 && cur.cancelled === 0 ? (
-        <EmptyState title="No sessions in this period" text="Try a longer period to see more of your work." />
+        <EmptyState title={t('stats.none')} text={t('stats.noneText')} />
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">
           <section className="card lg:col-span-2">
-            <h2 className="text-lg font-bold">Sessions {p.days <= 30 ? 'per day' : 'per week'}</h2>
-            <p className="mb-3 text-sm text-ink/60">Attended and no-show sessions that took place.</p>
+            <h2 className="text-lg font-bold">{p.days <= 30 ? t('stats.perDay') : t('stats.perWeek')}</h2>
+            <p className="mb-3 text-sm text-ink/60">{t('stats.perDayText')}</p>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={series}>
@@ -103,16 +105,16 @@ export default function TrainerStats() {
                   <YAxis allowDecimals={false} tick={axis} />
                   <Tooltip cursor={{ fill: colors.cursor }} contentStyle={tooltipStyle} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="attended" name="Attended" stackId="a" fill={colors.primary} />
-                  <Bar dataKey="noShows" name="No-show" stackId="a" fill={NO_SHOW_COLOR} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="attended" name={t('attend.attended')} stackId="a" fill={colors.primary} />
+                  <Bar dataKey="noShows" name={t('status.no_show')} stackId="a" fill={NO_SHOW_COLOR} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </section>
 
           <section className="card">
-            <h2 className="text-lg font-bold">Outcome</h2>
-            <p className="mb-3 text-sm text-ink/60">How the booked sessions ended.</p>
+            <h2 className="text-lg font-bold">{t('stats.outcome')}</h2>
+            <p className="mb-3 text-sm text-ink/60">{t('stats.outcomeText')}</p>
             <div className="relative h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -127,14 +129,14 @@ export default function TrainerStats() {
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-x-0 top-[38%] text-center">
                 <p className="font-display text-3xl font-bold">{pct(cur.rate)}</p>
-                <p className="text-xs text-ink/60">attended</p>
+                <p className="text-xs text-ink/60">{t('stats.attendedLower')}</p>
               </div>
             </div>
           </section>
 
           <section className="card">
-            <h2 className="text-lg font-bold">Busiest hours</h2>
-            <p className="mb-3 text-sm text-ink/60">Sessions by start hour.</p>
+            <h2 className="text-lg font-bold">{t('stats.busiest')}</h2>
+            <p className="mb-3 text-sm text-ink/60">{t('stats.busiestText')}</p>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={hours}>
@@ -142,15 +144,15 @@ export default function TrainerStats() {
                   <XAxis dataKey="label" tick={{ ...axis, fontSize: 10 }} interval={1} />
                   <YAxis allowDecimals={false} tick={axis} />
                   <Tooltip cursor={{ fill: colors.cursor }} contentStyle={tooltipStyle} />
-                  <Bar dataKey="count" name="Sessions" fill={colors.secondary} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="count" name={t('stats.sessions')} fill={colors.secondary} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </section>
 
           <section className="card lg:col-span-2">
-            <h2 className="text-lg font-bold">8-week trend</h2>
-            <p className="mb-3 text-sm text-ink/60">Sessions held each week, whatever period is selected above. The last point is the current week so far.</p>
+            <h2 className="text-lg font-bold">{t('stats.trend')}</h2>
+            <p className="mb-3 text-sm text-ink/60">{t('stats.trendText')}</p>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={trend}>
@@ -159,8 +161,8 @@ export default function TrainerStats() {
                   <YAxis allowDecimals={false} tick={axis} />
                   <Tooltip contentStyle={tooltipStyle} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line type="monotone" dataKey="total" name="Held" stroke={colors.primary} strokeWidth={3} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="attended" name="Attended" stroke={colors.secondary} strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="total" name={t('stats.heldShort')} stroke={colors.primary} strokeWidth={3} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="attended" name={t('attend.attended')} stroke={colors.secondary} strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>

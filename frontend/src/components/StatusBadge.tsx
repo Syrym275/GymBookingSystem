@@ -1,5 +1,6 @@
 import type { BookingStatus, PaymentStatus } from '../types';
 import { STATUS_LABEL } from '../utils/format';
+import { useT, type Key } from '../i18n';
 
 const STYLE: Record<BookingStatus, string> = {
   pending: 'bg-sun-soft text-amber-800 border-sun',
@@ -11,6 +12,7 @@ const STYLE: Record<BookingStatus, string> = {
 };
 
 export function StatusBadge({ status }: { status: BookingStatus }) {
+  useT();
   return (
     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold ${STYLE[status]}`}>
       {STATUS_LABEL[status]}
@@ -25,15 +27,17 @@ const PAY_STYLE: Record<PaymentStatus, string> = {
 };
 
 export function PaymentBadge({ status }: { status: PaymentStatus }) {
+  const { t } = useT();
   return (
     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold capitalize ${PAY_STYLE[status]}`}>
-      {status}
+      {t(`payStatus.${status}` as Key)}
     </span>
   );
 }
 
 export function PaidBadge({ status }: { status: BookingStatus }) {
-  if (status === 'pending') return <span className="text-xs font-bold text-amber-700">Unpaid</span>;
+  const { t } = useT();
+  if (status === 'pending') return <span className="text-xs font-bold text-amber-700">{t('pay.unpaid')}</span>;
   if (status === 'cancelled' || status === 'expired') return <span className="text-xs text-ink/40">—</span>;
-  return <span className="text-xs font-bold text-mint-dark">Paid</span>;
+  return <span className="text-xs font-bold text-mint-dark">{t('pay.paid')}</span>;
 }

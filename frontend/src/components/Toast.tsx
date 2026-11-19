@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import { CheckCircle2, XCircle } from 'lucide-react';
+import { msg } from '../i18n/messages';
 
 interface ToastItem {
   id: number;
@@ -18,7 +19,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const push = useCallback((type: ToastItem['type'], text: string) => {
     const id = Date.now() + Math.random();
-    setItems((xs) => [...xs, { id, type, text }]);
+    setItems((xs) => [...xs, { id, type, text: msg(text) }]); // backend messages arrive in English
     setTimeout(() => setItems((xs) => xs.filter((x) => x.id !== id)), 4200);
   }, []);
 

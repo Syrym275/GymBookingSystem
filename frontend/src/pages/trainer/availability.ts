@@ -1,3 +1,4 @@
+import { t, type Key } from '../../i18n';
 export type Availability = 'available' | 'break' | 'off';
 
 export interface AvailabilityState {
@@ -7,14 +8,15 @@ export interface AvailabilityState {
   updatedAt: string | null; // local "YYYY-MM-DDTHH:mm"
 }
 
-export const AVAILABILITY_LABEL: Record<Availability, string> = {
-  available: 'Available',
-  break: 'On a break',
-  off: 'Day off',
-};
+// Texts come from the dictionary (avail.<state> / avail.<state>.hint) when they are read.
+function byState(suffix: string): Record<Availability, string> {
+  const out = {} as Record<Availability, string>;
+  for (const s of ['available', 'break', 'off'] as const) {
+    Object.defineProperty(out, s, { enumerable: true, get: () => t(`avail.${s}${suffix}` as Key) });
+  }
+  return out;
+}
 
-export const AVAILABILITY_HINT: Record<Availability, string> = {
-  available: 'You are taking sessions as normal.',
-  break: 'New bookings are blocked until the break ends. Existing bookings stay.',
-  off: 'Not working today. Reception can see you are away.',
-};
+export const AVAILABILITY_LABEL: Record<Availability, string> = byState('');
+
+export const AVAILABILITY_HINT: Record<Availability, string> = byState('.hint');

@@ -1,6 +1,7 @@
 import { addDays, addMinutes, differenceInCalendarDays, format } from 'date-fns';
 import { TODAY_DATE } from '../config';
 import type { BookingStatus, MembershipPlan } from '../types';
+import { dateLocale, t, type Key } from '../i18n';
 
 // All datetimes are plain local strings "YYYY-MM-DDTHH:mm" - never converted between zones.
 
@@ -22,8 +23,9 @@ export const parseLocal = (s: string) => new Date(s.length === 10 ? `${s}T00:00`
 export const toLocal = (d: Date) => format(d, "yyyy-MM-dd'T'HH:mm");
 export const toDate = (d: Date) => format(d, 'yyyy-MM-dd');
 
-export const fmtDate = (s: string) => format(parseLocal(s), 'EEE, d MMM yyyy');
-export const fmtDay = (s: string) => format(parseLocal(s), 'EEE d MMM');
+// Dates are written in the current site language (RU / KZ / EN).
+export const fmtDate = (s: string) => format(parseLocal(s), 'EEE, d MMM yyyy', { locale: dateLocale() });
+export const fmtDay = (s: string) => format(parseLocal(s), 'EEE d MMM', { locale: dateLocale() });
 export const fmtRange = (start: string, end: string) =>
   `${fmtDay(start)} · ${timeOf(start)}–${timeOf(end)}`;
 export const fmtDateTime = (s: string) => `${fmtDay(s)}, ${timeOf(s)}`;
@@ -39,21 +41,18 @@ export const overlaps = (aStart: string, aEnd: string, bStart: string, bEnd: str
 
 export const hourLabel = (h: number) => `${pad(h)}:00`;
 
-export const STATUS_LABEL: Record<BookingStatus, string> = {
-  pending: 'Pending',
-  confirmed: 'Confirmed',
-  completed: 'Completed',
-  no_show: 'No-show',
-  cancelled: 'Cancelled',
-  expired: 'Expired',
-};
-export const ALL_STATUSES = Object.keys(STATUS_LABEL) as BookingStatus[];
+export const ALL_STATUSES: BookingStatus[] = ['pending', 'confirmed', 'completed', 'no_show', 'cancelled', 'expired'];
 
-export const PLAN_LABEL: Record<MembershipPlan, string> = {
-  monthly: 'Monthly',
-  quarterly: 'Quarterly',
-  annual: 'Annual',
-};
+/** Objects whose values are read from the dictionary at the moment they are used. */
+function translated<K extends string>(keys: readonly K[], prefix: string): Record<K, string> {
+  const out = {} as Record<K, string>;
+  for (const k of keys) Object.defineProperty(out, k, { enumerable: true, get: () => t(`${prefix}${k}` as Key) });
+  return out;
+}
+
+export const STATUS_LABEL: Record<BookingStatus, string> = translated(ALL_STATUSES, 'status.');
+
+export const PLAN_LABEL: Record<MembershipPlan, string> = translated(['monthly', 'quarterly', 'annual'] as const, 'plan.');
 
 /** Only pending + confirmed bookings block a slot. */
 export const isBlocking = (s: BookingStatus) => s === 'pending' || s === 'confirmed';

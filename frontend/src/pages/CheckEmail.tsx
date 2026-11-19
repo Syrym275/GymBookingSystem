@@ -4,9 +4,11 @@ import { HOME } from '../auth/RequireRole';
 import { AuthLayout } from '../components/AuthLayout';
 import { ResendVerification } from '../components/ResendVerification';
 import { ErrorNote } from '../components/ui';
+import { useT } from '../i18n';
 
 /** Shown after sign-up, and from the "verify your email" banner. */
 export default function CheckEmail() {
+  const { t } = useT();
   const { user } = useAuth();
   const [params] = useSearchParams();
   const email = params.get('email') ?? user?.email ?? '';
@@ -21,46 +23,45 @@ export default function CheckEmail() {
           ? {
               title: (
                 <>
-                  Thanks for applying. <span className="block text-brand-dark">Check your inbox.</span>
+                  {t('check.trainerAside1')} <span className="block text-brand-dark">{t('check.aside2')}</span>
                 </>
               ),
-              text: 'Verify your email, then your trainer profile is reviewed before it goes public.',
+              text: t('check.trainerAsideText'),
             }
           : {
               title: (
                 <>
-                  Almost there. <span className="block text-brand-dark">Check your inbox.</span>
+                  {t('check.memberAside1')} <span className="block text-brand-dark">{t('check.aside2')}</span>
                 </>
               ),
-              text: 'Verify your email to book trainers and halls and to pay online.',
+              text: t('check.memberAsideText'),
             }
       }
     >
       <div className="space-y-4 rounded-xl border border-line bg-white p-6">
-        <h1 className="text-4xl font-bold">Check your inbox</h1>
+        <h1 className="text-4xl font-bold">{t('check.title')}</h1>
         {sendFailed ? (
-          <ErrorNote message="Your account is saved, but we could not send the email. Use “Send a new link” below." />
+          <ErrorNote message={t('check.sendFailed')} />
         ) : (
           <p className="text-ink/70">
-            We sent a verification link to {email ? <b className="break-all">{email}</b> : 'your email'}. Open it within 24
-            hours. Check the spam folder if you cannot find it.
+            {t('check.sent1')} {email ? <b className="break-all">{email}</b> : t('check.yourEmail')}. {t('check.sent2')}
           </p>
         )}
         <p className="text-sm text-ink/60">
           {isTrainer
-            ? 'Your trainer profile is waiting for approval and is not public yet. You can log in while it is reviewed.'
-            : 'You can look around now. Booking and payments unlock once your email is verified.'}
+            ? t('check.trainerNote')
+            : t('check.memberNote')}
         </p>
 
         <ResendVerification email={email || undefined} startWithCooldown={fromSignUp && !sendFailed} />
 
         {user ? (
           <Link to={HOME[user.role]} className="btn-primary inline-flex min-h-[48px] w-full items-center justify-center text-base">
-            Continue
+            {t('common.continue')}
           </Link>
         ) : (
           <Link to="/login" className="btn-primary inline-flex min-h-[48px] w-full items-center justify-center text-base">
-            Go to log in
+            {t('check.goLogin')}
           </Link>
         )}
       </div>

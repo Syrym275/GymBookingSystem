@@ -8,8 +8,10 @@ import { EmptyState, ErrorNote, KpiCard, Loading, PageHeader } from '../../compo
 import { MAX_PENDING, TODAY } from '../../config';
 import { useAsync } from '../../hooks/useAsync';
 import { PLAN_LABEL, bkNumber, fmtDate, fmtRange, kzt, membershipState } from '../../utils/format';
+import { useT } from '../../i18n';
 
 export default function MemberDashboard() {
+  const { t, tp } = useT();
   const { user } = useAuth();
   const profile = useAsync(getMyProfile, []);
   const bookings = useAsync(() => listBookings(), []);
@@ -25,7 +27,7 @@ export default function MemberDashboard() {
 
   return (
     <div>
-      <PageHeader title={`Hi, ${user?.full_name.split(' ')[0]} 👋`} subtitle="Here is what is coming up for you." />
+      <PageHeader title={t('mdash.hi', { name: user?.full_name.split(' ')[0] ?? '' })} subtitle={t('mdash.sub')} />
 
       {ms.state !== 'active' && (
         <div
@@ -35,12 +37,12 @@ export default function MemberDashboard() {
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
           <div className="text-sm">
             <p className="font-extrabold">
-              {ms.state === 'expired' ? 'Your membership has expired' : `Your membership ends in ${ms.daysLeft} day${ms.daysLeft === 1 ? '' : 's'}`}
+              {ms.state === 'expired' ? t('mdash.expired') : tp('mdash.endsIn', ms.daysLeft)}
             </p>
             <p>
               {ms.state === 'expired'
-                ? 'You cannot book new sessions until it is extended. Please visit reception.'
-                : 'Bookings after that date will be refused - ask reception to extend it.'}
+                ? t('mdash.expiredText')
+                : t('mdash.endsText')}
             </p>
           </div>
         </div>
@@ -49,17 +51,17 @@ export default function MemberDashboard() {
       <div className="grid gap-4 sm:grid-cols-3">
         <KpiCard
           tone="brand"
-          label="Membership"
+          label={t('slip.membership')}
           value={PLAN_LABEL[p.membership_plan]}
-          hint={`${ms.state === 'expired' ? 'Expired' : 'Valid until'} ${fmtDate(p.membership_expires_on)}`}
+          hint={`${ms.state === 'expired' ? t('mdash.expiredOn') : t('register.validUntil')} ${fmtDate(p.membership_expires_on)}`}
         />
         <KpiCard
           tone={unpaid.length >= MAX_PENDING ? 'berry' : 'sun'}
-          label="Unpaid bookings"
-          value={`${unpaid.length} of ${MAX_PENDING}`}
-          hint={unpaid.length >= MAX_PENDING ? 'Limit reached - pay or cancel one' : 'Unpaid bookings hold the slot'}
+          label={t('nav.unpaid')}
+          value={t('mdash.of', { n: unpaid.length, max: MAX_PENDING })}
+          hint={unpaid.length >= MAX_PENDING ? t('mdash.limit') : t('mdash.hold')}
         />
-        <KpiCard tone="mint" label="Upcoming" value={upcoming.length} hint="Pending + confirmed" />
+        <KpiCard tone="mint" label={t('mdash.upcoming')} value={upcoming.length} hint={t('mdash.upcomingHint')} />
       </div>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -68,8 +70,8 @@ export default function MemberDashboard() {
             <Dumbbell className="h-5 w-5" />
           </span>
           <span className="flex-1">
-            <span className="block font-display text-lg font-bold">Book a trainer</span>
-            <span className="text-sm text-ink/60">60-minute personal session</span>
+            <span className="block font-display text-lg font-bold">{t('nav.bookTrainer')}</span>
+            <span className="text-sm text-ink/60">{t('mdash.trainerHint')}</span>
           </span>
           <ArrowRight className="h-5 w-5" />
         </Link>
@@ -78,21 +80,21 @@ export default function MemberDashboard() {
             <Building2 className="h-5 w-5" />
           </span>
           <span className="flex-1">
-            <span className="block font-display text-lg font-bold">Rent a hall</span>
-            <span className="text-sm text-ink/60">Any interval, 07:00–22:00</span>
+            <span className="block font-display text-lg font-bold">{t('landing.rentHall')}</span>
+            <span className="text-sm text-ink/60">{t('mdash.hallHint')}</span>
           </span>
           <ArrowRight className="h-5 w-5" />
         </Link>
       </div>
 
-      <h2 className="mb-3 mt-8 text-xl font-extrabold">Upcoming bookings</h2>
+      <h2 className="mb-3 mt-8 text-xl font-extrabold">{t('mdash.upcomingTitle')}</h2>
       {upcoming.length === 0 ? (
-        <EmptyState icon={<CalendarClock className="h-6 w-6" />} title="Nothing booked yet" text="Reserve a trainer or a hall to see it here." />
+        <EmptyState icon={<CalendarClock className="h-6 w-6" />} title={t('mdash.nothing')} text={t('mdash.nothingText')} />
       ) : (
         <div className="space-y-3">
           {upcoming.map((b) => (
             <div key={b.booking_id} className="card-flat flex flex-wrap items-center gap-3">
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 basis-full sm:basis-auto">
                 <p className="font-bold">
                   <span className="mr-2 font-mono text-sm text-ink/50">{bkNumber(b.booking_id)}</span>
                   {b.trainer_name ?? b.hall_name}
@@ -103,7 +105,7 @@ export default function MemberDashboard() {
               <StatusBadge status={b.status} />
               {b.status === 'pending' && (
                 <Link to={`/member/pay/${b.booking_id}`} className="btn-primary btn-sm">
-                  Pay now
+                  {t('mdash.payNow')}
                 </Link>
               )}
             </div>

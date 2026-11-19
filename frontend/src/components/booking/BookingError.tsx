@@ -1,22 +1,25 @@
 import { AlertTriangle } from 'lucide-react';
 import { ApiError, type Suggestion } from '../../api/ApiError';
 import { timeOf } from '../../utils/format';
+import { useT } from '../../i18n';
+import { msg } from '../../i18n/messages';
 
 /** Friendly messages for the database error codes (23P01 / GB001 / GB002 ...). */
 export function BookingError({ error, onPick }: { error: unknown; onPick?: (s: Suggestion) => void }) {
+  const { t } = useT();
   if (!error) return null;
   const err = error instanceof ApiError ? error : null;
-  let title = 'Something went wrong';
-  let text = error instanceof Error ? error.message : String(error);
+  let title = t('bookErr.generic');
+  let text = msg(error instanceof Error ? error.message : String(error));
 
   if (err?.code === '23P01') {
-    title = 'This slot was just taken';
-    text = 'Someone else (or one of your own bookings) already holds that time. Pick another slot:';
+    title = t('bookErr.takenTitle');
+    text = t('bookErr.takenText');
   } else if (err?.code === 'GB001') {
-    title = 'Too many unpaid bookings';
+    title = t('bookErr.unpaidTitle');
   } else if (err?.code === 'GB002') {
-    title = 'Membership not valid for that date';
-    text += ' Ask reception to extend your membership.';
+    title = t('bookErr.membershipTitle');
+    text += ' ' + t('bookErr.membershipHint');
   }
 
   return (
@@ -35,7 +38,7 @@ export function BookingError({ error, onPick }: { error: unknown; onPick?: (s: S
         </div>
       )}
       {err?.code === '23P01' && err.suggestions.length === 0 && (
-        <p className="mt-2 text-ink/70">No other free slot on this day — try another date.</p>
+        <p className="mt-2 text-ink/70">{t('bookErr.noOther')}</p>
       )}
     </div>
   );

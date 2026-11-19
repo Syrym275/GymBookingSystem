@@ -2,6 +2,7 @@ import { addDays, eachDayOfInterval, format, startOfWeek } from 'date-fns';
 import { CLOSE_HOUR, OPEN_HOUR, TODAY, TODAY_DATE } from '../../config';
 import type { BookingStatus, BookingView } from '../../types';
 import { addDaysStr, dateOf, hourLabel, hourOf, parseLocal, toDate } from '../../utils/format';
+import { dateLocale, t, tp } from '../../i18n';
 
 // Pure functions that turn the trainer's own bookings into numbers for the dashboards.
 // Nothing here talks to the API, so the same code keeps working when the real backend replaces the mock.
@@ -18,10 +19,11 @@ export interface DateRange {
   to: string;
 }
 
+// Text: period.<key>
 export const PERIODS = [
-  { key: '7d', label: 'Past 7 days', days: 7 },
-  { key: '30d', label: 'Past 30 days', days: 30 },
-  { key: '90d', label: 'Past 90 days', days: 90 },
+  { key: '7d', days: 7 },
+  { key: '30d', days: 30 },
+  { key: '90d', days: 90 },
 ] as const;
 export type PeriodKey = (typeof PERIODS)[number]['key'];
 
@@ -67,10 +69,11 @@ export function summarize(all: BookingView[], r: DateRange): Summary {
 export const pct = (rate: number | null) => (rate === null ? '—' : `${Math.round(rate * 100)}%`);
 
 /** "+3 vs previous 7 days", "same as ...", "−2 ..." */
-export function deltaText(current: number, previous: number, unit: string): string {
+export function deltaText(current: number, previous: number, days: number): string {
   const d = current - previous;
-  if (d === 0) return `same as previous ${unit}`;
-  return `${d > 0 ? '+' : '−'}${Math.abs(d)} vs previous ${unit}`;
+  const period = tp('unit.days', days);
+  if (d === 0) return t('delta.same', { period });
+  return t('delta.diff', { d: `${d > 0 ? '+' : '−'}${Math.abs(d)}`, period });
 }
 
 // ---- chart series ----------------------------------------------------------
@@ -90,7 +93,7 @@ export function dailyBuckets(all: BookingView[], r: DateRange): Bucket[] {
   const map = new Map<string, Bucket>();
   for (const d of days) {
     const key = toDate(d);
-    map.set(key, { key, label: format(d, short ? 'EEE d' : 'd MMM'), attended: 0, noShows: 0, total: 0 });
+    map.set(key, { key, label: format(d, short ? 'EEE d' : 'd MMM', { locale: dateLocale() }), attended: 0, noShows: 0, total: 0 });
   }
   for (const b of all) {
     if (!isHeld(b)) continue;
@@ -113,7 +116,7 @@ export function weeklyBuckets(all: BookingView[], r: DateRange): Bucket[] {
     const to = toDate(addDays(d, 6));
     const inWeek = all.filter((b) => isHeld(b) && within(b, r) && dateOf(b.start_time) >= from && dateOf(b.start_time) <= to);
     const attended = inWeek.filter((b) => b.status === 'completed').length;
-    out.push({ key: from, label: format(d, 'd MMM'), attended, noShows: inWeek.length - attended, total: inWeek.length });
+    out.push({ key: from, label: format(d, 'd MMM', { locale: dateLocale() }), attended, noShows: inWeek.length - attended, total: inWeek.length });
   }
   return out;
 }

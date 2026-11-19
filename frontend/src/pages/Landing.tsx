@@ -17,6 +17,8 @@ import { useAsync } from "../hooks/useAsync";
 import { HOME } from "../auth/RequireRole";
 import { Barbell, Glove, Group, Kettlebell, Mat } from "../components/GymIcons";
 import { CLOSE_HOUR, OPEN_HOUR, TODAY_DATE } from "../config";
+import { LanguageSwitcher, useT, type Key } from "../i18n";
+import { TrainerPortrait } from "../components/TrainerPortrait";
 import {
   CONTACT,
   GYM_NAME,
@@ -25,11 +27,14 @@ import {
   SERVICES,
   STEPS,
   TESTIMONIALS,
+  address,
+  specializationLabel,
   type ServiceIcon,
 } from "../data/gymData";
 import { hourLabel, kzt } from "../utils/format";
 import { ThemeToggle } from "../theme/ThemeContext";
 import HeroScene from "../components/HeroScene";
+import { msg } from "../i18n/messages";
 
 const SERVICE_ICON: Record<
   ServiceIcon,
@@ -42,27 +47,20 @@ const SERVICE_ICON: Record<
   kettlebell: Kettlebell,
 };
 
-const NAV = [
-  { href: "#services", label: "Services" },
-  { href: "#trainers", label: "Trainers" },
-  { href: "#halls", label: "Halls" },
-  { href: "#pricing", label: "Pricing" },
-  { href: "#contact", label: "Contact" },
+const NAV: { href: string; label: Key }[] = [
+  { href: "#services", label: "landing.nav.services" },
+  { href: "#trainers", label: "landing.nav.trainers" },
+  { href: "#halls", label: "landing.nav.halls" },
+  { href: "#pricing", label: "landing.nav.pricing" },
+  { href: "#contact", label: "landing.nav.contact" },
 ];
 
 const HOURS_TEXT = `${hourLabel(OPEN_HOUR)}–${hourLabel(CLOSE_HOUR)}`;
 const PHONE_HREF = `tel:${CONTACT.phone.replace(/[^+\d]/g, "")}`;
 const MAP_SRC = `https://maps.google.com/maps?q=${encodeURIComponent(CONTACT.mapQuery)}&z=16&output=embed`;
 
-/** "Aigerim Sadykova" -> "AS" */
-const initials = (name: string) =>
-  name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2);
-
 export default function Landing() {
+  const { t, tp, lang } = useT();
   const { user, logout } = useAuth();
   const catalog = useAsync(getPublicCatalog, []);
   const trainers = catalog.data?.trainers ?? [];
@@ -89,15 +87,16 @@ export default function Landing() {
           </a>
           <nav
             className="hidden items-center gap-6 text-sm font-semibold lg:flex"
-            aria-label="Sections"
+            aria-label={t("landing.nav.sections")}
           >
             {NAV.map((n) => (
               <a key={n.href} href={n.href} className="hover:text-brand-dark">
-                {n.label}
+                {t(n.label)}
               </a>
             ))}
           </nav>
           <div className="flex items-center gap-2">
+            <LanguageSwitcher className="hidden sm:inline-flex" />
             <ThemeToggle className="min-h-[44px] min-w-[44px]" />
             {user ? (
               <>
@@ -110,19 +109,19 @@ export default function Landing() {
                 <Link
                   to={HOME[user.role]}
                   className="btn-primary min-h-[44px]"
-                  aria-label="Dashboard"
+                  aria-label={t("common.dashboard")}
                 >
                   <LayoutDashboard className="h-4 w-4 sm:hidden" />
-                  <span className="hidden sm:inline">Dashboard</span>
+                  <span className="hidden sm:inline">{t("common.dashboard")}</span>
                 </Link>
                 <button
                   type="button"
                   onClick={logout}
                   className="btn-ghost min-h-[44px]"
-                  aria-label="Log out"
+                  aria-label={t("common.logOut")}
                 >
                   <LogOut className="h-4 w-4" />
-                  <span className="hidden sm:inline">Log out</span>
+                  <span className="hidden sm:inline">{t("common.logOut")}</span>
                 </button>
               </>
             ) : (
@@ -130,17 +129,21 @@ export default function Landing() {
                 <Link
                   to="/login"
                   className="btn-ghost min-h-[44px]"
-                  aria-label="Log in"
+                  aria-label={t("common.logIn")}
                 >
                   <LogIn className="h-4 w-4 sm:hidden" />
-                  <span className="hidden sm:inline">Log in</span>
+                  <span className="hidden sm:inline">{t("common.logIn")}</span>
                 </Link>
                 <Link to="/register" className="btn-primary min-h-[44px]">
-                  Sign up
+                  {t("common.signUp")}
                 </Link>
               </>
             )}
           </div>
+        </div>
+        {/* On phones the language switch gets its own row so the header buttons still fit. */}
+        <div className="flex justify-end border-t border-line px-4 py-1.5 sm:hidden">
+          <LanguageSwitcher />
         </div>
       </header>
 
@@ -149,27 +152,25 @@ export default function Landing() {
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-10 sm:px-6 lg:grid-cols-[1fr_1.05fr] lg:pb-20 lg:pt-14">
           <div>
             <h1 className="font-display text-[2.6rem] font-bold uppercase leading-[0.95] sm:text-6xl xl:text-7xl">
-              Book your workout.{" "}
-              <span className="block text-brand-dark">Rent the hall.</span>
+              {t("landing.hero.title1")}{" "}
+              <span className="block text-brand-dark">{t("landing.hero.title2")}</span>
             </h1>
             <div className="mt-5 flex flex-col gap-6">
               <p className="max-w-xl text-base text-ink/75 sm:text-lg">
-                Personal training and hall rental by the hour, open {HOURS_TEXT}{" "}
-                every day. Pick a free hour, pay online, check in with a QR
-                code.
+                {t("landing.hero.text", { hours: HOURS_TEXT })}
               </p>
               <div className="flex shrink-0 flex-wrap gap-3">
                 <Link
                   to={target}
                   className="btn-primary min-h-[48px] px-6 text-base"
                 >
-                  Book a session
+                  {t("landing.bookSession")}
                 </Link>
                 <Link
                   to={target}
                   className="btn-ghost min-h-[48px] px-6 text-base"
                 >
-                  Rent a hall
+                  {t("landing.rentHall")}
                 </Link>
               </div>
             </div>
@@ -185,35 +186,35 @@ export default function Landing() {
         >
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:py-20">
             <SectionHead
-              title="Services"
-              note="Every session is one hour and starts on the hour."
+              title={t("landing.services.title")}
+              note={t("landing.services.note")}
             />
             <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
               {SERVICES.map((s) => {
                 const Icon = SERVICE_ICON[s.icon];
                 return (
                   <li
-                    key={s.title}
+                    key={s.id}
                     className="flex flex-col rounded-xl border border-line bg-cream p-5"
                   >
                     <span className="flex h-11 w-11 items-center justify-center rounded-md bg-brand text-onaccent">
                       <Icon className="h-6 w-6" />
                     </span>
-                    <h3 className="mt-4 text-lg font-bold">{s.title}</h3>
-                    <p className="mt-1 text-sm text-ink/70">{s.text}</p>
+                    <h3 className="mt-4 text-lg font-bold">{t(`service.${s.id}.title` as Key)}</h3>
+                    <p className="mt-1 text-sm text-ink/70">{t(`service.${s.id}.text` as Key)}</p>
                     <p className="mt-auto flex items-center gap-1.5 pt-4 text-sm font-semibold">
                       <Clock
                         className="h-4 w-4 text-ink/60"
                         aria-hidden="true"
                       />{" "}
-                      {s.duration}
+                      {t(`service.${s.id}.duration` as Key)}
                     </p>
                     <Link
                       to={target}
                       className="btn-ghost mt-4 min-h-[44px]"
-                      aria-label={`Book ${s.title.toLowerCase()}`}
+                      aria-label={t("landing.bookService", { service: t(`service.${s.id}.title` as Key) })}
                     >
-                      Book
+                      {t("landing.book")}
                     </Link>
                   </li>
                 );
@@ -227,39 +228,31 @@ export default function Landing() {
           id="trainers"
           className="mx-auto max-w-6xl scroll-mt-20 px-4 py-14 sm:px-6 lg:py-20"
         >
-          <SectionHead title="Our trainers" note="Choose your coach for a one-hour personal session." />
-          {catalog.loading && <p className="mt-6 text-ink/70" role="status">Loading trainers and halls...</p>}
+          <SectionHead title={t("landing.trainers.title")} note={t("landing.trainers.note")} />
+          {catalog.loading && <p className="mt-6 text-ink/70" role="status">{t("landing.trainers.loading")}</p>}
           {catalog.error && (
             <div className="mt-6" role="alert">
-              <p className="text-berry">{catalog.error}</p>
-              <button type="button" className="btn-ghost mt-3" onClick={catalog.reload}>Try again</button>
+              <p className="text-berry">{msg(catalog.error)}</p>
+              <button type="button" className="btn-ghost mt-3" onClick={catalog.reload}>{t("common.tryAgain")}</button>
             </div>
           )}
           {!catalog.loading && !catalog.error && trainers.length === 0 && (
-            <p className="mt-6 text-ink/70">No trainers are available at the moment.</p>
+            <p className="mt-6 text-ink/70">{t("landing.trainers.none")}</p>
           )}
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {trainers.map((trainer) => (
               <article key={trainer.trainer_id} className="flex flex-col overflow-hidden rounded-xl border border-line bg-white">
-                <div className="flex flex-1 flex-col px-5 pt-6 text-center">
+                <TrainerPortrait trainerId={trainer.trainer_id} name={trainer.full_name} />
+                <div className="flex flex-1 flex-col px-5 pt-5 text-center">
                   <h3 className="font-display text-xl font-bold uppercase tracking-wide">{trainer.full_name}</h3>
-                  <p className="mt-2 text-sm text-ink/70">{trainer.specialization}</p>
+                  <p className="mt-2 text-sm text-ink/70">{specializationLabel(trainer.specialization)}</p>
                   <p className="mt-auto pt-5 font-display text-2xl font-bold">
-                    {kzt(trainer.session_price_kzt)} <span className="font-body text-sm font-normal text-ink/60">/ session</span>
+                    {kzt(trainer.session_price_kzt)} <span className="font-body text-sm font-normal text-ink/60">{t("landing.perSession")}</span>
                   </p>
                 </div>
-                <div className="relative mt-5 flex h-36 items-center justify-center overflow-hidden bg-sun-soft" aria-hidden="true">
-                  <svg viewBox="0 0 200 140" className="absolute -left-6 bottom-0 h-full text-brand" fill="none" stroke="currentColor" strokeWidth="20">
-                    <path d="M30 150 L90 80 L150 150" />
-                    <path d="M30 95 L90 25 L150 95" opacity="0.55" />
-                  </svg>
-                  <span className="relative ml-16 flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-ink font-display text-2xl font-bold text-white">
-                    {initials(trainer.full_name)}
-                  </span>
-                </div>
                 <div className="p-5 pt-4">
-                  <Link to={target} className="btn-primary min-h-[44px] w-full" aria-label={`Book a session with ${trainer.full_name}`}>
-                    Book a session
+                  <Link to={target} className="btn-primary min-h-[44px] w-full" aria-label={t("landing.bookWith", { name: trainer.full_name })}>
+                    {t("landing.bookSession")}
                   </Link>
                 </div>
               </article>
@@ -273,18 +266,18 @@ export default function Landing() {
           className="mx-auto max-w-6xl scroll-mt-20 px-4 py-14 sm:px-6 lg:py-20"
         >
           <SectionHead
-            title="Hall rental"
-            note="For your class, team or group. Each block is drawn to scale by how many people the hall holds."
+            title={t("landing.halls.title")}
+            note={t("landing.halls.note")}
           />
-          {catalog.loading && <p className="mt-6 text-ink/70" role="status">Loading halls...</p>}
+          {catalog.loading && <p className="mt-6 text-ink/70" role="status">{t("landing.halls.loading")}</p>}
           {catalog.error && (
             <div className="mt-6" role="alert">
-              <p className="text-berry">{catalog.error}</p>
-              <button type="button" className="btn-ghost mt-3" onClick={catalog.reload}>Try again</button>
+              <p className="text-berry">{msg(catalog.error)}</p>
+              <button type="button" className="btn-ghost mt-3" onClick={catalog.reload}>{t("common.tryAgain")}</button>
             </div>
           )}
           {!catalog.loading && !catalog.error && halls.length === 0 && (
-            <p className="mt-6 text-ink/70">No halls are available at the moment.</p>
+            <p className="mt-6 text-ink/70">{t("landing.halls.none")}</p>
           )}
           <div className="mt-8 flex flex-col gap-3 md:h-80 md:flex-row">
             {halls.map((h) => (
@@ -295,22 +288,22 @@ export default function Landing() {
               >
                 <h3 className="relative text-xl font-bold">{h.hall_name}</h3>
                 <dl className="relative grid grid-cols-[auto_1fr] gap-x-3 text-sm">
-                  <dt className="text-ink/60">Capacity</dt>
-                  <dd className="font-semibold">up to {h.capacity} people</dd>
-                  <dt className="sr-only">Price</dt>
+                  <dt className="text-ink/60">{t("landing.halls.capacity")}</dt>
+                  <dd className="font-semibold">{tp("landing.halls.upTo", h.capacity)}</dd>
+                  <dt className="sr-only">{t("landing.halls.price")}</dt>
                   <dd className="col-span-2 mt-2 font-display text-2xl font-bold">
                     {kzt(h.hourly_rate_kzt)}{" "}
                     <span className="font-body text-sm font-normal text-ink/60">
-                      / hour
+                      {t("landing.perHour")}
                     </span>
                   </dd>
                 </dl>
                 <Link
                   to={target}
                   className="btn-primary mt-4 min-h-[44px] self-start"
-                  aria-label={`Rent the ${h.hall_name}`}
+                  aria-label={t("landing.rentThe", { hall: h.hall_name })}
                 >
-                  Rent this hall
+                  {t("landing.rentThisHall")}
                 </Link>
               </div>
             ))}
@@ -320,10 +313,10 @@ export default function Landing() {
         {/* ---- How it works ---- */}
         <section className="border-y border-line bg-white">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:py-20">
-            <SectionHead title="How it works" />
+            <SectionHead title={t("landing.how.title")} />
             <ol className="mt-10 grid gap-x-6 gap-y-8 md:grid-cols-3">
               {STEPS.map((s, i) => (
-                <li key={s.title} className="flex gap-4">
+                <li key={s} className="flex gap-4">
                   <span
                     className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-[5px] border-ink bg-brand font-display text-xl font-bold text-onaccent ring-2 ring-inset ring-onaccent/20"
                     aria-hidden="true"
@@ -331,9 +324,9 @@ export default function Landing() {
                     {i + 1}
                   </span>
                   <div>
-                    <p className="sr-only">Step {i + 1}</p>
-                    <h3 className="text-xl font-bold">{s.title}</h3>
-                    <p className="mt-1 text-sm text-ink/70">{s.text}</p>
+                    <p className="sr-only">{t("landing.how.step", { n: i + 1 })}</p>
+                    <h3 className="text-xl font-bold">{t(`step.${s}.title` as Key)}</h3>
+                    <p className="mt-1 text-sm text-ink/70">{t(`step.${s}.text` as Key)}</p>
                   </div>
                 </li>
               ))}
@@ -347,8 +340,8 @@ export default function Landing() {
           className="mx-auto max-w-6xl scroll-mt-20 px-4 py-14 sm:px-6 lg:py-20"
         >
           <SectionHead
-            title="Pricing"
-            note="A membership lets you book on the days it covers. Trainer sessions and hall hours are paid per booking."
+            title={t("landing.pricing.title")}
+            note={t("landing.pricing.note")}
           />
           <ul className="mt-8 grid gap-4 md:grid-cols-3">
             {PLANS.map((p) => (
@@ -356,15 +349,15 @@ export default function Landing() {
                 key={p.plan}
                 className={`flex flex-col rounded-xl border p-6 ${p.featured ? "border-brand bg-brand/10 ring-1 ring-brand" : "border-line bg-white"}`}
               >
-                <h3 className="text-xl font-bold">{p.name}</h3>
+                <h3 className="text-xl font-bold">{t(`plan.${p.plan}` as Key)}</h3>
                 <p className="mt-3">
                   <span className="font-display text-4xl font-bold">
                     {kzt(p.priceKzt)}
                   </span>{" "}
-                  <span className="text-sm text-ink/60">{p.period}</span>
+                  <span className="text-sm text-ink/60">{t(`landing.plan.${p.plan}.period` as Key)}</span>
                 </p>
                 <ul className="mt-4 space-y-2 text-sm">
-                  {p.perks.map((perk) => (
+                  {[t(`landing.plan.${p.plan}.perk1` as Key), t("landing.plan.perk2"), t("landing.plan.perk3")].map((perk) => (
                     <li key={perk} className="flex gap-2">
                       <span
                         className="mt-1.5 h-2 w-3 shrink-0 rounded-[2px] border border-brand-dark/50 bg-brand/40"
@@ -378,16 +371,16 @@ export default function Landing() {
                   to={user ? HOME[user.role] : `/register?plan=${p.plan}`}
                   className={`${p.featured ? "btn-primary" : "btn-ghost"} mt-6 min-h-[44px]`}
                   aria-label={
-                    user ? "Dashboard" : `Sign up with the ${p.name} plan`
+                    user ? t("common.dashboard") : t("landing.pricing.signUpWith", { plan: t(`plan.${p.plan}` as Key) })
                   }
                 >
-                  {user ? "Dashboard" : `Choose ${p.name}`}
+                  {user ? t("common.dashboard") : t("landing.pricing.choose", { plan: t(`plan.${p.plan}` as Key) })}
                 </Link>
               </li>
             ))}
           </ul>
           <p className="mt-4 text-xs text-ink/60">
-            Prices shown are demo values.
+            {t("landing.pricing.demo")}
           </p>
         </section>
 
@@ -395,17 +388,17 @@ export default function Landing() {
         <section className="border-y border-line bg-white">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:py-20">
             <SectionHead
-              title="What members say"
-              note="Sample reviews with fictional names, for this demo."
+              title={t("landing.reviews.title")}
+              note={t("landing.reviews.note")}
             />
             <ul className="mt-8 grid gap-4 md:grid-cols-3">
-              {TESTIMONIALS.map((t) => (
-                <li key={t.name}>
+              {TESTIMONIALS.map((r) => (
+                <li key={r.name}>
                   <figure className="flex h-full flex-col rounded-xl border border-line bg-cream p-6">
-                    <blockquote className="text-ink/85">“{t.text}”</blockquote>
+                    <blockquote className="text-ink/85">{lang === "en" ? "“" : "«"}{t(`review.${r.n}.text` as Key)}{lang === "en" ? "”" : "»"}</blockquote>
                     <figcaption className="mt-auto pt-5 text-sm">
-                      <span className="block font-semibold">{t.name}</span>
-                      <span className="text-ink/60">{t.role}</span>
+                      <span className="block font-semibold">{r.name}</span>
+                      <span className="text-ink/60">{t(`review.${r.n}.role` as Key)}</span>
                     </figcaption>
                   </figure>
                 </li>
@@ -419,16 +412,16 @@ export default function Landing() {
           <div className="mx-auto grid max-w-6xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[1fr_1.35fr] lg:items-center lg:py-20">
             <div>
               <p className="text-sm font-bold uppercase tracking-widest text-brand-dark">
-                Visit us
+                {t("landing.contact.visit")}
               </p>
               <h2 className="mt-2 text-4xl font-bold sm:text-5xl">
-                {CONTACT.address}
+                {address()}
               </h2>
 
               <ul className="mt-6 space-y-1 text-lg">
                 <li className="flex min-h-[44px] items-center gap-3">
                   <Clock className="h-6 w-6 shrink-0 text-brand-dark" aria-hidden="true" />
-                  Every day, {HOURS_TEXT}
+                  {t("landing.contact.everyDay", { hours: HOURS_TEXT })}
                 </li>
                 <li>
                   <a href={PHONE_HREF} className="inline-flex min-h-[44px] items-center gap-3 underline-offset-4 hover:underline">
@@ -458,18 +451,18 @@ export default function Landing() {
               <div className="mt-8 flex flex-col gap-3 sm:max-w-sm">
                 <a href={CONTACT.whatsapp} target="_blank" rel="noopener noreferrer" className="contact-btn">
                   <MessageCircle className="h-5 w-5" aria-hidden="true" />
-                  Message us on WhatsApp
+                  {t("landing.contact.whatsapp")}
                 </a>
                 <a href={CONTACT.twoGisUrl} target="_blank" rel="noopener noreferrer" className="contact-btn">
                   <Navigation className="h-5 w-5" aria-hidden="true" />
-                  Get directions in 2GIS
+                  {t("landing.contact.twoGis")}
                 </a>
               </div>
             </div>
 
             <div className="h-80 overflow-hidden rounded-2xl border border-line bg-white sm:h-96 lg:h-[440px]">
               <iframe
-                title={`Map: ${GYM_NAME}, ${CONTACT.address}`}
+                title={t("landing.contact.map", { gym: GYM_NAME, address: address() })}
                 src={MAP_SRC}
                 className="h-full w-full border-0"
                 loading="lazy"
@@ -487,7 +480,7 @@ export default function Landing() {
             <Barbell className="h-5 w-5" /> {GYM_NAME}
           </p>
           <p className="text-xs text-ink/60">
-            © {TODAY_DATE.slice(0, 4)} {GYM_NAME}. Personal training and hall rental by the hour.
+            © {TODAY_DATE.slice(0, 4)} {GYM_NAME}. {t("landing.footer")}
           </p>
         </div>
       </footer>

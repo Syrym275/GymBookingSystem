@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 import { AlertTriangle, Inbox, Loader2 } from 'lucide-react';
+import { useT } from '../i18n';
+import { msg } from '../i18n/messages';
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
   return (
@@ -13,18 +15,20 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
   );
 }
 
-export function Loading({ text = 'Loading…' }: { text?: string }) {
+export function Loading({ text }: { text?: string }) {
+  const { t } = useT();
   return (
     <div className="flex items-center justify-center gap-2 py-12 text-sm text-ink/60">
-      <Loader2 className="h-4 w-4 animate-spin" /> {text}
+      <Loader2 className="h-4 w-4 animate-spin" /> {text ?? t('common.loading')}
     </div>
   );
 }
 
 export function ErrorNote({ message }: { message: string }) {
+  useT();
   return (
     <div className="flex items-start gap-2 rounded-xl border border-berry bg-berry-soft p-3 text-sm">
-      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-berry" /> {message}
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-berry" /> {msg(message)}
     </div>
   );
 }

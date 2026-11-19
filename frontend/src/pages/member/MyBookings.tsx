@@ -10,8 +10,10 @@ import { TODAY } from '../../config';
 import { useAsync } from '../../hooks/useAsync';
 import type { BookingStatus, BookingView } from '../../types';
 import { ALL_STATUSES, STATUS_LABEL, bkNumber, fmtRange, kzt } from '../../utils/format';
+import { useT, type Key } from '../../i18n';
 
 export default function MyBookings() {
+  const { t } = useT();
   const toast = useToast();
   const { data, error, reload } = useAsync(() => listBookings(), []);
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
@@ -31,24 +33,24 @@ export default function MyBookings() {
 
   return (
     <div>
-      <PageHeader title="My bookings" />
+      <PageHeader title={t('nav.myBookings')} />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="inline-flex rounded-xl border border-line bg-white p-1">
-          {(['upcoming', 'past'] as const).map((t) => (
+          {(['upcoming', 'past'] as const).map((tb) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`rounded-lg px-4 py-1.5 text-sm font-bold capitalize ${tab === t ? 'bg-brand text-onaccent' : 'hover:bg-sun-soft'}`}
+              key={tb}
+              onClick={() => setTab(tb)}
+              className={`rounded-lg px-4 py-1.5 text-sm font-bold ${tab === tb ? 'bg-brand text-onaccent' : 'hover:bg-sun-soft'}`}
             >
-              {t}
+              {t(`mybook.${tb}` as Key)}
             </button>
           ))}
         </div>
         <label className="sr-only" htmlFor="mb-status">
-          Filter by status
+          {t('mybook.filter')}
         </label>
         <select id="mb-status" className="input w-auto" value={status} onChange={(e) => setStatus(e.target.value as BookingStatus | '')}>
-          <option value="">All statuses</option>
+          <option value="">{t('mybook.allStatuses')}</option>
           {ALL_STATUSES.map((s) => (
             <option key={s} value={s}>
               {STATUS_LABEL[s]}
@@ -59,11 +61,11 @@ export default function MyBookings() {
 
       {rows.length === 0 ? (
         <EmptyState
-          title={`No ${tab} bookings${status ? ` with status “${STATUS_LABEL[status]}”` : ''}`}
+          title={status ? t(`mybook.none.${tab}.status` as Key, { status: STATUS_LABEL[status] }) : t(`mybook.none.${tab}` as Key)}
           action={
             tab === 'upcoming' ? (
               <Link to="/member/trainers" className="btn-primary">
-                Book a session
+                {t('landing.bookSession')}
               </Link>
             ) : undefined
           }
@@ -72,11 +74,11 @@ export default function MyBookings() {
         <div className="space-y-3">
           {rows.map((b) => (
             <div key={b.booking_id} className="card-flat flex flex-wrap items-center gap-3">
-              <button className="min-w-0 flex-1 text-left" onClick={() => setSlip(b)}>
+              <button className="min-w-0 flex-1 basis-full text-left sm:basis-auto" onClick={() => setSlip(b)}>
                 <p className="font-bold">
                   <span className="mr-2 font-mono text-sm text-ink/50">{bkNumber(b.booking_id)}</span>
                   {b.trainer_name ?? b.hall_name}
-                  <span className="ml-2 text-xs font-normal text-ink/50">{b.booking_type === 'training' ? 'Training' : 'Hall rental'}</span>
+                  <span className="ml-2 text-xs font-normal text-ink/50">{b.booking_type === 'training' ? t('type.training') : t('type.hall')}</span>
                 </p>
                 <p className="text-sm text-ink/60">{fmtRange(b.start_time, b.end_time)}</p>
               </button>
@@ -86,16 +88,16 @@ export default function MyBookings() {
               <div className="flex gap-2">
                 {b.status === 'pending' && b.start_time >= TODAY && (
                   <Link to={`/member/pay/${b.booking_id}`} className="btn-primary btn-sm">
-                    Pay
+                    {t('mybook.pay')}
                   </Link>
                 )}
                 {canCancel(b) && (
                   <button className="btn-danger btn-sm" onClick={() => setToCancel(b)}>
-                    Cancel
+                    {t('mybook.cancel')}
                   </button>
                 )}
                 <button className="btn-ghost btn-sm" onClick={() => setSlip(b)}>
-                  Slip
+                  {t('mybook.slip')}
                 </button>
               </div>
             </div>
@@ -107,22 +109,22 @@ export default function MyBookings() {
       <ConfirmDialog
         open={!!toCancel}
         danger
-        title={toCancel ? `Cancel ${bkNumber(toCancel.booking_id)}?` : ''}
+        title={toCancel ? t('mybook.cancelQ', { id: bkNumber(toCancel.booking_id) }) : ''}
         message={
           toCancel?.status === 'confirmed'
-            ? 'This booking is paid. Cancelling will release the slot and mark your payment as refunded.'
-            : 'The slot will be released for other members.'
+            ? t('mybook.cancelPaid')
+            : t('mybook.released')
         }
-        confirmLabel="Cancel booking"
+        confirmLabel={t('mybook.cancelBooking')}
         onCancel={() => setToCancel(null)}
         onConfirm={async () => {
           if (!toCancel) return;
           try {
             await cancelBooking(toCancel.booking_id);
-            toast.success(`${bkNumber(toCancel.booking_id)} cancelled.`);
+            toast.success(t('mybook.cancelled', { id: bkNumber(toCancel.booking_id) }));
             reload();
           } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Could not cancel.');
+            toast.error(e instanceof Error ? e.message : t('mybook.cancelFailed'));
           }
           setToCancel(null);
         }}

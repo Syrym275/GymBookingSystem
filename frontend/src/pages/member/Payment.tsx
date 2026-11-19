@@ -10,14 +10,18 @@ import { EmptyState, ErrorNote, Loading, PageHeader } from '../../components/ui'
 import { useAsync } from '../../hooks/useAsync';
 import type { PaymentMethod } from '../../types';
 import { bkNumber, fmtDate, kzt, pad, timeOf } from '../../utils/format';
+import { useT, type Key } from '../../i18n';
+import { STATUS_LABEL } from '../../utils/format';
 
-const METHODS: { id: PaymentMethod; label: string; hint: string; icon: JSX.Element }[] = [
-  { id: 'card', label: 'Bank card', hint: 'Visa / Mastercard', icon: <CreditCard className="h-5 w-5" /> },
-  { id: 'nfc', label: 'NFC', hint: 'Tap at the terminal', icon: <Wifi className="h-5 w-5" /> },
-  { id: 'app', label: 'Mobile app', hint: 'Pay in your bank app', icon: <Smartphone className="h-5 w-5" /> },
+// Text: pay.method.<id> / pay.method.<id>.hint
+const METHODS: { id: PaymentMethod; icon: JSX.Element }[] = [
+  { id: 'card', icon: <CreditCard className="h-5 w-5" /> },
+  { id: 'nfc', icon: <Wifi className="h-5 w-5" /> },
+  { id: 'app', icon: <Smartphone className="h-5 w-5" /> },
 ];
 
 export default function Payment() {
+  const { t } = useT();
   const { bookingId } = useParams();
   const id = Number(bookingId);
   const navigate = useNavigate();
@@ -66,13 +70,13 @@ export default function Payment() {
   if (!pending) {
     return (
       <div>
-        <PageHeader title={`Payment for ${bkNumber(b.booking_id)}`} />
+        <PageHeader title={t('pay.for', { id: bkNumber(b.booking_id) })} />
         <EmptyState
-          title={b.status === 'expired' ? 'The payment hold ran out' : b.paid ? 'This booking is already paid' : `This booking is ${b.status}`}
-          text={b.status === 'expired' ? 'The slot was released. You can book it again if it is still free.' : undefined}
+          title={b.status === 'expired' ? t('pay.holdRanOut') : b.paid ? t('pay.alreadyPaid') : t('pay.bookingIs', { status: STATUS_LABEL[b.status].toLowerCase() })}
+          text={b.status === 'expired' ? t('pay.released') : undefined}
           action={
             <Link className="btn-primary" to={b.paid ? `/member/confirmation/${b.booking_id}` : '/member/bookings'}>
-              {b.paid ? 'View confirmation' : 'Go to my bookings'}
+              {b.paid ? t('pay.viewConfirmation') : t('pay.goBookings')}
             </Link>
           }
         />
@@ -89,11 +93,11 @@ export default function Payment() {
       if (res.payment.payment_status === 'declined') {
         setDeclined(res.payment.provider_txn_ref);
       } else {
-        toast.success('Payment approved - booking confirmed!');
+        toast.success(t('pay.approved'));
         navigate(`/member/confirmation/${id}`, { replace: true });
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Payment failed.');
+      setError(e instanceof Error ? e.message : t('pay.failed'));
       booking.reload();
     } finally {
       setBusy(false);
@@ -105,7 +109,7 @@ export default function Payment() {
 
   return (
     <div>
-      <PageHeader title="Complete your payment" subtitle="Your slot is held while you pay." />
+      <PageHeader title={t('pay.title')} subtitle={t('pay.sub')} />
       <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <div className="card space-y-5">
           <div className={`flex items-center gap-3 rounded-xl border border-line p-3 ${secondsLeft < 120 ? 'bg-berry-soft' : 'bg-sun-soft'}`}>
@@ -114,12 +118,12 @@ export default function Payment() {
               <p className="font-display text-2xl font-extrabold tabular-nums">
                 {mm}:{ss}
               </p>
-              <p className="text-xs text-ink/70">left to pay before the slot is released</p>
+              <p className="text-xs text-ink/70">{t('pay.left')}</p>
             </div>
           </div>
 
           <div>
-            <p className="label">Payment method</p>
+            <p className="label">{t('pay.method')}</p>
             <div className="grid gap-2 sm:grid-cols-3">
               {METHODS.map((m) => (
                 <button
@@ -131,8 +135,8 @@ export default function Payment() {
                   }`}
                 >
                   {m.icon}
-                  <span className="mt-1 block text-sm font-bold">{m.label}</span>
-                  <span className="block text-xs text-ink/60">{m.hint}</span>
+                  <span className="mt-1 block text-sm font-bold">{t(`pay.method.${m.id}` as Key)}</span>
+                  <span className="block text-xs text-ink/60">{t(`pay.method.${m.id}.hint` as Key)}</span>
                 </button>
               ))}
             </div>
@@ -141,21 +145,21 @@ export default function Payment() {
           <label className="flex cursor-pointer items-center gap-2 rounded-xl bg-cream p-3 text-sm">
             <input type="checkbox" checked={simulateDecline} onChange={(e) => setSimulateDecline(e.target.checked)} className="h-4 w-4 accent-brand" />
             <span>
-              <b>Demo:</b> simulate a declined payment
+              <b>{t('pay.demo')}</b> {t('pay.simulate')}
             </span>
           </label>
 
           {declined && (
-            <ErrorNote message={`Payment declined by the bank (ref ${declined}). Nothing was charged - try again or change the method.`} />
+            <ErrorNote message={t('pay.declined', { ref: declined })} />
           )}
           {error && <ErrorNote message={error} />}
 
           <div className="flex flex-wrap gap-3">
             <button className="btn-primary" onClick={pay} disabled={busy}>
-              {busy ? 'Processing…' : `Pay ${kzt(b.price_kzt)}`}
+              {busy ? t('pay.processing') : t('pay.payAmount', { amount: kzt(b.price_kzt) })}
             </button>
             <button className="btn-ghost" onClick={() => setConfirmCancel(true)} disabled={busy}>
-              Cancel booking
+              {t('mybook.cancelBooking')}
             </button>
           </div>
         </div>
@@ -167,21 +171,21 @@ export default function Payment() {
           </div>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between gap-3">
-              <dt className="text-ink/60">{b.booking_type === 'training' ? 'Trainer' : 'Hall'}</dt>
+              <dt className="text-ink/60">{b.booking_type === 'training' ? t('role.trainer') : t('table.hall')}</dt>
               <dd className="font-bold">{b.trainer_name ?? b.hall_name}</dd>
             </div>
             <div className="flex justify-between gap-3">
-              <dt className="text-ink/60">Date</dt>
+              <dt className="text-ink/60">{t('slip.date')}</dt>
               <dd className="font-bold">{fmtDate(b.start_time)}</dd>
             </div>
             <div className="flex justify-between gap-3">
-              <dt className="text-ink/60">Time</dt>
+              <dt className="text-ink/60">{t('slip.time')}</dt>
               <dd className="font-bold">
                 {timeOf(b.start_time)} – {timeOf(b.end_time)}
               </dd>
             </div>
             <div className="flex justify-between gap-3 border-t border-dashed border-ink/20 pt-2 text-base">
-              <dt className="font-bold">Total</dt>
+              <dt className="font-bold">{t('pay.total')}</dt>
               <dd className="font-display text-xl font-extrabold text-brand-dark">{kzt(b.price_kzt)}</dd>
             </div>
           </dl>
@@ -191,17 +195,17 @@ export default function Payment() {
       <ConfirmDialog
         open={confirmCancel}
         danger
-        title="Cancel this booking?"
-        message="The slot will be released for other members."
-        confirmLabel="Cancel booking"
+        title={t('pay.cancelQ')}
+        message={t('mybook.released')}
+        confirmLabel={t('mybook.cancelBooking')}
         onCancel={() => setConfirmCancel(false)}
         onConfirm={async () => {
           try {
             await cancelBooking(id);
-            toast.success('Booking cancelled.');
+            toast.success(t('pay.cancelled'));
             navigate('/member/bookings', { replace: true });
           } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Could not cancel.');
+            toast.error(e instanceof Error ? e.message : t('mybook.cancelFailed'));
             setConfirmCancel(false);
           }
         }}
