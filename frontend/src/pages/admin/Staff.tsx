@@ -11,12 +11,12 @@ import { ErrorNote, Loading, PageHeader } from '../../components/ui';
 import { useAsync } from '../../hooks/useAsync';
 import { useT } from '../../i18n';
 import { msg } from '../../i18n/messages';
-import type { Role, StaffAccount } from '../../types';
+import type { StaffAccount } from '../../types';
 import { ActiveChip } from './common';
 
-type StaffRole = Exclude<Role, 'member'>;
+type StaffRole = 'receptionist' | 'trainer'; // the one admin account is never created here
 
-/** Staff logins (receptionist, trainer, admin). Accounts are deactivated, never deleted. */
+/** Staff logins: the single admin, receptionists and trainers. Accounts are deactivated, never deleted. */
 export default function AdminStaff() {
   const { t } = useT();
   const toast = useToast();
@@ -28,17 +28,19 @@ export default function AdminStaff() {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<StaffRole>('receptionist');
   const [trainerId, setTrainerId] = useState('');
+  const [password, setPassword] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      await addStaff({ full_name: name, email, role, trainer_id: role === 'trainer' ? Number(trainerId) || undefined : undefined });
+      await addStaff({ full_name: name, email, role, password, trainer_id: role === 'trainer' ? Number(trainerId) || undefined : undefined });
       toast.success(t('adm.st.created'));
       setOpen(false);
       setName('');
       setEmail('');
       setTrainerId('');
+      setPassword('');
       reload();
     } catch (err) {
       setFormError(msg(err instanceof Error ? err.message : t('common.saveFailed')));
@@ -78,7 +80,7 @@ export default function AdminStaff() {
       header: '',
       render: (u) => (
         <div className="flex justify-end">
-          <button className={u.is_active ? 'btn-danger btn-sm' : 'btn-primary btn-sm'} onClick={() => void toggle(u)} disabled={u.user_id === user?.user_id}>
+          <button className={u.is_active ? 'btn-danger btn-sm' : 'btn-primary btn-sm'} onClick={() => void toggle(u)} disabled={u.user_id === user?.user_id || u.role === 'admin'}>
             {u.is_active ? t('adm.deactivate') : t('adm.activate')}
           </button>
         </div>
@@ -141,7 +143,6 @@ export default function AdminStaff() {
             <select id="st-role" className="input" value={role} onChange={(e) => setRole(e.target.value as StaffRole)}>
               <option value="receptionist">{ROLE_LABEL.receptionist}</option>
               <option value="trainer">{ROLE_LABEL.trainer}</option>
-              <option value="admin">{ROLE_LABEL.admin}</option>
             </select>
           </div>
           {role === 'trainer' && (
@@ -159,7 +160,23 @@ export default function AdminStaff() {
               </select>
             </div>
           )}
-          <p className="text-xs text-ink/60">{t('adm.st.demoPw')}</p>
+          <div>
+            <label className="label" htmlFor="st-password">
+              {t('adm.st.password')}
+            </label>
+            <input
+              id="st-password"
+              type="password"
+              autoComplete="new-password"
+              className="input"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              minLength={8}
+              maxLength={72}
+              required
+            />
+            <p className="mt-1 text-xs text-ink/60">{t('adm.st.passwordNote')}</p>
+          </div>
           {formError && <ErrorNote message={formError} />}
         </form>
       </Modal>

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Download, Search, X } from 'lucide-react';
 import { listAllHalls, listAllMembers, listAllTrainers, listPaymentsOf } from '../../api/adminApi';
-import { listBookings, setBookingStatus, type BookingFilters } from '../../api/bookingsApi';
+import { ADMIN_STATUS_CHANGES, listBookings, setBookingStatus, type BookingFilters } from '../../api/bookingsApi';
 import { DataTable, type Column } from '../../components/DataTable';
 import { Modal } from '../../components/Modal';
 import { PaidBadge, PaymentBadge, StatusBadge } from '../../components/StatusBadge';
@@ -195,10 +195,11 @@ export default function AdminBookings() {
           aria-label={`${t('adm.bk.status')} ${bkNumber(b.booking_id)}`}
           className="rounded-md border border-line bg-cream px-2 py-1 text-xs font-semibold"
           value={b.status}
+          disabled={ADMIN_STATUS_CHANGES[b.status].length === 0}
           onClick={(e) => e.stopPropagation()}
           onChange={(e) => void changeStatus(b, e.target.value as BookingStatus)}
         >
-          {ALL_STATUSES.map((s) => (
+          {[b.status, ...ADMIN_STATUS_CHANGES[b.status]].map((s) => (
             <option key={s} value={s}>
               {STATUS_LABEL[s]}
             </option>

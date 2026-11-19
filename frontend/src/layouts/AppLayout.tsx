@@ -16,6 +16,7 @@ import {
   History,
   Receipt,
   Search,
+  ScrollText,
   ShieldCheck,
   User,
   UserCog,
@@ -30,7 +31,6 @@ import { fmtDateTime } from '../utils/format';
 import { TODAY } from '../config';
 import { ThemeToggle } from '../theme/ThemeContext';
 import { LanguageSwitcher, useT, type Key } from '../i18n';
-import { DemoBanner } from '../pages/admin/common';
 
 interface NavItem {
   to: string;
@@ -65,6 +65,7 @@ const NAV: Partial<Record<Role, NavItem[]>> = {
     { to: '/admin/members', label: 'adm.nav.members', icon: <Users className={i} /> },
     { to: '/admin/reports', label: 'adm.nav.reports', icon: <BarChart3 className={i} /> },
     { to: '/admin/staff', label: 'adm.nav.staff', icon: <UserCog className={i} /> },
+    { to: '/admin/audit', label: 'adm.nav.audit', icon: <ScrollText className={i} /> },
   ],
   receptionist: [
     { to: '/reception', label: 'nav.today', icon: <CalendarCheck className={i} />, end: true },
@@ -173,7 +174,6 @@ export function AppLayout() {
               </Link>
             </div>
           )}
-          {user.role === 'admin' && <DemoBanner />}
           <Outlet />
         </main>
       </div>

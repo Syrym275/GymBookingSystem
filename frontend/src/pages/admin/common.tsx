@@ -1,18 +1,6 @@
 import { addDays, format } from 'date-fns';
-import { Info } from 'lucide-react';
 import { dateLocale, useT } from '../../i18n';
 import { membershipState, parseLocal, toDate } from '../../utils/format';
-
-/** Shown on every admin screen: the admin area runs on demo data until the backend has admin routes. */
-export function DemoBanner() {
-  const { t } = useT();
-  return (
-    <div role="note" className="mb-5 flex items-start gap-2 rounded-lg border border-dashed border-brand/60 bg-brand-soft px-3 py-2 text-sm">
-      <Info className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden="true" />
-      <span>{t('adm.demoBanner')}</span>
-    </div>
-  );
-}
 
 export function ActiveChip({ active }: { active: boolean }) {
   const { t } = useT();

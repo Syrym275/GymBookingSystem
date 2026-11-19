@@ -7,6 +7,7 @@ import psycopg
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from psycopg.errors import UniqueViolation
 
+from .audit import record, record_separately
 from .db import connect, is_valid_email
 from .email_domain import email_domain_exists
 from .verification import issue_token, send_verification_email
@@ -166,6 +167,16 @@ def register(input: RegisterRequest, response: Response) -> CurrentUserResponse:
 
                 user_id = cursor.fetchone()[0]
                 token = issue_token(cursor, user_id)
+                record(
+                    cursor,
+                    "member.registered",
+                    actor_user_id=user_id,
+                    actor_email=email,
+                    actor_role="member",
+                    target_type="member",
+                    target_id=member_id,
+                    details={"membership_plan": input.membership_plan},
+                )
 
     except UniqueViolation:
         raise HTTPException(
@@ -248,6 +259,17 @@ def register_trainer(input: TrainerRegisterRequest, response: Response) -> Train
 
                 user_id = cursor.fetchone()[0]
                 token = issue_token(cursor, user_id)
+                # Shows up in the admin's "Trainer applications" list until approved or rejected.
+                record(
+                    cursor,
+                    "trainer.registered",
+                    actor_user_id=user_id,
+                    actor_email=email,
+                    actor_role="trainer",
+                    target_type="trainer",
+                    target_id=trainer_id,
+                    details={"full_name": full_name, "specialization": specialization},
+                )
 
     except UniqueViolation:
         raise HTTPException(
@@ -288,6 +310,7 @@ def login(input: LoginRequest, response: Response) -> CurrentUserResponse:
                         COALESCE(
                             m.full_name,
                             t.full_name,
+                            u.full_name,
                             INITCAP(REPLACE(SPLIT_PART(u.email, '@', 1), '.', ' '))
                         ) AS full_name,
                         t.specialization,
@@ -324,6 +347,12 @@ def login(input: LoginRequest, response: Response) -> CurrentUserResponse:
             valid_password = False
 
     if not valid_password:
+        record_separately(
+            "auth.login_failed",
+            actor_user_id=row[0] if row is not None else None,
+            actor_email=email,
+            actor_role=row[3] if row is not None else None,
+        )
         raise HTTPException(
             status_code=401,
             detail="Wrong email or password.",
@@ -342,6 +371,7 @@ def login(input: LoginRequest, response: Response) -> CurrentUserResponse:
         email_verified=row[10],
     )
     create_session(row[0], response)
+    record_separately("auth.login", actor_user_id=row[0], actor_email=row[1], actor_role=row[3])
     return result
 
 

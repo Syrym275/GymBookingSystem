@@ -85,6 +85,7 @@ def current_user(request: Request) -> CurrentUserResponse:
                         COALESCE(
                             m.full_name,
                             t.full_name,
+                            u.full_name,
                             INITCAP(REPLACE(SPLIT_PART(u.email, '@', 1), '.', ' '))
                         ) AS full_name,
                         t.specialization AS trainer_specialization,

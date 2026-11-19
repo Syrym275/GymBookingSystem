@@ -218,3 +218,161 @@ class PaymentResponse(BaseModel):
 class PayResultResponse(BaseModel):
     payment: PaymentResponse
     booking: BookingResponse
+
+
+# ---- Admin -------------------------------------------------------------------
+
+class AdminTrainer(BaseModel):
+    trainer_id: int
+    full_name: str
+    specialization: str
+    session_price_kzt: Money
+    is_active: bool
+
+
+class TrainerInput(BaseModel):
+    full_name: str = Field(min_length=2, max_length=100)
+    specialization: str = Field(min_length=2, max_length=60)
+    session_price_kzt: Money
+
+
+class TrainerPatch(BaseModel):
+    full_name: str | None = Field(default=None, min_length=2, max_length=100)
+    specialization: str | None = Field(default=None, min_length=2, max_length=60)
+    session_price_kzt: Money | None = None
+    is_active: bool | None = None
+
+
+class TrainerApplicationResponse(BaseModel):
+    application_id: int  # = trainer_id of the pending trainer
+    full_name: str
+    email: str
+    email_verified: bool
+    specialization: str
+    session_price_kzt: Money
+    created_at: datetime
+
+
+class AdminHall(BaseModel):
+    hall_id: int
+    hall_name: str
+    capacity: int
+    hourly_rate_kzt: Money
+    is_active: bool
+
+
+class HallInput(BaseModel):
+    hall_name: str = Field(min_length=1, max_length=60)
+    capacity: int = Field(ge=1, le=200)
+    hourly_rate_kzt: Money
+
+
+class HallPatch(BaseModel):
+    hall_name: str | None = Field(default=None, min_length=1, max_length=60)
+    capacity: int | None = Field(default=None, ge=1, le=200)
+    hourly_rate_kzt: Money | None = None
+    is_active: bool | None = None
+
+
+class AdminMemberResponse(MemberResponse):
+    bookings: int
+
+
+class MemberPatch(BaseModel):
+    membership_plan: Literal["monthly", "quarterly", "annual"]
+
+
+class MembershipExtendRequest(BaseModel):
+    months: int = Field(ge=1, le=24)
+
+
+class AdminBookingStatusRequest(BaseModel):
+    status: Literal["confirmed", "completed", "no_show", "cancelled"]
+
+
+class AdminBookingResponse(BookingResponse):
+    member_email: str | None = None
+    payment: PaymentResponse | None = None
+
+
+class AdminPaymentResponse(PaymentResponse):
+    booking_no: str
+    member_name: str
+
+
+class StaffAccountResponse(BaseModel):
+    user_id: int
+    full_name: str
+    email: str
+    role: Literal["trainer", "receptionist", "admin"]
+    trainer_id: int | None = None
+    is_active: bool
+
+
+class StaffCreateRequest(BaseModel):
+    full_name: str = Field(min_length=2, max_length=100)
+    email: str = Field(min_length=5, max_length=255)
+    role: Literal["receptionist", "trainer"]  # there is exactly one admin; it is never created here
+    trainer_id: int | None = Field(default=None, gt=0)
+    password: str = Field(min_length=8, max_length=72)
+
+
+class StaffPatch(BaseModel):
+    is_active: bool
+
+
+class AuditEntry(BaseModel):
+    audit_id: int
+    actor_user_id: int | None
+    actor_email: str | None
+    actor_role: str | None
+    action: str
+    target_type: str | None
+    target_id: int | None
+    details: dict
+    created_at: datetime
+
+
+class HourCount(BaseModel):
+    hour: int
+    label: str
+    count: int
+
+
+class WeekdayCount(BaseModel):
+    day: str
+    count: int
+
+
+class AdminOverview(BaseModel):
+    bookings_week: int
+    confirmed_week: int
+    pending_week: int
+    revenue_30d: float
+    no_show_rate: float
+    busiest_day: str
+    busiest_hour: str
+    by_weekday: list[WeekdayCount]
+    by_hour: list[HourCount]
+
+
+class AdminAttention(BaseModel):
+    pendingTrainers: int
+    unpaidBookings: int
+    expiringMemberships: int
+    expiredMemberships: int
+
+
+class ResourceCounts(BaseModel):
+    trainers: dict[int, int]
+    halls: dict[int, int]
+    booked: dict[str, dict[int, int]]
+
+
+class TrainerReportRow(BaseModel):
+    trainer_id: int
+    trainer_name: str
+    sessions: int
+    evening: int
+    before_17: int
+    no_shows: int

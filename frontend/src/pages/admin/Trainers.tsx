@@ -14,7 +14,7 @@ import type { Trainer, TrainerApplication } from '../../types';
 import { fmtDateTime, kzt } from '../../utils/format';
 import { ActiveChip } from './common';
 
-/** Trainers: add, edit, approve / activate / deactivate. Nobody is ever deleted. */
+/** Trainers: approve sign-ups, add, edit, activate / deactivate. Only never-booked trainers can be deleted. */
 export default function AdminTrainers() {
   const { t } = useT();
   const toast = useToast();
@@ -124,6 +124,7 @@ export default function AdminTrainers() {
                 <div className="min-w-[12rem] flex-1">
                   <p className="font-bold">{a.full_name}</p>
                   <p className="break-all text-xs text-ink/60">{a.email}</p>
+                  {a.email_verified === false && <p className="text-xs font-semibold text-berry">{t('adm.app.unverified')}</p>}
                 </div>
                 <div className="min-w-[8rem] text-sm">
                   <p className="text-xs text-ink/50">{t('adm.tr.spec')}</p>

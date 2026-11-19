@@ -9,7 +9,7 @@ import { useT } from '../i18n';
 
 export default function Login() {
   const { t } = useT();
-  const { user, login, demoLogin } = useAuth();
+  const { user, login } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -95,22 +95,6 @@ export default function Login() {
         </p>
       </form>
 
-      {demoLogin && (
-        <div className="mt-4 rounded-xl border border-dashed border-brand/60 bg-brand-soft p-4">
-          <p className="label">{t('adm.demo.title')}</p>
-          <p className="text-sm text-ink/70">{t('adm.demo.text')}</p>
-          <button
-            type="button"
-            className="btn-secondary mt-3"
-            onClick={async () => {
-              const u = await demoLogin();
-              navigate(HOME[u.role], { replace: true });
-            }}
-          >
-            {t('adm.demo.button')}
-          </button>
-        </div>
-      )}
     </AuthLayout>
   );
 }

@@ -5,6 +5,10 @@
 import { getLang } from './index';
 
 const MESSAGES: Record<string, { ru: string; kz: string }> = {
+  "A hall with this name already exists.": { ru: "Зал с таким названием уже существует.", kz: "Мұндай атаулы зал бар." },
+  "An account with this email already exists, or this trainer already has a login.": { ru: "Аккаунт с таким email уже существует, или у этого тренера уже есть вход.", kz: "Бұл email-мен аккаунт бар немесе бұл жаттықтырушының кіруі бар." },
+  "Attendance can only be marked once the session has started.": { ru: "Посещение можно отметить только после начала занятия.", kz: "Қатысуды сабақ басталғаннан кейін ғана белгілеуге болады." },
+  "The admin service is temporarily unavailable. Check the backend log.": { ru: "Сервис администратора временно недоступен. Проверьте журнал сервера.", kz: "Әкімші қызметі уақытша қолжетімсіз. Сервер журналын тексеріңіз." },
   "Account not found.": { ru: "Аккаунт не найден.", kz: "Аккаунт табылмады." },
   "An account with this email already exists.": { ru: "Аккаунт с таким email уже существует.", kz: "Бұл email-мен аккаунт бар." },
   "An account with this email already exists. Try signing in.": { ru: "Аккаунт с таким email уже существует. Попробуйте войти.", kz: "Бұл email-мен аккаунт бар. Кіріп көріңіз." },

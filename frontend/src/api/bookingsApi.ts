@@ -1,17 +1,8 @@
-import type { Booking, BookingStatus, BookingType, BookingView } from '../types';
-import { TODAY_DATE } from '../config';
-import { getDb, saveDb } from '../mock/db';
-import {
-  bkNumber,
-  dateOf,
-  isBlocking,
-  isPaidStatus,
-  overlaps,
-} from '../utils/format';
+import type { Booking, BookingStatus, BookingType, BookingView, Payment } from '../types';
+import { bkNumber, dateOf } from '../utils/format';
 import { ApiError } from './ApiError';
-import { clone, delay } from './helpers';
+import { api } from './http';
 import { requireUser } from './session';
-import { toView } from './views';
 
 export interface BookingFilters {
   from?: string; // date
@@ -42,6 +33,9 @@ export interface BackendBooking extends Booking {
   member_membership_expires_on?: string | null;
   trainer_name?: string | null;
   hall_name?: string | null;
+  /** Admin list only. */
+  member_email?: string | null;
+  payment?: Payment | null;
 }
 
 export function backendBookingToView(booking: BackendBooking): BookingView {
@@ -54,6 +48,7 @@ export function backendBookingToView(booking: BackendBooking): BookingView {
       phone: booking.member_phone ?? undefined,
       membership_plan: booking.member_membership_plan ?? undefined,
       membership_expires_on: booking.member_membership_expires_on ?? undefined,
+      email: booking.member_email ?? undefined,
     },
     trainer_name: booking.trainer_name ?? null,
     hall_name: booking.hall_name ?? null,
@@ -62,110 +57,76 @@ export function backendBookingToView(booking: BackendBooking): BookingView {
 }
 
 export async function listBookings(f: BookingFilters = {}): Promise<BookingView[]> {
-    const current = requireUser();
+  const current = requireUser();
+  const query = new URLSearchParams();
+  if (current.role === 'member') query.set('member_id', String(current.member_id));
+  if (current.role === 'trainer') query.set('trainer_id', String(current.trainer_id));
+  const encodedQuery = query.toString();
+  const suffix = encodedQuery ? `?${encodedQuery}` : '';
+  // The admin list adds member emails and the latest payment attempt to every row.
+  const response = await fetch(current.role === 'admin' ? '/api/admin/bookings' : `/api/bookings${suffix}`);
 
-  if ((current.role === 'member' && current.member_id) || current.role === 'receptionist' || (current.role === 'trainer' && current.trainer_id)) {
-    const query = new URLSearchParams();
-    if (current.role === 'member') query.set('member_id', String(current.member_id));
-    if (current.role === 'trainer') query.set('trainer_id', String(current.trainer_id));
-    const encodedQuery = query.toString();
-    const suffix = encodedQuery ? `?${encodedQuery}` : '';
-    const response = await fetch(`/api/bookings${suffix}`);
+  const data = await response.json();
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new ApiError(
-        'VALIDATION',
-        typeof data.detail === 'string'
-          ? data.detail
-          : 'Could not load bookings.',
-      );
-    }
-
-    let rows = (data as BackendBooking[]).map(backendBookingToView);
-
-    if (f.from) {
-      rows = rows.filter((booking) => dateOf(booking.start_time) >= f.from!);
-    }
-
-    if (f.to) {
-      rows = rows.filter((booking) => dateOf(booking.start_time) <= f.to!);
-    }
-
-    if (f.statuses?.length) {
-      rows = rows.filter((booking) =>
-        f.statuses!.includes(booking.status),
-      );
-    }
-
-    if (f.type) {
-      rows = rows.filter(
-        (booking) => booking.booking_type === f.type,
-      );
-    }
-
-    if (f.trainer_id) rows = rows.filter((booking) => booking.trainer_id === f.trainer_id);
-    if (f.hall_id) rows = rows.filter((booking) => booking.hall_id === f.hall_id);
-    if (f.member_id) rows = rows.filter((booking) => booking.member_id === f.member_id);
-    if (f.q?.trim()) {
-      const needle = f.q.trim().toLowerCase();
-      rows = rows.filter((booking) =>
-        bkNumber(booking.booking_id).toLowerCase().includes(needle) ||
-        String(booking.booking_id) === needle ||
-        booking.member.full_name.toLowerCase().includes(needle) ||
-        (booking.member.phone ?? '').replace(/\s/g, '').includes(needle.replace(/\s/g, '')),
-      );
-    }
-
-    if (f.paid === 'paid') {
-      rows = rows.filter((booking) => booking.paid);
-    }
-
-    if (f.paid === 'unpaid') {
-      rows = rows.filter((booking) => booking.status === 'pending');
-    }
-
-    rows.sort(
-      (a, b) =>
-        a.start_time.localeCompare(b.start_time) ||
-        a.booking_id - b.booking_id,
+  if (!response.ok) {
+    throw new ApiError(
+      'VALIDATION',
+      typeof data.detail === 'string'
+        ? data.detail
+        : 'Could not load bookings.',
     );
-
-    return rows;
   }
-  await delay();
-  const viewer = requireUser();
-  const db = getDb();
-  const canSeePhone = viewer.role === 'receptionist' || viewer.role === 'admin';
-  const q = (f.q ?? '').trim().toLowerCase();
 
-  const rows = db.bookings.filter((b) => {
-    if (viewer.role === 'member' && b.member_id !== viewer.member_id) return false;
-    if (viewer.role === 'trainer' && !(b.booking_type === 'training' && b.trainer_id === viewer.trainer_id)) return false;
-    if (f.from && dateOf(b.start_time) < f.from) return false;
-    if (f.to && dateOf(b.start_time) > f.to) return false;
-    if (f.statuses && f.statuses.length && !f.statuses.includes(b.status)) return false;
-    if (f.paid === 'paid' && !isPaidStatus(b.status)) return false;
-    if (f.paid === 'unpaid' && b.status !== 'pending') return false;
-    if (f.type && b.booking_type !== f.type) return false;
-    if (f.trainer_id && b.trainer_id !== f.trainer_id) return false;
-    if (f.hall_id && b.hall_id !== f.hall_id) return false;
-    if (f.member_id && viewer.role !== 'trainer' && b.member_id !== f.member_id) return false;
-    if (q) {
-      const m = db.members.find((x) => x.member_id === b.member_id)!;
-      const hit =
-        bkNumber(b.booking_id).toLowerCase().includes(q) ||
-        String(b.booking_id) === q ||
-        m.full_name.toLowerCase().includes(q) ||
-        (canSeePhone && m.phone.includes(q.replace(/\s/g, '')));
-      if (!hit) return false;
-    }
-    return true;
-  });
+  let rows = (data as BackendBooking[]).map(backendBookingToView);
 
-  rows.sort((a, b) => a.start_time.localeCompare(b.start_time) || a.booking_id - b.booking_id);
-  return clone(rows.map((b) => toView(b, viewer)));
+  if (f.from) {
+    rows = rows.filter((booking) => dateOf(booking.start_time) >= f.from!);
+  }
+
+  if (f.to) {
+    rows = rows.filter((booking) => dateOf(booking.start_time) <= f.to!);
+  }
+
+  if (f.statuses?.length) {
+    rows = rows.filter((booking) =>
+      f.statuses!.includes(booking.status),
+    );
+  }
+
+  if (f.type) {
+    rows = rows.filter(
+      (booking) => booking.booking_type === f.type,
+    );
+  }
+
+  if (f.trainer_id) rows = rows.filter((booking) => booking.trainer_id === f.trainer_id);
+  if (f.hall_id) rows = rows.filter((booking) => booking.hall_id === f.hall_id);
+  if (f.member_id) rows = rows.filter((booking) => booking.member_id === f.member_id);
+  if (f.q?.trim()) {
+    const needle = f.q.trim().toLowerCase();
+    rows = rows.filter((booking) =>
+      bkNumber(booking.booking_id).toLowerCase().includes(needle) ||
+      String(booking.booking_id) === needle ||
+      booking.member.full_name.toLowerCase().includes(needle) ||
+      (booking.member.phone ?? '').replace(/\s/g, '').includes(needle.replace(/\s/g, '')),
+    );
+  }
+
+  if (f.paid === 'paid') {
+    rows = rows.filter((booking) => booking.paid);
+  }
+
+  if (f.paid === 'unpaid') {
+    rows = rows.filter((booking) => booking.status === 'pending');
+  }
+
+  rows.sort(
+    (a, b) =>
+      a.start_time.localeCompare(b.start_time) ||
+      a.booking_id - b.booking_id,
+  );
+
+  return rows;
 }
 
 export async function getBooking(id: number): Promise<BookingView> {
@@ -229,34 +190,6 @@ export async function getTakenHours(kind: 'trainer' | 'hall', id: number, date: 
     throw new ApiError('VALIDATION', typeof data.detail === 'string' ? data.detail : 'Could not load availability.');
   }
   return Array.isArray(data.taken_hours) ? data.taken_hours : [];
-}
-
-// ---- internal helpers ------------------------------------------------------
-
-function resourceBusy(
-  type: BookingType,
-  resourceId: number,
-  start: string,
-  end: string,
-  ignoreId?: number,
-): boolean {
-  return getDb().bookings.some(
-    (b) =>
-      b.booking_id !== ignoreId &&
-      isBlocking(b.status) &&
-      (type === 'training' ? b.trainer_id === resourceId : b.hall_id === resourceId) &&
-      overlaps(b.start_time, b.end_time, start, end),
-  );
-}
-
-function memberBusy(memberId: number, start: string, end: string, ignoreId?: number): boolean {
-  return getDb().bookings.some(
-    (b) =>
-      b.booking_id !== ignoreId &&
-      b.member_id === memberId &&
-      isBlocking(b.status) &&
-      overlaps(b.start_time, b.end_time, start, end),
-  );
 }
 
 // ---- writes ----------------------------------------------------------------
@@ -338,52 +271,40 @@ export async function cancelBooking(id: number): Promise<BookingView> {
 
 export async function markAttendance(id: number, status: 'completed' | 'no_show'): Promise<BookingView> {
   const viewer = requireUser(['trainer', 'receptionist', 'admin']);
-  if (viewer.role === 'receptionist' || (viewer.role === 'trainer' && viewer.trainer_id)) {
-    const query = new URLSearchParams({ status });
-    if (viewer.role === 'trainer') query.set('trainer_id', String(viewer.trainer_id));
-    const response = await fetch(`/api/bookings/${id}/attendance?${query.toString()}`, { method: 'POST' });
-    const data = await response.json();
-    if (!response.ok) {
-      throw new ApiError(
-        response.status === 404 ? 'NOT_FOUND' : 'VALIDATION',
-        typeof data.detail === 'string' ? data.detail : 'Could not update attendance.',
-      );
-    }
-    return backendBookingToView(data as BackendBooking);
+  const query = new URLSearchParams({ status });
+  if (viewer.role === 'trainer' && viewer.trainer_id) query.set('trainer_id', String(viewer.trainer_id));
+  const response = await fetch(`/api/bookings/${id}/attendance?${query.toString()}`, { method: 'POST' });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new ApiError(
+      response.status === 404 ? 'NOT_FOUND' : 'VALIDATION',
+      typeof data.detail === 'string' ? data.detail : 'Could not update attendance.',
+    );
   }
-  await delay();
-  const b = getDb().bookings.find((x) => x.booking_id === id);
-  if (!b) throw new ApiError('NOT_FOUND', 'Booking not found.');
-  if (viewer.role === 'trainer' && b.trainer_id !== viewer.trainer_id) throw new ApiError('FORBIDDEN', 'This is not your session.');
-  if (b.status !== 'confirmed') throw new ApiError('VALIDATION', 'Only paid (confirmed) bookings can be checked in.');
-  if (dateOf(b.start_time) > TODAY_DATE) throw new ApiError('VALIDATION', 'Attendance can only be marked for sessions today or earlier.');
-  b.status = status;
-  saveDb();
-  return clone(toView(b, viewer));
+  return backendBookingToView(data as BackendBooking);
 }
 
-/** Admin override of a booking status. Re-activating a booking re-checks overlaps. */
+/**
+ * Which status the admin may pick next, by current status. Paying (pending -> confirmed) and the payment
+ * hold running out (pending -> expired) happen on their own. Same table as STATUS_CHANGES in backend/app/admin.py.
+ */
+export const ADMIN_STATUS_CHANGES: Record<BookingStatus, BookingStatus[]> = {
+  pending: ['cancelled'],
+  confirmed: ['completed', 'no_show', 'cancelled'],
+  completed: ['no_show', 'confirmed'],
+  no_show: ['completed', 'confirmed'],
+  cancelled: [],
+  expired: [],
+};
+
+/** Admin override of a booking status. Cancelling a paid booking refunds its payment. */
 export async function setBookingStatus(id: number, status: BookingStatus): Promise<BookingView> {
-  await delay();
-  const viewer = requireUser(['admin']);
-  const db = getDb();
-  const b = db.bookings.find((x) => x.booking_id === id);
-  if (!b) throw new ApiError('NOT_FOUND', 'Booking not found.');
-  if (isBlocking(status) && !isBlocking(b.status)) {
-    const type = b.booking_type;
-    const rid = (type === 'training' ? b.trainer_id : b.hall_id) as number;
-    if (resourceBusy(type, rid, b.start_time, b.end_time, b.booking_id) || memberBusy(b.member_id, b.start_time, b.end_time, b.booking_id)) {
-      throw new ApiError('23P01', 'This slot was just taken');
-    }
-  }
-  if (status === 'cancelled' && b.status === 'confirmed') {
-    db.payments.forEach((p) => {
-      if (p.booking_id === b.booking_id && p.payment_status === 'approved') p.payment_status = 'refunded';
-    });
-  }
-  b.status = status;
-  saveDb();
-  return clone(toView(b, viewer));
+  requireUser(['admin']);
+  const booking = await api<BackendBooking>(`/admin/bookings/${id}/status`, 'Could not change the booking status.', {
+    method: 'POST',
+    body: { status },
+  });
+  return backendBookingToView(booking);
 }
 
 /** Called when the 15-minute payment hold runs out: releases the slot. */

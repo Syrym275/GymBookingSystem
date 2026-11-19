@@ -1,8 +1,6 @@
 import type { BookingView, Payment, PaymentMethod, PaymentStatus, PaymentView } from '../types';
-import { getDb } from '../mock/db';
-import { bkNumber, dateOf } from '../utils/format';
 import { ApiError } from './ApiError';
-import { clone, delay } from './helpers';
+import { api, withQuery } from './http';
 import { requireUser } from './session';
 import {
   getBooking,
@@ -106,32 +104,11 @@ export async function listPaymentsForBooking(booking_id: number): Promise<Paymen
   return data as Payment[];
 }
 
-/** Full payments log: admin only (reception has no access to payments). */
+/** Full payments log: admin only (reception has no access to payments). Newest first. */
 export async function listPayments(f: PaymentFilters = {}): Promise<PaymentView[]> {
-  await delay();
   requireUser(['admin']);
-  const db = getDb();
-  const q = (f.q ?? '').trim().toLowerCase();
-  const rows: PaymentView[] = [];
-  for (const p of db.payments) {
-    const b = db.bookings.find((x) => x.booking_id === p.booking_id)!;
-    const m = db.members.find((x) => x.member_id === b.member_id)!;
-    if (f.status && p.payment_status !== f.status) continue;
-    if (f.method && p.method !== f.method) continue;
-    if (f.from && dateOf(p.created_at) < f.from) continue;
-    if (f.to && dateOf(p.created_at) > f.to) continue;
-    if (
-      q &&
-      !(
-        p.provider_txn_ref.toLowerCase().includes(q) ||
-        bkNumber(b.booking_id).toLowerCase().includes(q) ||
-        m.full_name.toLowerCase().includes(q)
-      )
-    ) {
-      continue;
-    }
-    rows.push({ ...p, booking_no: bkNumber(b.booking_id), member_name: m.full_name });
-  }
-  rows.sort((a, b) => b.created_at.localeCompare(a.created_at) || b.payment_id - a.payment_id);
-  return clone(rows);
+  return api<PaymentView[]>(
+    withQuery('/admin/payments', { status: f.status, method: f.method, from: f.from, to: f.to, q: f.q?.trim() }),
+    'Could not load payments.',
+  );
 }

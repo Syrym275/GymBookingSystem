@@ -37,6 +37,8 @@ export interface TrainerApplication {
   application_id: number;
   full_name: string;
   email: string;
+  /** False until the applicant opens the link in their sign-up email. */
+  email_verified?: boolean;
   specialization: string;
   session_price_kzt: number;
   created_at: string; // local "YYYY-MM-DDTHH:mm"

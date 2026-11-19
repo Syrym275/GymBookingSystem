@@ -1,9 +1,7 @@
 import type { MemberView, MembershipPlan } from '../types';
-import { TODAY_DATE } from '../config';
-import { getDb, saveDb } from '../mock/db';
-import { toDate } from '../utils/format';
-import { addMonths } from 'date-fns';
+import { getDb } from '../mock/db';
 import { ApiError } from './ApiError';
+import { api } from './http';
 import { clone, delay } from './helpers';
 import { requireUser } from './session';
 import { memberViewFor } from './views';
@@ -67,23 +65,12 @@ export async function getMember(id: number): Promise<MemberView> {
 }
 
 export async function updateMemberPlan(id: number, plan: MembershipPlan): Promise<MemberView> {
-  await delay();
-  const viewer = requireUser(['admin']);
-  const m = getDb().members.find((x) => x.member_id === id);
-  if (!m) throw new ApiError('NOT_FOUND', 'Member not found.');
-  m.membership_plan = plan;
-  saveDb();
-  return clone(memberViewFor(m, viewer));
+  requireUser(['admin']);
+  return api<MemberView>(`/admin/members/${id}`, 'Could not change the plan.', { method: 'PATCH', body: { membership_plan: plan } });
 }
 
 /** Extend from the later of (current expiry, today) by N months. */
 export async function extendMembership(id: number, months: number): Promise<MemberView> {
-  await delay();
-  const viewer = requireUser(['admin']);
-  const m = getDb().members.find((x) => x.member_id === id);
-  if (!m) throw new ApiError('NOT_FOUND', 'Member not found.');
-  const from = m.membership_expires_on > TODAY_DATE ? m.membership_expires_on : TODAY_DATE;
-  m.membership_expires_on = toDate(addMonths(new Date(`${from}T00:00`), months));
-  saveDb();
-  return clone(memberViewFor(m, viewer));
+  requireUser(['admin']);
+  return api<MemberView>(`/admin/members/${id}/extend`, 'Could not extend the membership.', { method: 'POST', body: { months } });
 }

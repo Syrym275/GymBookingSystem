@@ -1,13 +1,14 @@
 import type { Hall } from '../types';
-import { getDb, nextId, saveDb } from '../mock/db';
 import { ApiError } from './ApiError';
-import { clone, delay } from './helpers';
+import { api } from './http';
 import { requireUser } from './session';
 
-// The public endpoint returns active halls only. Keep the options argument for
-// existing callers; inactive-hall management needs a separate staff endpoint.
-export async function listHalls(_opts: { includeInactive?: boolean } = {}): Promise<Hall[]> {
-  requireUser();
+// The public endpoint returns active halls only; the admin may ask for inactive ones too.
+export async function listHalls(opts: { includeInactive?: boolean } = {}): Promise<Hall[]> {
+  const viewer = requireUser();
+  if (opts.includeInactive && viewer.role === 'admin') {
+    return api<Hall[]>('/admin/halls', 'Could not load halls.');
+  }
   let response: Response;
   try {
     response = await fetch('/api/halls');
@@ -47,32 +48,18 @@ function validate(input: HallInput) {
 }
 
 export async function createHall(input: HallInput): Promise<Hall> {
-  await delay();
   requireUser(['admin']);
   validate(input);
-  const h: Hall = { hall_id: nextId('hall'), ...input, is_active: true };
-  getDb().halls.push(h);
-  saveDb();
-  return clone(h);
+  return api<Hall>('/admin/halls', 'Could not save the hall.', { method: 'POST', body: input });
 }
 
 export async function updateHall(id: number, input: HallInput): Promise<Hall> {
-  await delay();
   requireUser(['admin']);
   validate(input);
-  const h = getDb().halls.find((x) => x.hall_id === id);
-  if (!h) throw new ApiError('NOT_FOUND', 'Hall not found.');
-  Object.assign(h, input);
-  saveDb();
-  return clone(h);
+  return api<Hall>(`/admin/halls/${id}`, 'Could not save the hall.', { method: 'PATCH', body: input });
 }
 
 export async function setHallActive(id: number, active: boolean): Promise<Hall> {
-  await delay();
   requireUser(['admin']);
-  const h = getDb().halls.find((x) => x.hall_id === id);
-  if (!h) throw new ApiError('NOT_FOUND', 'Hall not found.');
-  h.is_active = active;
-  saveDb();
-  return clone(h);
+  return api<Hall>(`/admin/halls/${id}`, 'Could not save the hall.', { method: 'PATCH', body: { is_active: active } });
 }

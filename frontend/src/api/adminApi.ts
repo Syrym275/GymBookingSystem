@@ -1,38 +1,24 @@
 import type { Hall, MemberView, Payment, Trainer, TrainerApplication } from '../types';
-import { DEMO_PASSWORD, TODAY_DATE } from '../config';
-import { getDb, nextId, saveDb } from '../mock/db';
-import { addDaysStr, membershipState } from '../utils/format';
-import { ApiError } from './ApiError';
-import { clone, delay } from './helpers';
+import { TODAY_DATE } from '../config';
+import { addDaysStr } from '../utils/format';
+import { api, withQuery } from './http';
 import { requireUser } from './session';
-import { memberViewFor } from './views';
 
 /**
- * ADMIN DATA LAYER (demo data).
- *
- * The backend has no admin routes yet, so every admin screen runs on the in-browser demo data
- * (src/mock). Mutations (create/edit trainers and halls, change a plan, extend a membership, staff accounts,
- * booking status) live in trainersApi / hallsApi / membersApi / staffApi / bookingsApi, and the report and
- * payment-log queries in reportsApi / paymentsApi: those are already demo-data functions limited to admins.
- *
- * This file holds the admin reads that the shared modules send to the backend for other roles
- * (the public trainer / hall lists, the member directory, per-booking payment history), so the admin
- * screens keep working without a backend. When admin routes exist, replace the bodies here with real calls:
- *   GET /admin/trainers  GET /admin/halls  GET /admin/members  GET /admin/bookings/{id}/payments
- *   GET /admin/attention
+ * ADMIN DATA LAYER. Every call goes to the backend /admin routes (backend/app/admin.py), which only the
+ * single admin account may use. Mutations of trainers, halls, members, staff, bookings and the payment and
+ * report queries live in their own api/* modules and call /admin routes the same way.
  */
 
-/** Every trainer, including inactive ones (new registrations wait there for approval). */
+/** Every trainer, active or deactivated. Sign-ups waiting for approval come from listApplications(). */
 export async function listAllTrainers(): Promise<Trainer[]> {
-  await delay();
   requireUser(['admin']);
-  return clone([...getDb().trainers].sort((a, b) => a.trainer_id - b.trainer_id));
+  return api<Trainer[]>('/admin/trainers', 'Could not load trainers.');
 }
 
 export async function listAllHalls(): Promise<Hall[]> {
-  await delay();
   requireUser(['admin']);
-  return clone([...getDb().halls].sort((a, b) => a.hall_id - b.hall_id));
+  return api<Hall[]>('/admin/halls', 'Could not load halls.');
 }
 
 export interface AdminMember extends MemberView {
@@ -41,31 +27,15 @@ export interface AdminMember extends MemberView {
 
 /** Member directory with everything an admin may see (email and QR token included). */
 export async function listAllMembers(q = ''): Promise<AdminMember[]> {
-  await delay();
-  const viewer = requireUser(['admin']);
-  const db = getDb();
-  const needle = q.trim().toLowerCase();
-  const digits = needle.replace(/[\s()-]/g, '');
-  const rows = db.members
-    .filter(
-      (m) =>
-        !needle ||
-        m.full_name.toLowerCase().includes(needle) ||
-        m.email.toLowerCase().includes(needle) ||
-        (digits.length >= 3 && m.phone.replace(/\s/g, '').includes(digits)),
-    )
-    .sort((a, b) => a.full_name.localeCompare(b.full_name))
-    .map((m) => ({ ...memberViewFor(m, viewer), bookings: db.bookings.filter((b) => b.member_id === m.member_id).length }));
-  return clone(rows);
+  requireUser(['admin']);
+  return api<AdminMember[]>(withQuery('/admin/members', { q: q.trim() }), 'Could not load members.');
 }
 
 /** Payment attempts of one booking, newest last. */
 export async function listPaymentsOf(bookingId: number): Promise<Payment[]> {
-  await delay();
   requireUser(['admin']);
-  const db = getDb();
-  if (!db.bookings.some((b) => b.booking_id === bookingId)) throw new ApiError('NOT_FOUND', 'Booking not found.');
-  return clone(db.payments.filter((p) => p.booking_id === bookingId).sort((a, b) => a.payment_id - b.payment_id));
+  const rows = await api<Payment[]>(`/bookings/${bookingId}/payments`, 'Could not load payment history.');
+  return [...rows].sort((a, b) => a.payment_id - b.payment_id);
 }
 
 export interface Attention {
@@ -77,16 +47,8 @@ export interface Attention {
 
 /** The small to-do list at the top of the overview. */
 export async function attention(): Promise<Attention> {
-  await delay();
   requireUser(['admin']);
-  const db = getDb();
-  const states = db.members.map((m) => membershipState(m.membership_expires_on).state);
-  return {
-    pendingTrainers: db.applications.length,
-    unpaidBookings: db.bookings.filter((b) => b.status === 'pending' && b.start_time.slice(0, 10) >= TODAY_DATE).length,
-    expiringMemberships: states.filter((s) => s === 'expiring').length,
-    expiredMemberships: states.filter((s) => s === 'expired').length,
-  };
+  return api<Attention>('/admin/attention', 'Could not load the to-do list.');
 }
 
 export interface ResourceCounts {
@@ -98,104 +60,73 @@ export interface ResourceCounts {
 
 /** Held sessions / rentals per trainer and per hall (for the management tables). */
 export async function sessionCounts(): Promise<ResourceCounts> {
-  await delay();
   requireUser(['admin']);
-  const out: ResourceCounts = { trainers: {}, halls: {}, booked: { trainers: {}, halls: {} } };
-  for (const b of getDb().bookings) {
-    if (b.trainer_id !== null) out.booked.trainers[b.trainer_id] = (out.booked.trainers[b.trainer_id] ?? 0) + 1;
-    if (b.hall_id !== null) out.booked.halls[b.hall_id] = (out.booked.halls[b.hall_id] ?? 0) + 1;
-    if (b.status !== 'completed' && b.status !== 'no_show') continue;
-    if (b.trainer_id !== null) out.trainers[b.trainer_id] = (out.trainers[b.trainer_id] ?? 0) + 1;
-    if (b.hall_id !== null) out.halls[b.hall_id] = (out.halls[b.hall_id] ?? 0) + 1;
-  }
-  return out;
+  return api<ResourceCounts>('/admin/resource-counts', 'Could not load session counts.');
 }
 
 /** Default report window: the 30 days up to and including today. */
 export const defaultReportRange = () => ({ from: addDaysStr(TODAY_DATE, -29), to: TODAY_DATE });
 
 /**
- * Deletes a trainer that was never booked (for example a registration that is rejected, or a record added by
- * mistake). A trainer with any booking can only be deactivated, so old bookings and payment reports stay correct.
- * The trainer's login accounts go with it. The real database enforces the same rule with its foreign keys.
+ * Deletes a trainer that was never booked (for example a record added by mistake). A trainer with any
+ * booking can only be deactivated, so old bookings and payment reports stay correct. Its login goes with it.
  */
 export async function deleteTrainer(id: number): Promise<void> {
-  await delay();
   requireUser(['admin']);
-  const db = getDb();
-  if (!db.trainers.some((t) => t.trainer_id === id)) throw new ApiError('NOT_FOUND', 'Trainer not found.');
-  if (db.bookings.some((b) => b.trainer_id === id)) {
-    throw new ApiError('VALIDATION', 'This trainer has bookings, so it can only be deactivated.');
-  }
-  db.trainers = db.trainers.filter((t) => t.trainer_id !== id);
-  db.users = db.users.filter((u) => u.trainer_id !== id);
-  saveDb();
+  await api<void>(`/admin/trainers/${id}`, 'Could not delete the trainer.', { method: 'DELETE' });
 }
 
 /** Deletes a hall that was never booked. A hall with any booking can only be deactivated. */
 export async function deleteHall(id: number): Promise<void> {
-  await delay();
   requireUser(['admin']);
-  const db = getDb();
-  if (!db.halls.some((h) => h.hall_id === id)) throw new ApiError('NOT_FOUND', 'Hall not found.');
-  if (db.bookings.some((b) => b.hall_id === id)) {
-    throw new ApiError('VALIDATION', 'This hall has bookings, so it can only be deactivated.');
-  }
-  db.halls = db.halls.filter((h) => h.hall_id !== id);
-  saveDb();
+  await api<void>(`/admin/halls/${id}`, 'Could not delete the hall.', { method: 'DELETE' });
 }
 
 // ---- trainer applications ---------------------------------------------------
-// In the real backend a sign-up creates an INACTIVE trainer plus a login (see register_trainer in
-// backend/app/auth.py). An application here is exactly that: approve = set is_active = true, reject = delete the
-// never-booked trainer and its login. Suggested routes: GET /admin/trainer-applications,
-// POST /admin/trainer-applications/{id}/approve, DELETE /admin/trainer-applications/{id}.
+// A trainer sign-up (POST /auth/register/trainer) creates an INACTIVE trainer plus its login.
+// Approve = the trainer becomes active and bookable. Reject = the never-booked trainer and its login are removed.
 
-/** Applications waiting for a decision, newest first. */
+/** Applications waiting for a decision, newest first. application_id is the pending trainer's trainer_id. */
 export async function listApplications(): Promise<TrainerApplication[]> {
-  await delay();
   requireUser(['admin']);
-  return clone([...getDb().applications].sort((a, b) => b.created_at.localeCompare(a.created_at)));
+  return api<TrainerApplication[]>('/admin/trainer-applications', 'Could not load trainer applications.');
 }
 
-/** Approves an application: the applicant becomes an active trainer and gets a trainer login. */
+/** Approves an application: the applicant becomes an active trainer and can sign in with their own password. */
 export async function approveApplication(id: number): Promise<Trainer> {
-  await delay();
   requireUser(['admin']);
-  const db = getDb();
-  const app = db.applications.find((a) => a.application_id === id);
-  if (!app) throw new ApiError('NOT_FOUND', 'Application not found.');
-  if (db.users.some((u) => u.email.toLowerCase() === app.email.toLowerCase())) {
-    throw new ApiError('VALIDATION', 'An account with this email already exists.');
-  }
-  const trainer: Trainer = {
-    trainer_id: nextId('trainer'),
-    full_name: app.full_name,
-    specialization: app.specialization,
-    session_price_kzt: app.session_price_kzt,
-    is_active: true,
-  };
-  db.trainers.push(trainer);
-  db.users.push({
-    user_id: nextId('user'),
-    full_name: app.full_name,
-    email: app.email,
-    password: DEMO_PASSWORD, // mock only: the real account already has the password the applicant chose
-    role: 'trainer',
-    trainer_id: trainer.trainer_id,
-    is_active: true,
-  });
-  db.applications = db.applications.filter((a) => a.application_id !== id);
-  saveDb();
-  return clone(trainer);
+  return api<Trainer>(`/admin/trainer-applications/${id}/approve`, 'Could not approve the trainer.', { method: 'POST' });
 }
 
-/** Rejects an application: it is removed and no trainer is created. */
+/** Rejects an application: the sign-up is removed and no trainer is created. */
 export async function rejectApplication(id: number): Promise<void> {
-  await delay();
   requireUser(['admin']);
-  const db = getDb();
-  if (!db.applications.some((a) => a.application_id === id)) throw new ApiError('NOT_FOUND', 'Application not found.');
-  db.applications = db.applications.filter((a) => a.application_id !== id);
-  saveDb();
+  await api<void>(`/admin/trainer-applications/${id}/reject`, 'Could not reject the application.', { method: 'POST' });
+}
+
+// ---- audit log ----------------------------------------------------------------
+
+export interface AuditEntry {
+  audit_id: number;
+  actor_user_id: number | null;
+  actor_email: string | null;
+  actor_role: string | null;
+  action: string;
+  target_type: string | null;
+  target_id: number | null;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface AuditFilters {
+  action?: string; // prefix, e.g. "trainer." or "auth.login_failed"
+  q?: string; // actor email or any detail text
+  from?: string;
+  to?: string;
+}
+
+/** Who did what and when, newest first (at most 500 rows). */
+export async function listAudit(f: AuditFilters = {}): Promise<AuditEntry[]> {
+  requireUser(['admin']);
+  return api<AuditEntry[]>(withQuery('/admin/audit', { ...f, limit: 500 }), 'Could not load the audit log.');
 }

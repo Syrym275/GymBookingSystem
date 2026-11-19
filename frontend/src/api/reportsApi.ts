@@ -2,10 +2,11 @@ import { endOfMonth, endOfWeek, startOfMonth, startOfWeek } from 'date-fns';
 import type { BookingView } from '../types';
 import { OPEN_HOUR, CLOSE_HOUR, TODAY_DATE } from '../config';
 import { getDb } from '../mock/db';
-import { addDaysStr, dateOf, hourLabel, hourOf, isPaidStatus, parseLocal, toDate } from '../utils/format';
+import { dateOf, hourLabel, hourOf, parseLocal, toDate } from '../utils/format';
 import { clone, delay } from './helpers';
 import { requireUser } from './session';
 import { listBookings } from './bookingsApi';
+import { api, withQuery } from './http';
 
 export interface HourCount {
   hour: number;
@@ -70,44 +71,10 @@ export interface Overview {
   by_hour: HourCount[];
 }
 
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
+/** Admin home numbers: this week, revenue of the last 30 days, no-show rate, busiest day and hour. */
 export async function overview(): Promise<Overview> {
-  await delay();
   requireUser(['admin']);
-  const db = getDb();
-  const w = weekOf(TODAY_DATE);
-  const inWeek = db.bookings.filter((b) => dateOf(b.start_time) >= w.from && dateOf(b.start_time) <= w.to);
-  const since = addDaysStr(TODAY_DATE, -30);
-  const revenue = db.payments
-    .filter((p) => p.payment_status === 'approved' && dateOf(p.created_at) >= since && dateOf(p.created_at) <= TODAY_DATE)
-    .reduce((s, p) => s + p.amount_kzt, 0);
-  const attended = db.bookings.filter((b) => b.status === 'completed' || b.status === 'no_show');
-  const noShows = attended.filter((b) => b.status === 'no_show').length;
-
-  const real = db.bookings.filter((b) => isPaidStatus(b.status));
-  const wd = DAYS.map((day) => ({ day, count: 0 }));
-  const hrs = new Map<number, number>();
-  real.forEach((b) => {
-    const idx = (parseLocal(b.start_time).getDay() + 6) % 7;
-    wd[idx].count += 1;
-    hrs.set(hourOf(b.start_time), (hrs.get(hourOf(b.start_time)) ?? 0) + 1);
-  });
-  const byHour = hourBuckets(hrs);
-  const topDay = [...wd].sort((a, b) => b.count - a.count)[0];
-  const topHour = [...byHour].sort((a, b) => b.count - a.count)[0];
-
-  return {
-    bookings_week: inWeek.filter((b) => b.status !== 'cancelled' && b.status !== 'expired').length,
-    confirmed_week: inWeek.filter((b) => b.status === 'confirmed').length,
-    pending_week: inWeek.filter((b) => b.status === 'pending').length,
-    revenue_30d: revenue,
-    no_show_rate: attended.length ? noShows / attended.length : 0,
-    busiest_day: topDay.count ? topDay.day : '-',
-    busiest_hour: topHour.count ? topHour.label : '-',
-    by_weekday: wd,
-    by_hour: byHour,
-  };
+  return api<Overview>('/admin/overview', 'Could not load the overview.');
 }
 
 export interface TrainerReportRow {
@@ -121,38 +88,13 @@ export interface TrainerReportRow {
 
 /** Sessions that actually took place (completed or no_show) in the date range. */
 export async function popularTrainers(from: string, to: string): Promise<TrainerReportRow[]> {
-  await delay();
   requireUser(['admin']);
-  const db = getDb();
-  const rows = db.trainers.map<TrainerReportRow>((t) => {
-    const s = db.bookings.filter(
-      (b) =>
-        b.trainer_id === t.trainer_id &&
-        (b.status === 'completed' || b.status === 'no_show') &&
-        dateOf(b.start_time) >= from &&
-        dateOf(b.start_time) <= to,
-    );
-    const evening = s.filter((b) => hourOf(b.start_time) >= 17).length;
-    return {
-      trainer_id: t.trainer_id,
-      trainer_name: t.full_name,
-      sessions: s.length,
-      evening,
-      before_17: s.length - evening,
-      no_shows: s.filter((b) => b.status === 'no_show').length,
-    };
-  });
-  return clone(rows.filter((r) => r.sessions > 0).sort((a, b) => b.sessions - a.sessions));
+  return api<TrainerReportRow[]>(withQuery('/admin/reports/trainers', { from, to }), 'Could not load the trainer report.');
 }
 
 export async function popularHours(from: string, to: string): Promise<HourCount[]> {
-  await delay();
   requireUser(['admin']);
-  const hrs = new Map<number, number>();
-  getDb()
-    .bookings.filter((b) => isPaidStatus(b.status) && dateOf(b.start_time) >= from && dateOf(b.start_time) <= to)
-    .forEach((b) => hrs.set(hourOf(b.start_time), (hrs.get(hourOf(b.start_time)) ?? 0) + 1));
-  return hourBuckets(hrs);
+  return api<HourCount[]>(withQuery('/admin/reports/hours', { from, to }), 'Could not load the hours report.');
 }
 
 export interface UnpaidGroup {

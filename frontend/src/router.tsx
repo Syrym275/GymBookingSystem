@@ -36,6 +36,7 @@ import AdminHalls from './pages/admin/Halls';
 import AdminMembers from './pages/admin/Members';
 import AdminReports from './pages/admin/Reports';
 import AdminStaff from './pages/admin/Staff';
+import AdminAudit from './pages/admin/Audit';
 
 const guarded = (role: 'member' | 'trainer' | 'receptionist' | 'admin') => (
   <RequireRole role={role}>
@@ -106,6 +107,7 @@ export const router = createBrowserRouter([
       { path: 'members', element: <AdminMembers /> },
       { path: 'reports', element: <AdminReports /> },
       { path: 'staff', element: <AdminStaff /> },
+      { path: 'audit', element: <AdminAudit /> },
     ],
   },
   { path: '*', element: <NotFound /> },

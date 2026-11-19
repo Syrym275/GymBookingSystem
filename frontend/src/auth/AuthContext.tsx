@@ -30,22 +30,10 @@ interface AuthValue {
   /** Updates the signed-in user after their email link was opened (in this or another tab). */
   markEmailVerified: (email: string) => void;
   logout: () => void;
-  /** DEV only: opens the admin area on in-browser demo data, without a backend. Undefined in production builds. */
-  demoLogin?: () => Promise<CurrentUser>;
 }
 
-// DEV-only preview: the admin area has no backend routes yet, so it runs on the in-browser demo data.
-// The marker lives in sessionStorage and is ignored in production builds (import.meta.env.DEV is false there).
+// The admin signs in like everyone else: one real account (backend/scripts/create_admin.py).
 const SESSION_CHECK_MS = 3000; // how long the start-up sign-in check may take
-const DEMO_KEY = 'gbs_demo_admin';
-const DEMO_ADMIN: CurrentUser = { user_id: 1, full_name: 'Madi Akhmetov', email: 'manager@gym.kz', role: 'admin' };
-const readDemo = () => {
-  try {
-    return import.meta.env.DEV && sessionStorage.getItem(DEMO_KEY) === '1';
-  } catch {
-    return false;
-  }
-};
 
 const AuthContext = createContext<AuthValue | null>(null);
 
@@ -54,12 +42,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (readDemo()) {
-      setSessionUser(DEMO_ADMIN);
-      setUser(DEMO_ADMIN);
-      setReady(true);
-      return;
-    }
     // Never wait for the backend forever: if it is down or stuck (for example on an unreachable database),
     // give up after a few seconds and show the site as signed out instead of a blank page.
     const controller = new AbortController();
@@ -173,33 +155,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
-    if (readDemo()) {
-      try {
-        sessionStorage.removeItem(DEMO_KEY);
-      } catch {
-        /* ignore */
-      }
-    } else {
-      void fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    void fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    try {
+      sessionStorage.removeItem('gbs_demo_admin'); // left over from the old demo preview
+    } catch {
+      /* ignore */
     }
     setSessionUser(null);
     setUser(null);
   }, []);
 
-  const demoLogin = useCallback(async () => {
-    try {
-      sessionStorage.setItem(DEMO_KEY, '1');
-    } catch {
-      /* the preview then lasts until the page is refreshed */
-    }
-    setSessionUser(DEMO_ADMIN);
-    setUser(DEMO_ADMIN);
-    return DEMO_ADMIN;
-  }, []);
-
   const value = useMemo(
-    () => ({ user, login, register, markEmailVerified, logout, demoLogin: import.meta.env.DEV ? demoLogin : undefined }),
-    [user, login, register, markEmailVerified, logout, demoLogin],
+    () => ({ user, login, register, markEmailVerified, logout }),
+    [user, login, register, markEmailVerified, logout],
   );
   if (!ready) {
     return (

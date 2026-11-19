@@ -1,7 +1,6 @@
 import type { Trainer } from '../types';
-import { getDb, nextId, saveDb } from '../mock/db';
 import { ApiError } from './ApiError';
-import { clone, delay } from './helpers';
+import { api } from './http';
 import { requireUser } from './session';
 import type { Availability, AvailabilityState } from '../pages/trainer/availability';
 
@@ -126,35 +125,31 @@ export async function getTrainerAvailability(
   };
 }
 
-/** Booking pages only ever see active trainers; staff may ask for inactive ones too (filters, admin). */
+/** Booking pages only ever see active trainers; the admin may ask for inactive ones too. */
 export async function listTrainers(opts: { includeInactive?: boolean } = {}): Promise<Trainer[]> {
   const viewer = requireUser();
-  const staff = viewer.role === 'admin' || viewer.role === 'receptionist';
-  if (!opts.includeInactive || !staff) {
-    let response: Response;
-    try {
-      response = await fetch('/api/trainers');
-    } catch {
-      throw new ApiError('VALIDATION', 'Could not load trainers. Check the backend connection and try again.');
-    }
-    let data: unknown;
-    try {
-      data = await response.json();
-    } catch {
-      throw new ApiError('VALIDATION', 'The trainer service returned an invalid response.');
-    }
-    if (!response.ok || !Array.isArray(data)) {
-      const detail = typeof data === 'object' && data !== null && 'detail' in data && typeof data.detail === 'string'
-        ? data.detail
-        : 'Could not load trainers.';
-      throw new ApiError('VALIDATION', detail);
-    }
-    return data.map((trainer) => ({ ...(trainer as Omit<Trainer, 'is_active'>), is_active: true }));
+  if (opts.includeInactive && viewer.role === 'admin') {
+    return api<Trainer[]>('/admin/trainers', 'Could not load trainers.');
   }
-  await delay();
-  const all = getDb().trainers;
-  const rows = opts.includeInactive && staff ? all : all.filter((t) => t.is_active);
-  return clone(rows);
+  let response: Response;
+  try {
+    response = await fetch('/api/trainers');
+  } catch {
+    throw new ApiError('VALIDATION', 'Could not load trainers. Check the backend connection and try again.');
+  }
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new ApiError('VALIDATION', 'The trainer service returned an invalid response.');
+  }
+  if (!response.ok || !Array.isArray(data)) {
+    const detail = typeof data === 'object' && data !== null && 'detail' in data && typeof data.detail === 'string'
+      ? data.detail
+      : 'Could not load trainers.';
+    throw new ApiError('VALIDATION', detail);
+  }
+  return data.map((trainer) => ({ ...(trainer as Omit<Trainer, 'is_active'>), is_active: true }));
 }
 
 export interface TrainerInput {
@@ -170,34 +165,20 @@ function validate(input: TrainerInput) {
 }
 
 export async function createTrainer(input: TrainerInput): Promise<Trainer> {
-  await delay();
   requireUser(['admin']);
   validate(input);
-  const t: Trainer = { trainer_id: nextId('trainer'), ...input, is_active: true };
-  getDb().trainers.push(t);
-  saveDb();
-  return clone(t);
+  return api<Trainer>('/admin/trainers', 'Could not save the trainer.', { method: 'POST', body: input });
 }
 
 /** Price changes only affect future bookings: old bookings keep their own price_kzt. */
 export async function updateTrainer(id: number, input: TrainerInput): Promise<Trainer> {
-  await delay();
   requireUser(['admin']);
   validate(input);
-  const t = getDb().trainers.find((x) => x.trainer_id === id);
-  if (!t) throw new ApiError('NOT_FOUND', 'Trainer not found.');
-  Object.assign(t, input);
-  saveDb();
-  return clone(t);
+  return api<Trainer>(`/admin/trainers/${id}`, 'Could not save the trainer.', { method: 'PATCH', body: input });
 }
 
-/** Trainers are never deleted, only deactivated. */
+/** Trainers with bookings are never deleted, only deactivated. Activating also approves. */
 export async function setTrainerActive(id: number, active: boolean): Promise<Trainer> {
-  await delay();
   requireUser(['admin']);
-  const t = getDb().trainers.find((x) => x.trainer_id === id);
-  if (!t) throw new ApiError('NOT_FOUND', 'Trainer not found.');
-  t.is_active = active;
-  saveDb();
-  return clone(t);
+  return api<Trainer>(`/admin/trainers/${id}`, 'Could not save the trainer.', { method: 'PATCH', body: { is_active: active } });
 }

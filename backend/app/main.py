@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from psycopg import Error as DatabaseError
 from pydantic import ValidationError
+from .admin import router as admin_router
 from .auth import router as auth_router
 from .bookings import router as bookings_router
 from .members import router as members_router
@@ -51,6 +52,7 @@ async def readable_validation_error(_: Request, error: RequestValidationError) -
 
 
 app.include_router(auth_router)
+app.include_router(admin_router)
 app.include_router(bookings_router)
 app.include_router(members_router)
 app.include_router(payments_router)
@@ -62,7 +64,7 @@ app.include_router(password_reset_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["GET", "POST", "PATCH"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Content-Type"],
     allow_credentials=True,
 )
