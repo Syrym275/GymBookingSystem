@@ -32,6 +32,16 @@ export interface Trainer {
   is_active: boolean;
 }
 
+/** Someone who signed up as a trainer and waits for an admin to approve or reject them. */
+export interface TrainerApplication {
+  application_id: number;
+  full_name: string;
+  email: string;
+  specialization: string;
+  session_price_kzt: number;
+  created_at: string; // local "YYYY-MM-DDTHH:mm"
+}
+
 export interface Hall {
   hall_id: number;
   hall_name: string;

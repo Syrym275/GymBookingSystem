@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { BadgeCheck, Plus, Trash2 } from 'lucide-react';
-import { deleteTrainer, listAllTrainers, sessionCounts } from '../../api/adminApi';
+import { BadgeCheck, Plus, Trash2, UserCheck, UserX } from 'lucide-react';
+import { approveApplication, deleteTrainer, listAllTrainers, listApplications, rejectApplication, sessionCounts } from '../../api/adminApi';
 import { createTrainer, setTrainerActive, updateTrainer } from '../../api/trainersApi';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { DataTable, type Column } from '../../components/DataTable';
@@ -10,8 +10,8 @@ import { ErrorNote, Loading, PageHeader } from '../../components/ui';
 import { useAsync } from '../../hooks/useAsync';
 import { useT } from '../../i18n';
 import { msg } from '../../i18n/messages';
-import type { Trainer } from '../../types';
-import { kzt } from '../../utils/format';
+import type { Trainer, TrainerApplication } from '../../types';
+import { fmtDateTime, kzt } from '../../utils/format';
 import { ActiveChip } from './common';
 
 /** Trainers: add, edit, approve / activate / deactivate. Nobody is ever deleted. */
@@ -20,6 +20,8 @@ export default function AdminTrainers() {
   const toast = useToast();
   const list = useAsync(listAllTrainers, []);
   const counts = useAsync(sessionCounts, []);
+  const apps = useAsync(listApplications, []);
+  const [deciding, setDeciding] = useState<{ app: TrainerApplication; action: 'approve' | 'reject' } | null>(null);
   const [editing, setEditing] = useState<Trainer | 'new' | null>(null);
   const [toggle, setToggle] = useState<Trainer | null>(null);
   const [remove, setRemove] = useState<Trainer | null>(null);
@@ -53,8 +55,6 @@ export default function AdminTrainers() {
   if (list.error) return <ErrorNote message={msg(list.error)} />;
   if (!list.data) return <Loading />;
 
-  const waiting = list.data.filter((x) => !x.is_active);
-
   const columns: Column<Trainer>[] = [
     { key: 'name', header: t('adm.tr.trainer'), sort: (x) => x.full_name, render: (x) => <b>{x.full_name}</b> },
     { key: 'spec', header: t('adm.tr.spec'), sort: (x) => x.specialization, render: (x) => x.specialization },
@@ -75,7 +75,7 @@ export default function AdminTrainers() {
             </button>
           ) : (
             <button className="btn-primary btn-sm" onClick={() => setToggle(x)}>
-              <BadgeCheck className="h-3 w-3" /> {t('adm.approve')}
+              <BadgeCheck className="h-3 w-3" /> {t('adm.activate')}
             </button>
           )}
           {counts.data && (counts.data.booked.trainers[x.trainer_id] ?? 0) === 0 ? (
@@ -103,11 +103,54 @@ export default function AdminTrainers() {
           </button>
         }
       />
-      {waiting.length > 0 && (
-        <div role="status" className="rounded-lg border border-line bg-sun-soft px-4 py-3 text-sm">
-          <b>{t('adm.tr.waiting', { n: waiting.length })}</b> {t('adm.tr.waitingText')}
+      <section className="card min-w-0" aria-labelledby="applications-title">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 id="applications-title" className="text-lg font-bold">
+              {t('adm.app.title')}
+              {apps.data && apps.data.length > 0 && (
+                <span className="ml-2 inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-brand px-2 text-sm text-onaccent">{apps.data.length}</span>
+              )}
+            </h2>
+            <p className="text-sm text-ink/60">{t('adm.app.sub')}</p>
+          </div>
         </div>
-      )}
+        {apps.error && <ErrorNote message={msg(apps.error)} />}
+        {apps.data && apps.data.length === 0 && <p className="rounded-lg border border-dashed border-line px-4 py-6 text-center text-sm text-ink/60">{t('adm.app.none')}</p>}
+        {apps.data && apps.data.length > 0 && (
+          <ul className="divide-y divide-line">
+            {apps.data.map((a) => (
+              <li key={a.application_id} className="flex flex-wrap items-center gap-x-6 gap-y-2 py-3">
+                <div className="min-w-[12rem] flex-1">
+                  <p className="font-bold">{a.full_name}</p>
+                  <p className="break-all text-xs text-ink/60">{a.email}</p>
+                </div>
+                <div className="min-w-[8rem] text-sm">
+                  <p className="text-xs text-ink/50">{t('adm.tr.spec')}</p>
+                  {a.specialization}
+                </div>
+                <div className="min-w-[6rem] text-sm">
+                  <p className="text-xs text-ink/50">{t('adm.app.requestedPrice')}</p>
+                  {kzt(a.session_price_kzt)}
+                </div>
+                <div className="min-w-[8rem] text-sm">
+                  <p className="text-xs text-ink/50">{t('adm.app.applied')}</p>
+                  {fmtDateTime(a.created_at)}
+                </div>
+                <div className="flex gap-2">
+                  <button className="btn-primary btn-sm" onClick={() => setDeciding({ app: a, action: 'approve' })}>
+                    <UserCheck className="h-3 w-3" /> {t('adm.approve')}
+                  </button>
+                  <button className="btn-danger btn-sm" onClick={() => setDeciding({ app: a, action: 'reject' })}>
+                    <UserX className="h-3 w-3" /> {t('adm.app.reject')}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <DataTable rows={list.data} columns={columns} rowKey={(x) => x.trainer_id} />
       <p className="text-xs text-ink/60">{t('adm.noDeleteUsed')}</p>
 
@@ -153,9 +196,9 @@ export default function AdminTrainers() {
       <ConfirmDialog
         open={!!toggle}
         danger={!!toggle?.is_active}
-        title={toggle?.is_active ? t('adm.tr.deactivateQ') : t('adm.tr.approveQ')}
-        message={toggle?.is_active ? t('adm.tr.deactivateText', { name: toggle?.full_name ?? '' }) : t('adm.tr.approveText', { name: toggle?.full_name ?? '' })}
-        confirmLabel={toggle?.is_active ? t('adm.deactivate') : t('adm.approve')}
+        title={toggle?.is_active ? t('adm.tr.deactivateQ') : t('adm.tr.activateQ')}
+        message={toggle?.is_active ? t('adm.tr.deactivateText', { name: toggle?.full_name ?? '' }) : t('adm.tr.activateText', { name: toggle?.full_name ?? '' })}
+        confirmLabel={toggle?.is_active ? t('adm.deactivate') : t('adm.activate')}
         onCancel={() => setToggle(null)}
         onConfirm={async () => {
           if (!toggle) return;
@@ -163,6 +206,38 @@ export default function AdminTrainers() {
           toast.success(t(toggle.is_active ? 'adm.tr.nowInactive' : 'adm.tr.nowActive', { name: toggle.full_name }));
           setToggle(null);
           list.reload();
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!deciding}
+        danger={deciding?.action === 'reject'}
+        title={deciding?.action === 'reject' ? t('adm.app.rejectQ') : t('adm.app.approveQ')}
+        message={
+          deciding?.action === 'reject'
+            ? t('adm.app.rejectText', { name: deciding?.app.full_name ?? '' })
+            : t('adm.app.approveText', { name: deciding?.app.full_name ?? '' })
+        }
+        confirmLabel={deciding?.action === 'reject' ? t('adm.app.reject') : t('adm.approve')}
+        onCancel={() => setDeciding(null)}
+        onConfirm={async () => {
+          if (!deciding) return;
+          const { app, action } = deciding;
+          try {
+            if (action === 'approve') {
+              await approveApplication(app.application_id);
+              toast.success(t('adm.app.approved', { name: app.full_name }));
+            } else {
+              await rejectApplication(app.application_id);
+              toast.success(t('adm.app.rejected', { name: app.full_name }));
+            }
+          } catch (err) {
+            toast.error(msg(err instanceof Error ? err.message : t('common.saveFailed')));
+          }
+          setDeciding(null);
+          apps.reload();
+          list.reload();
+          counts.reload();
         }}
       />
 

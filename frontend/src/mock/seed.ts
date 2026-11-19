@@ -321,6 +321,11 @@ export function buildSeed(): DB {
     bookings,
     payments,
     users,
+    // Sign-ups waiting for an admin: shown in Admin > Trainers > Trainer applications.
+    applications: [
+      { application_id: 1, full_name: 'Dana Zhumagul', email: 'dana.zhumagul@example.kz', specialization: 'Pilates', session_price_kzt: 6500, created_at: `${addDaysStr(TODAY_DATE, -1)}T14:20` },
+      { application_id: 2, full_name: 'Ruslan Abenov', email: 'ruslan.abenov@example.kz', specialization: 'Kickboxing', session_price_kzt: 7500, created_at: `${addDaysStr(TODAY_DATE, -3)}T09:05` },
+    ],
     seq: {
       booking: bookings.length,
       payment: payments.length,
@@ -328,6 +333,7 @@ export function buildSeed(): DB {
       trainer: trainers.length,
       hall: halls.length,
       user: Math.max(...users.map((u) => u.user_id)),
+      application: 2,
     },
   };
 }

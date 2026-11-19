@@ -1,6 +1,6 @@
-import type { Hall, MemberView, Payment, Trainer } from '../types';
-import { TODAY_DATE } from '../config';
-import { getDb, saveDb } from '../mock/db';
+import type { Hall, MemberView, Payment, Trainer, TrainerApplication } from '../types';
+import { DEMO_PASSWORD, TODAY_DATE } from '../config';
+import { getDb, nextId, saveDb } from '../mock/db';
 import { addDaysStr, membershipState } from '../utils/format';
 import { ApiError } from './ApiError';
 import { clone, delay } from './helpers';
@@ -69,7 +69,7 @@ export async function listPaymentsOf(bookingId: number): Promise<Payment[]> {
 }
 
 export interface Attention {
-  pendingTrainers: number; // inactive trainers: waiting for approval
+  pendingTrainers: number; // trainer applications waiting for approval
   unpaidBookings: number; // pending bookings that hold a slot
   expiringMemberships: number; // ends within 7 days
   expiredMemberships: number;
@@ -82,7 +82,7 @@ export async function attention(): Promise<Attention> {
   const db = getDb();
   const states = db.members.map((m) => membershipState(m.membership_expires_on).state);
   return {
-    pendingTrainers: db.trainers.filter((t) => !t.is_active).length,
+    pendingTrainers: db.applications.length,
     unpaidBookings: db.bookings.filter((b) => b.status === 'pending' && b.start_time.slice(0, 10) >= TODAY_DATE).length,
     expiringMemberships: states.filter((s) => s === 'expiring').length,
     expiredMemberships: states.filter((s) => s === 'expired').length,
@@ -142,5 +142,60 @@ export async function deleteHall(id: number): Promise<void> {
     throw new ApiError('VALIDATION', 'This hall has bookings, so it can only be deactivated.');
   }
   db.halls = db.halls.filter((h) => h.hall_id !== id);
+  saveDb();
+}
+
+// ---- trainer applications ---------------------------------------------------
+// In the real backend a sign-up creates an INACTIVE trainer plus a login (see register_trainer in
+// backend/app/auth.py). An application here is exactly that: approve = set is_active = true, reject = delete the
+// never-booked trainer and its login. Suggested routes: GET /admin/trainer-applications,
+// POST /admin/trainer-applications/{id}/approve, DELETE /admin/trainer-applications/{id}.
+
+/** Applications waiting for a decision, newest first. */
+export async function listApplications(): Promise<TrainerApplication[]> {
+  await delay();
+  requireUser(['admin']);
+  return clone([...getDb().applications].sort((a, b) => b.created_at.localeCompare(a.created_at)));
+}
+
+/** Approves an application: the applicant becomes an active trainer and gets a trainer login. */
+export async function approveApplication(id: number): Promise<Trainer> {
+  await delay();
+  requireUser(['admin']);
+  const db = getDb();
+  const app = db.applications.find((a) => a.application_id === id);
+  if (!app) throw new ApiError('NOT_FOUND', 'Application not found.');
+  if (db.users.some((u) => u.email.toLowerCase() === app.email.toLowerCase())) {
+    throw new ApiError('VALIDATION', 'An account with this email already exists.');
+  }
+  const trainer: Trainer = {
+    trainer_id: nextId('trainer'),
+    full_name: app.full_name,
+    specialization: app.specialization,
+    session_price_kzt: app.session_price_kzt,
+    is_active: true,
+  };
+  db.trainers.push(trainer);
+  db.users.push({
+    user_id: nextId('user'),
+    full_name: app.full_name,
+    email: app.email,
+    password: DEMO_PASSWORD, // mock only: the real account already has the password the applicant chose
+    role: 'trainer',
+    trainer_id: trainer.trainer_id,
+    is_active: true,
+  });
+  db.applications = db.applications.filter((a) => a.application_id !== id);
+  saveDb();
+  return clone(trainer);
+}
+
+/** Rejects an application: it is removed and no trainer is created. */
+export async function rejectApplication(id: number): Promise<void> {
+  await delay();
+  requireUser(['admin']);
+  const db = getDb();
+  if (!db.applications.some((a) => a.application_id === id)) throw new ApiError('NOT_FOUND', 'Application not found.');
+  db.applications = db.applications.filter((a) => a.application_id !== id);
   saveDb();
 }

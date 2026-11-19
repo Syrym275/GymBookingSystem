@@ -66,13 +66,15 @@ private to the trainer area and is not exposed to members.
 | Overview | `/admin` | KPIs (bookings this week, confirmed/pending, revenue 30 days, no-show rate), a "needs attention" list (trainers awaiting approval, unpaid bookings, memberships ending or expired), busiest day/hour, two charts |
 | Bookings | `/admin/bookings` | Every booking, filters kept in the URL, status change straight from the table, payment info, details with payment attempts, CSV export |
 | Payments log | `/admin/payments` | Every payment attempt (approved, declined, refunded) with totals, filters, search, CSV export |
-| Trainers | `/admin/trainers` | Add, edit price and specialization, **approve** new registrations, activate / deactivate, **delete** (only if never booked) |
+| Trainers | `/admin/trainers` | Add, edit price and specialization, **trainer applications** (people who signed up as a trainer wait here: **Approve** creates the active trainer + login, **Reject** removes the request), activate / deactivate, **delete** (only if never booked) |
 | Halls | `/admin/halls` | Add, edit capacity and hourly rate, activate / deactivate, **delete** (only if never booked) |
 | Members | `/admin/members` | Search, see all details, change the plan, extend the membership |
 | Reports | `/admin/reports` | Popular trainers, popular start hours, members with unpaid bookings (date range, CSV export) |
 | Staff accounts | `/admin/staff` | Receptionist / trainer / admin logins: add, deactivate |
 
 Trainers and halls that have bookings can only be **deactivated** (the Delete button is disabled), so old bookings and payment reports stay correct. A trainer or hall that was never booked (a rejected registration, a record added by mistake) can be **deleted**. Members and staff accounts are never deleted, only deactivated.
+
+**Trainer sign-up → approval.** `/register` → "Offer training sessions" files an *application*; it is not a trainer yet. It shows up under *Admin → Trainers → Trainer applications* (and in the Overview "needs attention" list). In the real backend this is a `trainers` row with `is_active = FALSE`; the admin API only needs *list applications / approve / reject*. When no backend answers (dev mode only), `api/demoSignup.ts` stores the application in the mock database so the whole flow can be shown with just `npm run dev`.
 
 **How to see the admin area without a backend or database.** The backend has no admin routes yet, so the admin area runs on the in-browser **demo data** (`src/mock`, extended by `src/api/adminApi.ts`) and shows a "Demo data" banner. Run only the frontend:
 

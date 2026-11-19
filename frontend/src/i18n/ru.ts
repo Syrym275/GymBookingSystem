@@ -797,8 +797,6 @@ export const ru: Record<Key, string> = {
   "adm.tr.spec": "Специализация",
   "adm.tr.sub": "Добавляйте тренеров, меняйте цены, одобряйте новые регистрации, включайте и выключайте тренеров.",
   "adm.tr.trainer": "Тренер",
-  "adm.tr.waiting": "Тренеров ждут одобрения: {n}.",
-  "adm.tr.waitingText": "Неактивные тренеры скрыты от участников. Одобрите их, чтобы к ним можно было записаться.",
 
   // ---- admin: delete unused trainers / halls ----
   "adm.delete": "Удалить",
@@ -811,4 +809,20 @@ export const ru: Record<Key, string> = {
   "adm.tr.deleteQ": "Удалить тренера?",
   "adm.tr.deleteText": "У {name} нет броней, поэтому запись можно удалить. Это нельзя отменить.",
   "adm.tr.deleted": "{name} удалён.",
+
+  // ---- admin: trainer applications ----
+  "adm.app.applied": "Подана",
+  "adm.app.approveQ": "Одобрить заявку?",
+  "adm.app.approveText": "{name} станет тренером: появится на страницах бронирования и сможет войти в раздел тренера.",
+  "adm.app.approved": "Заявка {name} одобрена. Теперь это тренер.",
+  "adm.app.none": "Заявок на рассмотрении нет.",
+  "adm.app.reject": "Отклонить",
+  "adm.app.rejectQ": "Отклонить заявку?",
+  "adm.app.rejectText": "Заявка {name} будет удалена, тренер не будет создан.",
+  "adm.app.rejected": "Заявка {name} отклонена.",
+  "adm.app.requestedPrice": "Желаемая цена",
+  "adm.app.sub": "Люди, которые зарегистрировались как тренеры. Одобрите заявку, чтобы добавить человека в список тренеров и открыть запись к нему.",
+  "adm.app.title": "Заявки тренеров",
+  "adm.tr.activateQ": "Активировать тренера?",
+  "adm.tr.activateText": "{name} снова появится на страницах бронирования.",
 };

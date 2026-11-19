@@ -795,8 +795,6 @@ export const en = {
   "adm.tr.spec": "Specialization",
   "adm.tr.sub": "Add trainers, change prices, approve new registrations, switch trainers on or off.",
   "adm.tr.trainer": "Trainer",
-  "adm.tr.waiting": "Trainers waiting for approval: {n}.",
-  "adm.tr.waitingText": "Inactive trainers are hidden from members. Approve them to make them bookable.",
 
   // ---- admin: delete unused trainers / halls ----
   "adm.delete": "Delete",
@@ -809,6 +807,22 @@ export const en = {
   "adm.tr.deleteQ": "Delete trainer?",
   "adm.tr.deleteText": "{name} has no bookings, so the record can be deleted. This cannot be undone.",
   "adm.tr.deleted": "{name} deleted.",
+
+  // ---- admin: trainer applications ----
+  "adm.app.applied": "Applied",
+  "adm.app.approveQ": "Approve this application?",
+  "adm.app.approveText": "{name} becomes a trainer: they appear on the booking pages and can log in to the trainer area.",
+  "adm.app.approved": "{name} approved. They are now a trainer.",
+  "adm.app.none": "No applications are waiting.",
+  "adm.app.reject": "Reject",
+  "adm.app.rejectQ": "Reject this application?",
+  "adm.app.rejectText": "The application of {name} is removed and no trainer is created.",
+  "adm.app.rejected": "Application of {name} rejected.",
+  "adm.app.requestedPrice": "Asked price",
+  "adm.app.sub": "People who signed up as a trainer. Approve an application to add them to the trainers list and let members book them.",
+  "adm.app.title": "Trainer applications",
+  "adm.tr.activateQ": "Activate trainer?",
+  "adm.tr.activateText": "{name} will appear on the booking pages again.",
 } as const;
 
 export type Key = keyof typeof en;

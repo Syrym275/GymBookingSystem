@@ -141,6 +141,7 @@ const MESSAGES: Record<string, { ru: string; kz: string }> = {
   "Your session has expired. Please sign in again.": { ru: "Сеанс истёк. Войдите снова.", kz: "Сеанс мерзімі бітті. Қайта кіріңіз." },
   "This trainer has bookings, so it can only be deactivated.": { ru: "У этого тренера есть брони, поэтому его можно только деактивировать.", kz: "Бұл жаттықтырушының броньдары бар, сондықтан оны тек деактивациялауға болады." },
   "This hall has bookings, so it can only be deactivated.": { ru: "У этого зала есть брони, поэтому его можно только деактивировать.", kz: "Бұл залдың броньдары бар, сондықтан оны тек деактивациялауға болады." },
+  "Application not found.": { ru: "Заявка не найдена.", kz: "Өтінім табылмады." },
 };
 
 /** Message in the current language (falls back to the original text). */

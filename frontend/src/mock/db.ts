@@ -1,4 +1,4 @@
-import type { Booking, Hall, Member, Payment, Trainer, UserAccount } from '../types';
+import type { Booking, Hall, Member, Payment, Trainer, TrainerApplication, UserAccount } from '../types';
 import { buildSeed } from './seed';
 
 // In-memory "database", persisted to localStorage so changes survive a refresh.
@@ -11,10 +11,11 @@ export interface DB {
   bookings: Booking[];
   payments: Payment[];
   users: UserAccount[];
-  seq: { booking: number; payment: number; member: number; trainer: number; hall: number; user: number };
+  applications: TrainerApplication[];
+  seq: { booking: number; payment: number; member: number; trainer: number; hall: number; user: number; application: number };
 }
 
-const KEY = 'gbs_mock_db_v3'; // bumped: the seed now includes demo history for the admin area
+const KEY = 'gbs_mock_db_v4'; // bumped: the seed now includes trainer applications
 
 function load(): DB {
   try {

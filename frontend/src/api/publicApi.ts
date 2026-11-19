@@ -1,4 +1,5 @@
 // Public catalogue and account registration use FastAPI. Some dashboard reports remain mock-backed.
+import { submitDemoTrainerApplication } from './demoSignup';
 
 export interface PublicTrainer {
   trainer_id: number;
@@ -30,16 +31,24 @@ export interface TrainerRegistrationInput {
 /** Saves a trainer for approval and emails a verification link. Does not sign them in. */
 export async function registerTrainer(input: TrainerRegistrationInput): Promise<{ verificationEmailSent: boolean }> {
   const fallback = 'Could not send your registration. Please try again shortly.';
+  // Demo mode (npm run dev only): if the backend is down, stuck or broken, file the application in the demo data.
+  const demo = async () => {
+    await submitDemoTrainerApplication(input);
+    return { verificationEmailSent: true };
+  };
   let response: Response;
   try {
     response = await fetch('/api/auth/register/trainer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
+      signal: AbortSignal.timeout(6000), // never wait forever for a stuck backend
     });
   } catch {
+    if (import.meta.env.DEV) return demo();
     throw new Error(fallback);
   }
+  if (!response.ok && response.status >= 500 && import.meta.env.DEV) return demo();
   if (!response.ok) {
     const data = await response.json().catch(() => null);
     throw new Error(typeof data?.detail === 'string' ? data.detail : fallback);
