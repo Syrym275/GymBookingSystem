@@ -19,6 +19,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ApiError } from '../api/ApiError';
 import { setSessionUser } from '../api/session';
+import { t } from '../i18n';
 import type { CurrentUser } from '../types';
 import type { RegisterInput } from './mockUsers';
 
@@ -35,6 +36,7 @@ interface AuthValue {
 
 // DEV-only preview: the admin area has no backend routes yet, so it runs on the in-browser demo data.
 // The marker lives in sessionStorage and is ignored in production builds (import.meta.env.DEV is false there).
+const SESSION_CHECK_MS = 3000; // how long the start-up sign-in check may take
 const DEMO_KEY = 'gbs_demo_admin';
 const DEMO_ADMIN: CurrentUser = { user_id: 1, full_name: 'Madi Akhmetov', email: 'manager@gym.kz', role: 'admin' };
 const readDemo = () => {
@@ -58,7 +60,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setReady(true);
       return;
     }
-    fetch('/api/auth/me', { credentials: 'include' })
+    // Never wait for the backend forever: if it is down or stuck (for example on an unreachable database),
+    // give up after a few seconds and show the site as signed out instead of a blank page.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), SESSION_CHECK_MS);
+    fetch('/api/auth/me', { credentials: 'include', signal: controller.signal })
       .then(async (response) => {
         if (response.status === 401) return null;
         if (!response.ok) throw new Error('Could not restore the sign-in session.');
@@ -69,7 +75,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(signedIn);
       })
       .catch(() => setUser(null))
-      .finally(() => setReady(true));
+      .finally(() => {
+        clearTimeout(timer);
+        setReady(true);
+      });
+    return () => clearTimeout(timer);
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -191,7 +201,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({ user, login, register, markEmailVerified, logout, demoLogin: import.meta.env.DEV ? demoLogin : undefined }),
     [user, login, register, markEmailVerified, logout, demoLogin],
   );
-  if (!ready) return null;
+  if (!ready) {
+    return (
+      <div role="status" className="flex min-h-screen items-center justify-center bg-cream text-sm text-ink/60">
+        {t('common.loading')}
+      </div>
+    );
+  }
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
