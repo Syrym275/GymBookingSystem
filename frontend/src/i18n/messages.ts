@@ -83,6 +83,7 @@ const MESSAGES: Record<string, { ru: string; kz: string }> = {
   "Please choose a member first.": { ru: "Сначала выберите участника.", kz: "Алдымен мүшені таңдаңыз." },
   "Please choose a membership plan.": { ru: "Выберите тариф абонемента.", kz: "Абонемент тарифін таңдаңыз." },
   "Please enter a valid email.": { ru: "Введите корректный email.", kz: "Дұрыс email енгізіңіз." },
+  "Please enter the hall name.": { ru: "Введите название зала.", kz: "Зал атауын енгізіңіз." },
   "Please enter your full name.": { ru: "Введите имя и фамилию.", kz: "Аты-жөніңізді енгізіңіз." },
   "Please enter your specialization.": { ru: "Укажите специализацию.", kz: "Мамандығыңызды көрсетіңіз." },
   "Please verify your email before continuing.": { ru: "Чтобы продолжить, подтвердите email.", kz: "Жалғастыру үшін email-ді растаңыз." },

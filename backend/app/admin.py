@@ -97,6 +97,20 @@ def clean(text: str) -> str:
     return " ".join(text.split())
 
 
+HALL_NAME = (1, "Please enter the hall name.")
+FULL_NAME = (2, "Please enter your full name.")  # same rule and message as sign-up (auth.py)
+SPECIALIZATION = (2, "Please enter your specialization.")
+
+
+def required(text: str, rule: tuple[int, str]) -> str:
+    """Collapse spaces, then check the length again: "   " passes min_length but is empty once cleaned."""
+    minimum, message = rule
+    cleaned = clean(text)
+    if len(cleaned) < minimum:
+        raise HTTPException(status_code=422, detail=message)
+    return cleaned
+
+
 def jsonable(value):
     """Decimals and dates in audit details."""
     if isinstance(value, date):
@@ -126,6 +140,8 @@ def list_trainers(_: Admin) -> list[AdminTrainer]:
 
 @router.post("/trainers", response_model=AdminTrainer, status_code=201)
 def create_trainer(input: TrainerInput, admin: Admin) -> AdminTrainer:
+    full_name = required(input.full_name, FULL_NAME)
+    specialization = required(input.specialization, SPECIALIZATION)
     try:
         with connect(row_factory=dict_row) as connection:
             with connection.cursor() as cursor:
@@ -135,7 +151,7 @@ def create_trainer(input: TrainerInput, admin: Admin) -> AdminTrainer:
                     VALUES (%s, %s, %s, TRUE, CURRENT_TIMESTAMP)
                     RETURNING {TRAINER_COLUMNS}
                     """,
-                    (clean(input.full_name), clean(input.specialization), input.session_price_kzt),
+                    (full_name, specialization, input.session_price_kzt),
                 )
                 row = cursor.fetchone()
                 audit(cursor, admin, "trainer.created", "trainer", row["trainer_id"], full_name=row["full_name"])
@@ -149,9 +165,9 @@ def update_trainer(trainer_id: Id, input: TrainerPatch, admin: Admin) -> AdminTr
     """Edit and/or (de)activate. Price changes only affect new bookings; old ones keep their price."""
     changes = input.model_dump(exclude_none=True)
     if "full_name" in changes:
-        changes["full_name"] = clean(changes["full_name"])
+        changes["full_name"] = required(changes["full_name"], FULL_NAME)
     if "specialization" in changes:
-        changes["specialization"] = clean(changes["specialization"])
+        changes["specialization"] = required(changes["specialization"], SPECIALIZATION)
     if not changes:
         raise HTTPException(status_code=422, detail="Nothing to change.")
 
@@ -293,6 +309,7 @@ def list_halls(_: Admin) -> list[AdminHall]:
 
 @router.post("/halls", response_model=AdminHall, status_code=201)
 def create_hall(input: HallInput, admin: Admin) -> AdminHall:
+    hall_name = required(input.hall_name, HALL_NAME)
     try:
         with connect(row_factory=dict_row) as connection:
             with connection.cursor() as cursor:
@@ -302,7 +319,7 @@ def create_hall(input: HallInput, admin: Admin) -> AdminHall:
                     VALUES (%s, %s, %s)
                     RETURNING {HALL_COLUMNS}
                     """,
-                    (clean(input.hall_name), input.capacity, input.hourly_rate_kzt),
+                    (hall_name, input.capacity, input.hourly_rate_kzt),
                 )
                 row = cursor.fetchone()
                 audit(cursor, admin, "hall.created", "hall", row["hall_id"], hall_name=row["hall_name"])
@@ -317,7 +334,7 @@ def create_hall(input: HallInput, admin: Admin) -> AdminHall:
 def update_hall(hall_id: Id, input: HallPatch, admin: Admin) -> AdminHall:
     changes = input.model_dump(exclude_none=True)
     if "hall_name" in changes:
-        changes["hall_name"] = clean(changes["hall_name"])
+        changes["hall_name"] = required(changes["hall_name"], HALL_NAME)
     if not changes:
         raise HTTPException(status_code=422, detail="Nothing to change.")
     try:
@@ -784,7 +801,7 @@ def list_staff(_: Admin) -> list[StaffAccountResponse]:
 def create_staff(input: StaffCreateRequest, admin: Admin) -> StaffAccountResponse:
     """Creates a receptionist login, or a login for an existing trainer profile. The admin sets the first password."""
     email = input.email.strip().lower()
-    full_name = clean(input.full_name)
+    full_name = required(input.full_name, FULL_NAME)
     if not is_valid_email(email):
         raise HTTPException(status_code=422, detail="Please enter a valid email.")
     if input.role == "trainer" and input.trainer_id is None:
