@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import unittest
 from unittest.mock import patch
 
@@ -31,19 +31,21 @@ class TrainerAvailabilityTests(unittest.TestCase):
         )
 
     def test_update_uses_authenticated_trainer_and_normalizes_note(self):
+        # A break must end in the future, so build the time from today instead of a fixed date.
+        break_until = (datetime.now() + timedelta(days=1)).replace(hour=15, minute=0, second=0, microsecond=0)
         self.cursor.fetchone.return_value = {
             "trainer_id": 8,
             "state": "break",
             "note": "back at 15:00",
-            "break_until": datetime(2026, 11, 16, 15, 0),
-            "updated_at": datetime(2026, 11, 15, 12, 0),
+            "break_until": break_until,
+            "updated_at": datetime.now(),
         }
 
         result = update_my_availability(
             TrainerAvailabilityUpdateRequest(
                 state="break",
                 note="  back   at 15:00 ",
-                break_until=datetime(2026, 11, 16, 15, 0),
+                break_until=break_until,
             ),
             self.trainer_user(),
         )
@@ -52,8 +54,24 @@ class TrainerAvailabilityTests(unittest.TestCase):
         self.assertEqual(result.note, "back at 15:00")
         self.assertEqual(
             self.cursor.execute.call_args.args[1],
-            ("break", "break", datetime(2026, 11, 16, 15, 0), "back at 15:00", 8),
+            ("break", "break", break_until, "back at 15:00", 8),
         )
+
+    def test_past_break_end_is_rejected(self):
+        with self.assertRaises(ValueError):
+            TrainerAvailabilityUpdateRequest(state="break", break_until=datetime.now() - timedelta(minutes=1))
+
+    def test_available_and_day_off_save_without_a_break_time(self):
+        # Regression: an empty break time was sent as text and PostgreSQL refused it.
+        for state in ("available", "off"):
+            with self.subTest(state=state):
+                self.cursor.fetchone.return_value = {
+                    "trainer_id": 8, "state": state, "note": "", "break_until": None, "updated_at": datetime.now(),
+                }
+                result = update_my_availability(TrainerAvailabilityUpdateRequest(state=state), self.trainer_user())
+                self.assertEqual(result.state, state)
+                self.assertIn("%s::timestamp", self.cursor.execute.call_args.args[0])
+                self.assertIsNone(self.cursor.execute.call_args.args[1][2])
 
     def test_trainer_cannot_read_another_trainers_public_status(self):
         with self.assertRaises(HTTPException) as error:

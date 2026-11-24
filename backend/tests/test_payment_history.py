@@ -8,6 +8,8 @@ from fastapi.testclient import TestClient
 from psycopg import OperationalError
 
 from app.main import app
+from app.models import CurrentUserResponse
+from app.security import current_user
 
 
 class PaymentHistoryTests(unittest.TestCase):
@@ -15,6 +17,13 @@ class PaymentHistoryTests(unittest.TestCase):
         connection = patch("app.payments.connect")
         self.connect = connection.start()
         self.addCleanup(connection.stop)
+        # Signed in as the booking's owner; ownership checks are tested in test_access_control.py.
+        member = CurrentUserResponse(user_id=1, full_name="Member", email="member@example.kz", role="member", member_id=3)
+        app.dependency_overrides[current_user] = lambda: member
+        self.addCleanup(app.dependency_overrides.pop, current_user, None)
+        access = patch("app.payments.ensure_booking_access")
+        access.start()
+        self.addCleanup(access.stop)
         self.cursor = self.connect.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
         self.client = TestClient(app)
         self.addCleanup(self.client.close)

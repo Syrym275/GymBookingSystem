@@ -31,8 +31,11 @@ def booking_availability(
         if member_id is not None and member_id != user.member_id:
             raise HTTPException(status_code=403, detail="You are not allowed to view another member's availability.")
         member_id = user.member_id
-    elif user.role == "trainer" and booking_type != "training":
-        raise HTTPException(status_code=403, detail="Your account is not allowed to view this availability.")
+    elif user.role == "trainer":
+        if booking_type != "training":
+            raise HTTPException(status_code=403, detail="Your account is not allowed to view this availability.")
+        # A trainer must not learn when another member is busy.
+        member_id = None
 
     start_of_day = datetime.combine(date, time.min)
     try:
@@ -565,7 +568,7 @@ def get_booking(
                         b.created_at,
                         b.payment_expires_at,
                         m.full_name AS member_name,
-                        m.phone AS member_phone,
+                        CASE WHEN %s THEN NULL ELSE m.phone END AS member_phone,
                         m.membership_plan AS member_membership_plan,
                         m.membership_expires_on AS member_membership_expires_on,
                         t.full_name AS trainer_name,
@@ -576,7 +579,8 @@ def get_booking(
                     LEFT JOIN halls h ON h.hall_id = b.hall_id
                     WHERE b.booking_id = %s
                     """,
-                    (booking_id,),
+                    # Trainers never see member phone numbers, same as the bookings list.
+                    (user.role == "trainer", booking_id),
                 )
 
                 row = cursor.fetchone()

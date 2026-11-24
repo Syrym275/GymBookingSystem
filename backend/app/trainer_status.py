@@ -113,7 +113,7 @@ def update_my_availability(
                     """
                     UPDATE trainers
                     SET availability_status = %s,
-                        availability_break_until = CASE WHEN %s = 'break' THEN %s ELSE NULL END,
+                        availability_break_until = CASE WHEN %s = 'break' THEN %s::timestamp ELSE NULL END,
                         availability_note = NULLIF(%s, ''),
                         availability_updated_at = CURRENT_TIMESTAMP
                     WHERE trainer_id = %s

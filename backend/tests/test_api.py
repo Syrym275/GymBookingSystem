@@ -19,6 +19,14 @@ from pydantic import ValidationError
 from app.main import app
 from app.catalog import get_database_catalog
 from app.models import BookingCreateRequest, CurrentUserResponse, PublicTrainer
+from app.security import current_user
+
+
+def sign_in(test: unittest.TestCase, **fields) -> None:
+    """Pretend a user is signed in, without a session cookie or database lookup."""
+    user = CurrentUserResponse(user_id=1, full_name="Test User", email="user@example.kz", email_verified=True, **fields)
+    app.dependency_overrides[current_user] = lambda: user
+    test.addCleanup(app.dependency_overrides.pop, current_user, None)
 
 
 class PublicApiTests(unittest.TestCase):
@@ -290,6 +298,8 @@ class ValidationFixTests(unittest.TestCase):
         self.connect.assert_not_called()
 
     def test_missing_database_url_returns_503(self):
+        # Protected routes look the session up in the database, so send a cookie to reach that lookup.
+        self.client.cookies.set("gym_session", "any-token")
         with patch.dict(os.environ, {"DATABASE_URL": ""}):
             requests = [
                 ("post", "/auth/register", self.member),
@@ -316,6 +326,7 @@ class ValidationFixTests(unittest.TestCase):
         self.assertEqual(response.json()["detail"], "Full name: string should have at least 2 characters.")
 
     def test_booking_request_checks_times_and_resource(self):
+        sign_in(self, role="member", member_id=1)
         base = {"member_id": 1, "booking_type": "training", "trainer_id": 2,
                 "start_time": "2026-11-12T10:00:00", "end_time": "2026-11-12T11:00:00"}
         cases = [
@@ -363,6 +374,8 @@ class BookingWriteTests(unittest.TestCase):
         self.cursor = self.connect.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
         self.client = TestClient(app)
         self.addCleanup(self.client.close)
+        # Staff may book for any member and skip the email check, which has its own tests.
+        sign_in(self, role="admin")
 
     def test_past_time_booking_is_rejected_before_insert(self):
         self.cursor.fetchone.return_value = {"starts_in_past": True}
@@ -674,7 +687,10 @@ class EmailVerificationTests(unittest.TestCase):
     # -- guard ----------------------------------------------------------------------
 
     def test_guard_blocks_unverified_member_from_booking_and_paying(self):
-        with patch("app.bookings.connect") as booking_db, patch("app.payments.connect") as payment_db:
+        sign_in(self, role="member", member_id=3)
+        # Booking ownership has its own tests; here only the email check matters.
+        with patch("app.bookings.connect") as booking_db, patch("app.payments.connect") as payment_db, \
+                patch("app.payments.ensure_booking_access"):
             self.cursor.fetchone.return_value = (False,)
             booked = self.client.post("/bookings", json=self.booking)
             paid = self.client.post("/bookings/41/payment", json={"method": "card"})
@@ -688,6 +704,7 @@ class EmailVerificationTests(unittest.TestCase):
         self.assertEqual(self.cursor.execute.call_args_list[1].args[1], (41,))
 
     def test_guard_lets_verified_members_and_desk_members_through(self):
+        sign_in(self, role="member", member_id=3)
         for row in ((True,), None):  # verified login, or a member with no login at all
             with self.subTest(row=row), patch("app.bookings.connect") as booking_db:
                 booking_db.side_effect = OperationalError("stop after the guard")
