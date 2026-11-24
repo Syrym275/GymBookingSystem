@@ -139,7 +139,8 @@ class AdminApiTests(unittest.TestCase):
             trainer_name="T", hall_name=None, payment_id=None, amount_kzt=None, payment_method=None,
             payment_status=None, provider_txn_ref=None, payment_created_at=None, paid_at=None,
         )
-        self.cursor.fetchone.side_effect = [{"status": "confirmed", "started": False}, booking]
+        # The None is the trainer email lookup (no trainer login); see test_trainer_notifications.
+        self.cursor.fetchone.side_effect = [{"status": "confirmed", "started": False}, None, booking]
         response = self.client.post("/admin/bookings/5/status", json={"status": "cancelled"})
         self.assertEqual(response.status_code, 200)
         self.assertTrue(any("SET payment_status = 'refunded'" in q for q in self.executed()))

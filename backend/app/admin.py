@@ -9,7 +9,7 @@ from datetime import date
 from typing import Annotated, Literal
 
 import psycopg
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
 
@@ -17,6 +17,7 @@ from .audit import record
 from .auth import check_new_password, hash_password
 from .bookings import database_error
 from .db import connect, is_valid_email
+from .trainer_notifications import load_session_notice, send_trainer_cancellation_email
 from .models import (
     AdminAttention,
     AdminBookingResponse,
@@ -524,8 +525,11 @@ def list_bookings(_: Admin) -> list[AdminBookingResponse]:
 
 
 @router.post("/bookings/{booking_id}/status", response_model=AdminBookingResponse)
-def change_booking_status(booking_id: Id, input: AdminBookingStatusRequest, admin: Admin) -> AdminBookingResponse:
+def change_booking_status(
+    booking_id: Id, input: AdminBookingStatusRequest, admin: Admin, background: BackgroundTasks
+) -> AdminBookingResponse:
     """Admin override: cancel, mark attendance, or correct an attendance mistake."""
+    trainer_notice = None
     try:
         with connect(row_factory=dict_row) as connection:
             with connection.cursor() as cursor:
@@ -549,13 +553,18 @@ def change_booking_status(booking_id: Id, input: AdminBookingStatusRequest, admi
                             "UPDATE payments SET payment_status = 'refunded' WHERE booking_id = %s AND payment_status = 'approved'",
                             (booking_id,),
                         )
+                        trainer_notice = load_session_notice(cursor, booking_id)
                     audit(cursor, admin, "booking.status_changed", "booking", booking_id, **{"from": old, "to": new})
                 cursor.execute(ADMIN_BOOKING_QUERY + " WHERE b.booking_id = %s", (booking_id,))
-                return _admin_booking(cursor.fetchone())
+                result = _admin_booking(cursor.fetchone())
     except HTTPException:
         raise
     except psycopg.Error as error:
         raise database_error(error) from None
+    # Queued only after the transaction committed; sent after the response.
+    if trainer_notice is not None:
+        background.add_task(send_trainer_cancellation_email, trainer_notice)
+    return result
 
 
 # ---- payments ------------------------------------------------------------------

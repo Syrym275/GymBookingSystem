@@ -3,12 +3,13 @@ from datetime import date, datetime, time, timedelta
 from typing import Literal
 
 import psycopg
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from psycopg.rows import dict_row
 
 from .db import connect
 from .models import BookingCreateRequest, BookingResponse, CurrentUserResponse
 from .security import current_user, ensure_booking_access
+from .trainer_notifications import load_session_notice, send_trainer_cancellation_email
 from .verification import ensure_email_verified
 
 
@@ -378,6 +379,7 @@ def list_member_bookings(
 @router.post("/{booking_id}/cancel", response_model=BookingResponse)
 def cancel_booking(
     booking_id: int,
+    background: BackgroundTasks,
     user: CurrentUserResponse = Depends(current_user),
 ) -> BookingResponse:
     ensure_booking_access(user, booking_id, write=True)
@@ -443,6 +445,7 @@ def cancel_booking(
                         detail="This booking can no longer be cancelled.",
                     )
 
+                trainer_notice = None
                 if existing["status"] == "confirmed":
                     cursor.execute(
                         """
@@ -453,6 +456,12 @@ def cancel_booking(
                         """,
                         (booking_id,),
                     )
+                    if row["booking_type"] == "training":
+                        trainer_notice = load_session_notice(cursor, booking_id)
+
+        # Queued only after the transaction committed; sent after the response.
+        if trainer_notice is not None:
+            background.add_task(send_trainer_cancellation_email, trainer_notice)
 
         return BookingResponse(**row)
 

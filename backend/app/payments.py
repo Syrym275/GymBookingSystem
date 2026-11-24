@@ -2,7 +2,7 @@ import logging
 import secrets
 
 import psycopg
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from psycopg.rows import dict_row
 
 from .db import connect
@@ -14,6 +14,7 @@ from .models import (
 )
 from .models import CurrentUserResponse
 from .security import current_user, ensure_booking_access
+from .trainer_notifications import load_session_notice, send_trainer_session_email
 
 
 router = APIRouter(prefix="/bookings", tags=["Payments"])
@@ -71,6 +72,7 @@ def list_booking_payments(
 def pay_booking(
     booking_id: int,
     input: PaymentRequest,
+    background: BackgroundTasks,
     user: CurrentUserResponse = Depends(current_user),
 ) -> PayResultResponse:
     ensure_booking_access(user, booking_id, write=True)
@@ -197,6 +199,18 @@ def pay_booking(
                 )
 
                 updated_booking = cursor.fetchone()
+
+                trainer_notice = None
+                if (
+                    updated_booking["booking_type"] == "training"
+                    and booking["status"] == "pending"
+                    and updated_booking["status"] == "confirmed"
+                ):
+                    trainer_notice = load_session_notice(cursor, booking_id)
+
+        # Queued only after the transaction committed; sent after the response.
+        if trainer_notice is not None:
+            background.add_task(send_trainer_session_email, trainer_notice)
 
         return PayResultResponse(
             payment=PaymentResponse(**payment),
