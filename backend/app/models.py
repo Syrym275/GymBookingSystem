@@ -135,6 +135,11 @@ class ResetPasswordRequest(BaseModel):
     password: str = Field(max_length=200)
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(max_length=200)
+    new_password: str = Field(max_length=200)
+
+
 class MemberResponse(BaseModel):
     member_id: int
     full_name: str

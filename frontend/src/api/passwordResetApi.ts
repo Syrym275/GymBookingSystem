@@ -1,4 +1,6 @@
-// Password reset endpoints (backend/app/password_reset.py).
+// Password reset endpoints (backend/app/password_reset.py) and the signed-in password change (backend/app/auth.py).
+
+import { api } from './http';
 
 async function post(path: string, body: unknown, fallback: string): Promise<string> {
   let response: Response;
@@ -24,4 +26,13 @@ export function requestPasswordReset(email: string): Promise<string> {
 
 export function resetPassword(token: string, password: string): Promise<string> {
   return post('reset-password', { token, password }, 'Could not change the password. Request a new link.');
+}
+
+/** Signed-in users only. Signs out the account's other devices; this one stays signed in. */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<string> {
+  const data = await api<{ detail: string }>('/auth/change-password', 'Could not change the password.', {
+    method: 'POST',
+    body: { current_password: currentPassword, new_password: newPassword },
+  });
+  return data.detail;
 }

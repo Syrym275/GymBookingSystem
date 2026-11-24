@@ -55,6 +55,7 @@ const NAV: Partial<Record<Role, NavItem[]>> = {
     { to: '/trainer/clients', label: 'nav.clients', icon: <Users className={i} /> },
     { to: '/trainer/history', label: 'nav.history', icon: <History className={i} /> },
     { to: '/trainer/status', label: 'nav.status', icon: <Activity className={i} /> },
+    { to: '/trainer/profile', label: 'profile.title', icon: <User className={i} /> },
   ],
   admin: [
     { to: '/admin', label: 'nav.overview', icon: <LayoutDashboard className={i} />, end: true },
@@ -66,6 +67,7 @@ const NAV: Partial<Record<Role, NavItem[]>> = {
     { to: '/admin/reports', label: 'adm.nav.reports', icon: <BarChart3 className={i} /> },
     { to: '/admin/staff', label: 'adm.nav.staff', icon: <UserCog className={i} /> },
     { to: '/admin/audit', label: 'adm.nav.audit', icon: <ScrollText className={i} /> },
+    { to: '/admin/profile', label: 'profile.title', icon: <User className={i} /> },
   ],
   receptionist: [
     { to: '/reception', label: 'nav.today', icon: <CalendarCheck className={i} />, end: true },
@@ -73,6 +75,7 @@ const NAV: Partial<Record<Role, NavItem[]>> = {
     { to: '/reception/unpaid', label: 'nav.unpaid', icon: <Wallet className={i} /> },
     { to: '/reception/members', label: 'nav.memberLookup', icon: <Search className={i} /> },
     { to: '/reception/new', label: 'nav.newBooking', icon: <PlusCircle className={i} /> },
+    { to: '/reception/profile', label: 'profile.title', icon: <User className={i} /> },
   ],
 };
 

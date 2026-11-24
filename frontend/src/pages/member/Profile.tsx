@@ -1,4 +1,5 @@
 import { getMyProfile } from '../../api/membersApi';
+import { ChangePasswordCard } from '../../components/ChangePasswordCard';
 import { QrCode } from '../../components/QrCode';
 import { ErrorNote, Loading, PageHeader } from '../../components/ui';
 import { useAsync } from '../../hooks/useAsync';
@@ -58,6 +59,9 @@ export default function Profile() {
           <p className="mt-3 font-mono text-xs font-bold">{data.qr_code_token}</p>
           <p className="mt-1 text-xs text-ink/60">{t('profile.qrNote')}</p>
         </div>
+      </div>
+      <div className="mt-6">
+        <ChangePasswordCard />
       </div>
     </div>
   );

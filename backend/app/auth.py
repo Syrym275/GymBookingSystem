@@ -10,8 +10,10 @@ from psycopg.errors import UniqueViolation
 from .audit import record, record_separately
 from .db import connect, is_valid_email
 from .email_domain import email_domain_exists
+from . import login_lockout
 from .verification import issue_token, send_verification_email
 from .models import (
+    ChangePasswordRequest,
     CurrentUserResponse,
     LoginRequest,
     RegisterRequest,
@@ -27,6 +29,24 @@ logger = logging.getLogger(__name__)
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+# Checked when the email has no account, so that answer takes as long as a wrong password
+# and response time does not reveal which emails are registered.
+_DUMMY_HASH = hash_password(secrets.token_urlsafe(16)).encode("utf-8")
+
+
+def password_matches(password: str, stored_hash: str | None) -> bool:
+    """bcrypt check that always costs the same, and treats bad or missing hashes as a wrong password."""
+    try:
+        if stored_hash is None:
+            bcrypt.checkpw(password.encode("utf-8"), _DUMMY_HASH)
+            return False
+        return bcrypt.checkpw(password.encode("utf-8"), stored_hash.encode("utf-8"))
+    except (ValueError, TypeError):
+        # Malformed or legacy hashes, or a password over bcrypt's 72 bytes, fail as invalid credentials
+        # rather than turning a sign-in attempt into a server error.
+        return False
 
 
 def check_new_password(password: str) -> None:
@@ -288,6 +308,14 @@ def register_trainer(input: TrainerRegisterRequest, response: Response) -> Train
     return result
 
 
+def raise_locked(seconds: int) -> None:
+    raise HTTPException(
+        status_code=429,
+        detail=login_lockout.lockout_detail(seconds),
+        headers={"Retry-After": str(seconds)},
+    )
+
+
 @router.post(
     "/login",
     response_model=CurrentUserResponse,
@@ -298,35 +326,38 @@ def login(input: LoginRequest, response: Response) -> CurrentUserResponse:
     try:
         with connect() as connection:
             with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT
-                        u.user_id,
-                        u.email,
-                        u.password_hash,
-                        u.role,
-                        u.member_id,
-                        u.trainer_id,
-                        COALESCE(
-                            m.full_name,
-                            t.full_name,
-                            u.full_name,
-                            INITCAP(REPLACE(SPLIT_PART(u.email, '@', 1), '.', ' '))
-                        ) AS full_name,
-                        t.specialization,
-                        t.session_price_kzt,
-                        t.is_active AS trainer_is_active,
-                        u.email_verified
-                    FROM users u
-                    LEFT JOIN members m ON m.member_id = u.member_id
-                    LEFT JOIN trainers t ON t.trainer_id = u.trainer_id
-                    WHERE LOWER(BTRIM(u.email)) = %s
-                      AND u.is_active = TRUE
-                    """,
-                    (email,),
-                )
-
-                row = cursor.fetchone()
+                # Counted before the password is checked; a locked email is refused without checking it.
+                attempt = login_lockout.begin_attempt(cursor, email)
+                row = None
+                if attempt.locked_seconds is None:
+                    cursor.execute(
+                        """
+                        SELECT
+                            u.user_id,
+                            u.email,
+                            u.password_hash,
+                            u.role,
+                            u.member_id,
+                            u.trainer_id,
+                            COALESCE(
+                                m.full_name,
+                                t.full_name,
+                                u.full_name,
+                                INITCAP(REPLACE(SPLIT_PART(u.email, '@', 1), '.', ' '))
+                            ) AS full_name,
+                            t.specialization,
+                            t.session_price_kzt,
+                            t.is_active AS trainer_is_active,
+                            u.email_verified
+                        FROM users u
+                        LEFT JOIN members m ON m.member_id = u.member_id
+                        LEFT JOIN trainers t ON t.trainer_id = u.trainer_id
+                        WHERE LOWER(BTRIM(u.email)) = %s
+                          AND u.is_active = TRUE
+                        """,
+                        (email,),
+                    )
+                    row = cursor.fetchone()
     except psycopg.Error:
         logger.exception("Login database query failed")
         raise HTTPException(
@@ -334,29 +365,38 @@ def login(input: LoginRequest, response: Response) -> CurrentUserResponse:
             detail="Login service could not read the account. Check the backend log.",
         ) from None
 
-    valid_password = False
-    if row is not None:
-        try:
-            valid_password = bcrypt.checkpw(
-                input.password.encode("utf-8"),
-                row[2].encode("utf-8"),
-            )
-        except (ValueError, TypeError):
-            # Malformed or legacy hashes should fail as invalid credentials,
-            # rather than turning a login attempt into a server error.
-            valid_password = False
+    # Raised only now, after the block above committed the attempt count.
+    if attempt.locked_seconds is not None:
+        raise_locked(attempt.locked_seconds)
 
-    if not valid_password:
+    if not password_matches(input.password, row[2] if row is not None else None):
         record_separately(
             "auth.login_failed",
             actor_user_id=row[0] if row is not None else None,
             actor_email=email,
             actor_role=row[3] if row is not None else None,
         )
+        locked_for = None
+        try:
+            with connect() as connection:
+                with connection.cursor() as cursor:
+                    locked_for = login_lockout.register_failure(cursor, email, attempt)
+        except psycopg.Error:
+            logger.exception("Could not lock sign-in")
+        if locked_for is not None:
+            record_separately("auth.login_locked", actor_email=email, details={"minutes": login_lockout.LOCKOUT_MINUTES})
+            raise_locked(locked_for)
         raise HTTPException(
             status_code=401,
             detail="Wrong email or password.",
         )
+
+    try:
+        with connect() as connection:
+            with connection.cursor() as cursor:
+                login_lockout.clear(cursor, email)
+    except psycopg.Error:
+        logger.exception("Could not reset failed sign-in count")
 
     result = CurrentUserResponse(
         user_id=row[0],
@@ -373,6 +413,81 @@ def login(input: LoginRequest, response: Response) -> CurrentUserResponse:
     create_session(row[0], response)
     record_separately("auth.login", actor_user_id=row[0], actor_email=row[1], actor_role=row[3])
     return result
+
+
+@router.post("/change-password")
+def change_password(
+    input: ChangePasswordRequest,
+    response: Response,
+    user: CurrentUserResponse = Depends(current_user),
+) -> dict[str, str]:
+    """Signed-in users change their own password. Needs the current one, so a borrowed session is not enough.
+
+    Every session of the account ends, including a stolen copy of this one; this browser gets a new session.
+    """
+    check_new_password(input.new_password)
+    if input.new_password == input.current_password:
+        raise HTTPException(status_code=422, detail="The new password must be different from the current one.")
+    email = user.email.strip().lower()
+
+    try:
+        with connect() as connection:
+            with connection.cursor() as cursor:
+                # Guessing the current password here counts toward the same lockout as the sign-in form.
+                attempt = login_lockout.begin_attempt(cursor, email)
+                row = None
+                if attempt.locked_seconds is None:
+                    cursor.execute("SELECT password_hash FROM users WHERE user_id = %s", (user.user_id,))
+                    row = cursor.fetchone()
+    except psycopg.Error:
+        logger.exception("Change password: account lookup failed")
+        raise HTTPException(status_code=503, detail="Authentication service unavailable.") from None
+    if attempt.locked_seconds is not None:
+        raise_locked(attempt.locked_seconds)
+    if row is None:
+        raise HTTPException(status_code=401, detail="Your session has expired. Please sign in again.")
+
+    if not password_matches(input.current_password, row[0]):
+        locked_for = None
+        try:
+            with connect() as connection:
+                with connection.cursor() as cursor:
+                    locked_for = login_lockout.register_failure(cursor, email, attempt)
+                    record(cursor, "auth.password_change_failed", actor_user_id=user.user_id, actor_email=email, actor_role=user.role)
+        except psycopg.Error:
+            logger.exception("Could not count failed password change")
+        if locked_for is not None:
+            raise_locked(locked_for)
+        raise HTTPException(status_code=400, detail="The current password is wrong.")
+
+    try:
+        with connect() as connection:  # one transaction: commits on success, rolls back on error
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE users SET password_hash = %s WHERE user_id = %s",
+                    (hash_password(input.new_password), user.user_id),
+                )
+                # Every session ends, this one too: if the old password leaked, so may have this cookie.
+                cursor.execute("DELETE FROM user_sessions WHERE user_id = %s", (user.user_id,))
+                # A reset link emailed before the change must not be able to undo it.
+                cursor.execute(
+                    """
+                    UPDATE password_reset_tokens
+                    SET expires_at = LEAST(expires_at, CURRENT_TIMESTAMP)
+                    WHERE user_id = %s
+                      AND used_at IS NULL
+                    """,
+                    (user.user_id,),
+                )
+                login_lockout.clear(cursor, email)
+                record(cursor, "auth.password_changed", actor_user_id=user.user_id, actor_email=email, actor_role=user.role)
+    except psycopg.Error:
+        logger.exception("Change password: update failed")
+        raise HTTPException(status_code=503, detail="Authentication service unavailable.") from None
+
+    create_session(user.user_id, response)  # a fresh session for this browser only
+
+    return {"detail": "Your password has been changed."}
 
 
 @router.get("/me", response_model=CurrentUserResponse)

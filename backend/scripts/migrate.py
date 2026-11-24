@@ -28,6 +28,7 @@ MIGRATIONS = [
     "password_reset",
     "trainer_booking_overlap",
     "admin",
+    "login_lockout",
 ]
 
 ROLES_SECTION = "-- 8. ACCESS CONTROL"

@@ -10,6 +10,7 @@ import CheckEmail from './pages/CheckEmail';
 import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import Account from './pages/Account';
 import MemberDashboard from './pages/member/Dashboard';
 import BookTrainer from './pages/member/BookTrainer';
 import RentHall from './pages/member/RentHall';
@@ -82,6 +83,7 @@ export const router = createBrowserRouter([
       { path: 'clients', element: <TrainerClients /> },
       { path: 'history', element: <TrainerHistory /> },
       { path: 'status', element: <TrainerStatus /> },
+      { path: 'profile', element: <Account /> },
     ],
   },
   {
@@ -93,6 +95,7 @@ export const router = createBrowserRouter([
       { path: 'unpaid', element: <ReceptionUnpaid /> },
       { path: 'members', element: <MemberLookup /> },
       { path: 'new', element: <NewBooking /> },
+      { path: 'profile', element: <Account /> },
     ],
   },
   {
@@ -108,6 +111,7 @@ export const router = createBrowserRouter([
       { path: 'reports', element: <AdminReports /> },
       { path: 'staff', element: <AdminStaff /> },
       { path: 'audit', element: <AdminAudit /> },
+      { path: 'profile', element: <Account /> },
     ],
   },
   { path: '*', element: <NotFound /> },

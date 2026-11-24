@@ -145,8 +145,30 @@ const MESSAGES: Record<string, { ru: string; kz: string }> = {
   "Your session has expired. Please sign in again.": { ru: "Сеанс истёк. Войдите снова.", kz: "Сеанс мерзімі бітті. Қайта кіріңіз." },
   "This trainer has bookings, so it can only be deactivated.": { ru: "У этого тренера есть брони, поэтому его можно только деактивировать.", kz: "Бұл жаттықтырушының броньдары бар, сондықтан оны тек деактивациялауға болады." },
   "This hall has bookings, so it can only be deactivated.": { ru: "У этого зала есть брони, поэтому его можно только деактивировать.", kz: "Бұл залдың броньдары бар, сондықтан оны тек деактивациялауға болады." },
+  "Your password has been changed.": { ru: "Пароль изменён.", kz: "Құпиясөз өзгертілді." },
+  "The current password is wrong.": { ru: "Текущий пароль неверный.", kz: "Қазіргі құпиясөз қате." },
+  "The new password must be different from the current one.": { ru: "Новый пароль должен отличаться от текущего.", kz: "Жаңа құпиясөз қазіргісінен өзгеше болуы керек." },
+  "Could not change the password.": { ru: "Не удалось сменить пароль.", kz: "Құпиясөзді өзгерту мүмкін болмады." },
   "Application not found.": { ru: "Заявка не найдена.", kz: "Өтінім табылмады." },
 };
+
+function ruMinutes(n: number): string {
+  const lastTwo = n % 100;
+  const last = n % 10;
+  if (lastTwo >= 11 && lastTwo <= 14) return `${n} минут`;
+  if (last === 1) return `${n} минуту`;
+  if (last >= 2 && last <= 4) return `${n} минуты`;
+  return `${n} минут`;
+}
+
+// Messages that carry a number, so they cannot be matched word for word.
+const PATTERNS: { pattern: RegExp; ru: (m: RegExpMatchArray) => string; kz: (m: RegExpMatchArray) => string }[] = [
+  {
+    pattern: /^Too many failed sign-in attempts\. Try again in (\d+) minutes?\.$/,
+    ru: (m) => `Слишком много неудачных попыток входа. Попробуйте снова через ${ruMinutes(Number(m[1]))}.`,
+    kz: (m) => `Кіру әрекеттері тым көп сәтсіз болды. ${m[1]} минуттан кейін қайталап көріңіз.`,
+  },
+];
 
 /** Message in the current language (falls back to the original text). */
 export function msg(text: string): string;
@@ -155,5 +177,12 @@ export function msg(text: string | null | undefined) {
   if (!text) return text;
   const lang = getLang();
   if (lang === 'en') return text;
-  return MESSAGES[text.trim()]?.[lang] ?? text;
+  const trimmed = text.trim();
+  const known = MESSAGES[trimmed]?.[lang];
+  if (known) return known;
+  for (const entry of PATTERNS) {
+    const match = trimmed.match(entry.pattern);
+    if (match) return entry[lang](match);
+  }
+  return text;
 }

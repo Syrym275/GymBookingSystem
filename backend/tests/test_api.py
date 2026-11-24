@@ -245,7 +245,9 @@ class TrainerRegistrationTests(unittest.TestCase):
 
     def test_trainer_login_returns_linked_trainer_id(self):
         password_hash = bcrypt.hashpw(b"secret123", bcrypt.gensalt()).decode()
-        self.cursor.fetchone.return_value = (1, "t@example.kz", password_hash, "trainer", None, 8, "Trainer Name", "Yoga", Decimal("5000"), True, True)
+        row = (1, "t@example.kz", password_hash, "trainer", None, 8, "Trainer Name", "Yoga", Decimal("5000"), True, True)
+        # Each login: the attempt is counted (not locked), then the account is read.
+        self.cursor.fetchone.side_effect = [(1, None), row, (2, None), row]
         credentials = {"email": "t@example.kz", "password": "secret123"}
         response = self.client.post("/auth/login", json=credentials)
         self.assertEqual(response.status_code, 200)
@@ -613,7 +615,7 @@ class EmailVerificationTests(unittest.TestCase):
 
     def test_unverified_user_can_still_log_in(self):
         password_hash = bcrypt.hashpw(b"Abcdef1!", bcrypt.gensalt()).decode()
-        self.cursor.fetchone.return_value = (7, "a@b.kz", password_hash, "member", 3, None, "A B", None, None, None, False)
+        self.cursor.fetchone.side_effect = [(1, None), (7, "a@b.kz", password_hash, "member", 3, None, "A B", None, None, None, False)]
         response = self.client.post("/auth/login", json={"email": "a@b.kz", "password": "Abcdef1!"})
         self.assertEqual(response.status_code, 200)
         self.assertIs(response.json()["email_verified"], False)

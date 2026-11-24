@@ -187,6 +187,11 @@ def reset_password(input: ResetPasswordRequest) -> dict[str, str]:
                 )
                 # Sign out everywhere: whoever knew the old password loses access.
                 cursor.execute("DELETE FROM user_sessions WHERE user_id = %s", (user_id,))
+                # A new password lifts any sign-in lockout on this account.
+                cursor.execute(
+                    "DELETE FROM login_lockouts WHERE email = (SELECT LOWER(BTRIM(email)) FROM users WHERE user_id = %s)",
+                    (user_id,),
+                )
     except psycopg.Error:
         raise database_unavailable("Password reset") from None
 
