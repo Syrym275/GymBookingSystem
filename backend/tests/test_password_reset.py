@@ -20,7 +20,7 @@ class PasswordResetTests(unittest.TestCase):
         environment = patch.dict(os.environ, {"DATABASE_URL": "postgresql://test", "APP_URL": "https://gym.example.kz/"})
         environment.start()
         self.addCleanup(environment.stop)
-        connect = patch("app.db.psycopg.connect")
+        connect = patch("app.db._checkout")
         self.connect = connect.start()
         self.addCleanup(connect.stop)
         self.cursor = self.connect.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value

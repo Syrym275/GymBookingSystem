@@ -2,10 +2,10 @@
 
 import os
 
-import psycopg
 from fastapi import HTTPException
 from psycopg.rows import dict_row
 
+from .db import connect
 from .models import PublicCatalog, TrainerProfile
 
 
@@ -17,16 +17,9 @@ def get_catalog() -> PublicCatalog:
     return get_database_catalog()
 
 
-def _connect() -> psycopg.Connection:
-    url = os.environ.get("DATABASE_URL", "").strip()
-    if not url:
-        raise HTTPException(status_code=503, detail="The service is missing its database configuration (DATABASE_URL).")
-    return psycopg.connect(
-        url,
-        connect_timeout=10,
-        row_factory=dict_row,
-        options="-c default_transaction_read_only=on -c statement_timeout=3000",
-    )
+def _connect():
+    """Pooled read-only connection with a 3 s statement timeout (see db.READ_ONLY_OPTIONS)."""
+    return connect(row_factory=dict_row, read_only=True)
 
 
 def get_database_catalog() -> PublicCatalog:

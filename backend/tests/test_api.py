@@ -1,6 +1,6 @@
 """Run from backend/: python -m unittest discover -s tests -v."""
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 import os
 import re
@@ -26,7 +26,7 @@ class PublicApiTests(unittest.TestCase):
         environment = patch.dict(os.environ, {"DATABASE_URL": "postgresql://test"})
         environment.start()
         self.addCleanup(environment.stop)
-        database = patch("app.catalog.psycopg.connect")
+        database = patch("app.db._checkout")
         self.connect = database.start()
         self.addCleanup(database.stop)
         self.cursor = self.connect.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
@@ -105,7 +105,7 @@ class PublicApiTests(unittest.TestCase):
         query, params = self.cursor.execute.call_args.args
         self.assertIn("WHERE trainer_id = %s", query)
         self.assertEqual(params, (1,))
-        self.assertIn("default_transaction_read_only=on", self.connect.call_args.kwargs["options"])
+        self.assertTrue(self.connect.call_args.args[1])  # read_only pool
 
     def test_missing_trainer_returns_404(self):
         self.cursor.fetchone.return_value = None
@@ -133,7 +133,7 @@ class PublicApiTests(unittest.TestCase):
                 PublicTrainer(**fields, session_price_kzt=invalid)
 
     def test_database_catalog_uses_read_only_public_queries(self):
-        with patch.dict(os.environ, {"DATABASE_URL": "postgresql://test"}), patch("app.catalog.psycopg.connect") as connect:
+        with patch.dict(os.environ, {"DATABASE_URL": "postgresql://test"}), patch("app.db._checkout") as connect:
             cursor = connect.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
             cursor.fetchall.side_effect = [
                 [{"trainer_id": 9, "full_name": "Database Trainer", "specialization": "Boxing", "session_price_kzt": Decimal("7000.25")}],
@@ -142,13 +142,13 @@ class PublicApiTests(unittest.TestCase):
             catalog = get_database_catalog().model_dump(mode="json")
             self.assertEqual(catalog["trainers"][0]["session_price_kzt"], 7000.25)
             self.assertEqual(catalog["halls"][0]["hourly_rate_kzt"], 9000.5)
-            self.assertIn("default_transaction_read_only=on", connect.call_args.kwargs["options"])
+            self.assertTrue(connect.call_args.args[1])  # read_only pool
             queries = [call.args[0] for call in cursor.execute.call_args_list]
             self.assertTrue(all(query.startswith("SELECT ") and "is_active = TRUE" in query for query in queries))
 
     def test_database_failure_returns_503_without_secrets_or_sample_fallback(self):
         with patch.dict(os.environ, {"DATABASE_URL": "postgresql://test"}), patch(
-            "app.catalog.psycopg.connect", side_effect=OperationalError("secret password should never reach the browser")
+            "app.db._checkout", side_effect=OperationalError("secret password should never reach the browser")
         ):
             response = self.client.get("/public/catalog")
             self.assertEqual(response.status_code, 503)
@@ -180,7 +180,7 @@ class TrainerRegistrationTests(unittest.TestCase):
         mailer = patch("app.auth.send_verification_email", return_value=True)
         self.send_email = mailer.start()
         self.addCleanup(mailer.stop)
-        connect = patch("app.auth.psycopg.connect")
+        connect = patch("app.db._checkout")
         self.connect = connect.start()
         self.addCleanup(connect.stop)
         self.cursor = self.connect.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value
@@ -268,7 +268,7 @@ class ValidationFixTests(unittest.TestCase):
         mailer = patch("app.auth.send_verification_email", return_value=True)
         self.send_email = mailer.start()
         self.addCleanup(mailer.stop)
-        connect = patch("app.db.psycopg.connect")
+        connect = patch("app.db._checkout")
         self.connect = connect.start()
         self.addCleanup(connect.stop)
         self.client = TestClient(app)
@@ -408,10 +408,8 @@ class BookingWriteTests(unittest.TestCase):
     def test_available_trainer_returns_hourly_availability(self):
         from app.bookings import booking_availability
 
-        self.cursor.fetchone.side_effect = [
-            ("available",),
-            *[(False,) for _ in range(15)],
-        ]
+        self.cursor.fetchone.side_effect = [("available", None)]
+        self.cursor.fetchall.return_value = []
         user = CurrentUserResponse(
             user_id=18,
             full_name="Member",
@@ -423,6 +421,22 @@ class BookingWriteTests(unittest.TestCase):
         result = booking_availability("training", 5, date(2026, 11, 15), user=user)
 
         self.assertEqual(result, {"taken_hours": []})
+        # The whole day is checked in one query, not one query per hour.
+        day_queries = [c for c in self.cursor.execute.call_args_list if "generate_series(7, 21)" in c.args[0]]
+        self.assertEqual(len(day_queries), 1)
+        self.assertEqual(day_queries[0].args[1], ("training", 5, 18, datetime(2026, 11, 15), datetime(2026, 11, 15)))
+
+    def test_availability_merges_booked_hours_and_trainer_break(self):
+        from app.bookings import booking_availability
+
+        break_until = datetime(2099, 1, 1, 9, 30)  # breaks cover the 07:00, 08:00 and 09:00 slots
+        self.cursor.fetchone.side_effect = [("break", break_until)]
+        self.cursor.fetchall.return_value = [(9,), (14,)]
+        user = CurrentUserResponse(user_id=18, full_name="M", email="m@example.kz", role="member", member_id=18)
+
+        result = booking_availability("training", 5, date(2099, 1, 1), user=user)
+
+        self.assertEqual(result, {"taken_hours": [7, 8, 9, 14]})
 
     def test_early_attendance_is_rejected(self):
         self.cursor.fetchone.side_effect = [None, {"trainer_id": 5, "status": "confirmed", "start_time": None}]
@@ -457,7 +471,7 @@ class EmailDomainTests(unittest.TestCase):
         environment = patch.dict(os.environ, {"DATABASE_URL": "postgresql://test"})
         environment.start()
         self.addCleanup(environment.stop)
-        connect = patch("app.db.psycopg.connect")
+        connect = patch("app.db._checkout")
         self.connect = connect.start()
         self.addCleanup(connect.stop)
         self.client = TestClient(app)
@@ -533,7 +547,7 @@ class EmailVerificationTests(unittest.TestCase):
         domain = patch("app.auth.email_domain_exists", return_value=True)
         domain.start()
         self.addCleanup(domain.stop)
-        connect = patch("app.db.psycopg.connect")
+        connect = patch("app.db._checkout")
         self.connect = connect.start()
         self.addCleanup(connect.stop)
         self.cursor = self.connect.return_value.__enter__.return_value.cursor.return_value.__enter__.return_value

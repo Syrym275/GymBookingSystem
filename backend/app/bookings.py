@@ -59,34 +59,33 @@ def booking_availability(
                     if trainer[0] == "off":
                         return {"taken_hours": list(range(7, 22))}
 
-                for hour in range(7, 22):
-                    start = start_of_day + timedelta(hours=hour)
-                    end = start + timedelta(hours=1)
-                    if (
-                        trainer is not None
-                        and trainer[0] == "break"
-                        and trainer[1] is not None
-                        and start < trainer[1]
-                        and end > datetime.now()
-                    ):
-                        taken.append(hour)
-                        continue
-                    cursor.execute(
-                        """
-                        SELECT EXISTS (
-                            SELECT 1 FROM bookings
-                            WHERE ((booking_type = %s
-                                    AND CASE WHEN booking_type = 'training' THEN trainer_id ELSE hall_id END = %s)
-                                   OR member_id = COALESCE(%s::integer, -1))
-                              AND status NOT IN ('cancelled', 'expired')
-                              AND start_time < %s AND end_time > %s
-                        )
-                        """,
-                        (booking_type, resource_id, member_id, end, start),
+                if trainer is not None and trainer[0] == "break" and trainer[1] is not None:
+                    now = datetime.now()
+                    for hour in range(7, 22):
+                        start = start_of_day + timedelta(hours=hour)
+                        if start < trainer[1] and start + timedelta(hours=1) > now:
+                            taken.append(hour)
+
+                # One query for the whole day (07:00-21:00 starts) instead of one per hour:
+                # each query is a network round trip to the database.
+                cursor.execute(
+                    """
+                    SELECT h.hour
+                    FROM generate_series(7, 21) AS h(hour)
+                    WHERE EXISTS (
+                        SELECT 1 FROM bookings
+                        WHERE ((booking_type = %s
+                                AND CASE WHEN booking_type = 'training' THEN trainer_id ELSE hall_id END = %s)
+                               OR member_id = COALESCE(%s::integer, -1))
+                          AND status NOT IN ('cancelled', 'expired')
+                          AND start_time < %s::timestamp + (h.hour + 1) * INTERVAL '1 hour'
+                          AND end_time > %s::timestamp + h.hour * INTERVAL '1 hour'
                     )
-                    if cursor.fetchone()[0]:
-                        taken.append(hour)
-        return {"taken_hours": taken}
+                    """,
+                    (booking_type, resource_id, member_id, start_of_day, start_of_day),
+                )
+                taken.extend(row[0] for row in cursor.fetchall())
+        return {"taken_hours": sorted(set(taken))}
     except psycopg.Error as error:
         raise database_error(error) from None
 
