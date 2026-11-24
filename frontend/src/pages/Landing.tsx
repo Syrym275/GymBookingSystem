@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
+  ChevronDown,
   Clock,
   Instagram,
   LayoutDashboard,
@@ -16,7 +17,13 @@ import { getPublicCatalog } from "../api/publicApi";
 import { useAsync } from "../hooks/useAsync";
 import { HOME } from "../auth/RequireRole";
 import { Barbell, Glove, Group, Kettlebell, Mat } from "../components/GymIcons";
-import { CLOSE_HOUR, OPEN_HOUR, TODAY_DATE } from "../config";
+import {
+  CLOSE_HOUR,
+  HOLD_MINUTES,
+  MAX_PENDING,
+  OPEN_HOUR,
+  TODAY_DATE,
+} from "../config";
 import { LanguageSwitcher, useT, type Key } from "../i18n";
 import { TrainerPortrait } from "../components/TrainerPortrait";
 import {
@@ -52,8 +59,13 @@ const NAV: { href: string; label: Key }[] = [
   { href: "#trainers", label: "landing.nav.trainers" },
   { href: "#halls", label: "landing.nav.halls" },
   { href: "#pricing", label: "landing.nav.pricing" },
+  { href: "#faq", label: "landing.nav.faq" },
   { href: "#contact", label: "landing.nav.contact" },
 ];
+
+// FAQ items: text in landing.faq.q<n> / landing.faq.a<n>. The answers repeat the site's real rules
+// (see config.ts and the backend), so numbers are filled in from config, not typed into the text.
+const FAQ_COUNT = 8;
 
 const HOURS_TEXT = `${hourLabel(OPEN_HOUR)}–${hourLabel(CLOSE_HOUR)}`;
 const PHONE_HREF = `tel:${CONTACT.phone.replace(/[^+\d]/g, "")}`;
@@ -407,6 +419,15 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* ---- FAQ ---- */}
+        <section
+          id="faq"
+          className="mx-auto max-w-6xl scroll-mt-20 px-4 py-14 sm:px-6 lg:py-20"
+        >
+          <SectionHead title={t("landing.faq.title")} note={t("landing.faq.note")} />
+          <Faq />
+        </section>
+
         {/* ---- Contact: address, hours, phone, map ---- */}
         <section id="contact" className="scroll-mt-20">
           <div className="mx-auto grid max-w-6xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[1fr_1.35fr] lg:items-center lg:py-20">
@@ -485,6 +506,61 @@ export default function Landing() {
         </div>
       </footer>
     </div>
+  );
+}
+
+/** Accordion: one answer open at a time; each question is a button, so it works from the keyboard. */
+function Faq() {
+  const { t } = useT();
+  const [open, setOpen] = useState<number | null>(null);
+  const baseId = useId();
+  const vars = {
+    hold: HOLD_MINUTES,
+    max: MAX_PENDING,
+    gym: GYM_NAME,
+    monthly: t("plan.monthly"),
+    quarterly: t("plan.quarterly"),
+    annual: t("plan.annual"),
+  };
+
+  return (
+    <ul className="mt-8 max-w-3xl divide-y divide-line overflow-hidden rounded-xl border border-line bg-white">
+      {Array.from({ length: FAQ_COUNT }, (_, i) => {
+        const n = i + 1;
+        const isOpen = open === n;
+        const buttonId = `${baseId}-q${n}`;
+        const panelId = `${baseId}-a${n}`;
+        return (
+          <li key={n}>
+            <h3>
+              <button
+                type="button"
+                id={buttonId}
+                aria-expanded={isOpen}
+                aria-controls={panelId}
+                onClick={() => setOpen(isOpen ? null : n)}
+                className="flex min-h-[56px] w-full items-center justify-between gap-4 px-5 py-4 text-left font-semibold transition hover:bg-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand/60 sm:text-lg"
+              >
+                <span>{t(`landing.faq.q${n}` as Key, vars)}</span>
+                <ChevronDown
+                  className={`h-5 w-5 shrink-0 text-brand-dark transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                  aria-hidden="true"
+                />
+              </button>
+            </h3>
+            <div
+              id={panelId}
+              role="region"
+              aria-labelledby={buttonId}
+              hidden={!isOpen}
+              className="px-5 pb-5 text-ink/75"
+            >
+              {t(`landing.faq.a${n}` as Key, vars)}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
