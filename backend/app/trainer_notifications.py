@@ -48,7 +48,7 @@ def load_session_notice(cursor, booking_id: int) -> TrainerSessionNotice | None:
         JOIN members m ON m.member_id = b.member_id
         JOIN users u ON u.trainer_id = b.trainer_id AND u.is_active = TRUE
         WHERE b.booking_id = %s
-          AND b.booking_type = 'training'
+          AND b.booking_type IN ('training', 'combined')
         """,
         (booking_id,),
     )

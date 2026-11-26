@@ -24,8 +24,9 @@ Sample mode works without PostgreSQL. An optional read-only PostgreSQL catalogue
 connection uses the existing trainers and halls tables. The authentication,
 booking, and payment routes require the database schema and an HttpOnly session
 cookie. Run `sql/auth_schema.sql`, `sql/email_verification.sql`,
-`sql/trainer_availability.sql`, and `sql/login_lockout.sql` after the base schema so
-session, verification, trainer status, and sign-in lockout tables exist. After 5 wrong
+`sql/trainer_availability.sql`, `sql/login_lockout.sql`, and `sql/combined_booking.sql` after the
+base schema so session, verification, trainer status, sign-in lockout and hall + trainer booking
+support exist (`python -m scripts.migrate` applies all of them, and is safe to run again). After 5 wrong
 passwords within 15 minutes, an email is locked out of sign-in for 15 minutes (HTTP 429). The audit log is later work. Sample records come
 from code and match the public rows in sql/task09_reference.sql.
 The health check proves only that the server responds. Public endpoints require

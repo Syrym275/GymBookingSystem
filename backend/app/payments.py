@@ -202,7 +202,7 @@ def pay_booking(
 
                 trainer_notice = None
                 if (
-                    updated_booking["booking_type"] == "training"
+                    updated_booking["booking_type"] in {"training", "combined"}
                     and booking["status"] == "pending"
                     and updated_booking["status"] == "confirmed"
                 ):

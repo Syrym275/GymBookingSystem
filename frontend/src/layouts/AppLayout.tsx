@@ -43,8 +43,7 @@ const i = 'h-4 w-4';
 const NAV: Partial<Record<Role, NavItem[]>> = {
   member: [
     { to: '/member', label: 'common.dashboard', icon: <LayoutDashboard className={i} />, end: true },
-    { to: '/member/trainers', label: 'nav.bookTrainer', icon: <Dumbbell className={i} /> },
-    { to: '/member/halls', label: 'landing.rentHall', icon: <Building2 className={i} /> },
+    { to: '/member/book', label: 'nav.bookSession', icon: <PlusCircle className={i} /> },
     { to: '/member/bookings', label: 'nav.myBookings', icon: <ListChecks className={i} /> },
     { to: '/member/profile', label: 'nav.profile', icon: <User className={i} /> },
   ],

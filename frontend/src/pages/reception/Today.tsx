@@ -9,6 +9,7 @@ import { CLOSE_HOUR, OPEN_HOUR, TODAY, TODAY_DATE } from '../../config';
 import { useAsync } from '../../hooks/useAsync';
 import type { BookingView } from '../../types';
 import { addMinutesStr, bkNumber, fmtDate, hourLabel, hourOf, timeOf } from '../../utils/format';
+import { bookingWhat } from '../../utils/bookingKind';
 import { useT } from '../../i18n';
 
 const HOURS = Array.from({ length: CLOSE_HOUR - OPEN_HOUR }, (_, i) => OPEN_HOUR + i);
@@ -16,13 +17,13 @@ const HOURS = Array.from({ length: CLOSE_HOUR - OPEN_HOUR }, (_, i) => OPEN_HOUR
 function Item({ b, onOpen, onDone }: { b: BookingView; onOpen: () => void; onDone: () => void }) {
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-ink/15 bg-white p-3">
-      <span className={`h-10 w-1.5 rounded-full ${b.booking_type === 'training' ? 'bg-brand' : 'bg-mint'}`} />
+      <span className={`h-10 w-1.5 rounded-full ${b.booking_type === 'training' ? 'bg-brand' : b.booking_type === 'combined' ? 'bg-sun' : 'bg-mint'}`} />
       <button className="min-w-0 flex-1 text-left" onClick={onOpen}>
         <p className="font-bold">
           {b.member.full_name} <span className="font-mono text-xs font-normal text-ink/50">{bkNumber(b.booking_id)}</span>
         </p>
         <p className="text-sm text-ink/60">
-          {b.trainer_name ?? b.hall_name} · {timeOf(b.start_time)}–{timeOf(b.end_time)} · {b.member.phone}
+          {bookingWhat(b)} · {timeOf(b.start_time)}–{timeOf(b.end_time)} · {b.member.phone}
         </p>
       </button>
       <PaidBadge status={b.status} />

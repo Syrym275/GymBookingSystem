@@ -12,8 +12,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Account from './pages/Account';
 import MemberDashboard from './pages/member/Dashboard';
-import BookTrainer from './pages/member/BookTrainer';
-import RentHall from './pages/member/RentHall';
+import BookSession from './pages/member/BookSession';
 import Payment from './pages/member/Payment';
 import Confirmation from './pages/member/Confirmation';
 import MyBookings from './pages/member/MyBookings';
@@ -53,8 +52,9 @@ const memberRoutes: RouteObject[] = MEMBER_AREA_ENABLED
         element: guarded('member'),
         children: [
           { index: true, element: <MemberDashboard /> },
-          { path: 'trainers', element: <BookTrainer /> },
-          { path: 'halls', element: <RentHall /> },
+          { path: 'book', element: <BookSession /> },
+          { path: 'trainers', element: <BookSession initial="trainer" /> },
+          { path: 'halls', element: <BookSession initial="hall" /> },
           { path: 'pay/:bookingId', element: <Payment /> },
           { path: 'confirmation/:bookingId', element: <Confirmation /> },
           { path: 'bookings', element: <MyBookings /> },

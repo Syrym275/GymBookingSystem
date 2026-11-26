@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, Building2, CalendarClock, Dumbbell } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Building2, CalendarClock, Dumbbell, Layers } from 'lucide-react';
 import { listBookings } from '../../api/bookingsApi';
 import { getMyProfile } from '../../api/membersApi';
 import { useAuth } from '../../auth/AuthContext';
@@ -8,6 +8,7 @@ import { EmptyState, ErrorNote, KpiCard, Loading, PageHeader } from '../../compo
 import { MAX_PENDING, TODAY } from '../../config';
 import { useAsync } from '../../hooks/useAsync';
 import { PLAN_LABEL, bkNumber, fmtDate, fmtRange, kzt, membershipState } from '../../utils/format';
+import { bookingWhat } from '../../utils/bookingKind';
 import { useT } from '../../i18n';
 
 export default function MemberDashboard() {
@@ -64,7 +65,7 @@ export default function MemberDashboard() {
         <KpiCard tone="mint" label={t('mdash.upcoming')} value={upcoming.length} hint={t('mdash.upcomingHint')} />
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+      <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <Link to="/member/trainers" className="card flex items-center gap-3 transition hover:-translate-y-0.5">
           <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand text-onaccent">
             <Dumbbell className="h-5 w-5" />
@@ -85,6 +86,16 @@ export default function MemberDashboard() {
           </span>
           <ArrowRight className="h-5 w-5" />
         </Link>
+        <Link to="/member/book?mode=both" className="card flex items-center gap-3 transition hover:-translate-y-0.5">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-sun text-onaccent">
+            <Layers className="h-5 w-5" />
+          </span>
+          <span className="flex-1">
+            <span className="block font-display text-lg font-bold">{t('type.combined')}</span>
+            <span className="text-sm text-ink/60">{t('mdash.bothHint')}</span>
+          </span>
+          <ArrowRight className="h-5 w-5" />
+        </Link>
       </div>
 
       <h2 className="mb-3 mt-8 text-xl font-extrabold">{t('mdash.upcomingTitle')}</h2>
@@ -97,7 +108,7 @@ export default function MemberDashboard() {
               <div className="min-w-0 flex-1 basis-full sm:basis-auto">
                 <p className="font-bold">
                   <span className="mr-2 font-mono text-sm text-ink/50">{bkNumber(b.booking_id)}</span>
-                  {b.trainer_name ?? b.hall_name}
+                  {bookingWhat(b)}
                 </p>
                 <p className="text-sm text-ink/60">{fmtRange(b.start_time, b.end_time)}</p>
               </div>

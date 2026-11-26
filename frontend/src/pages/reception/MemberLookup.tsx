@@ -8,6 +8,7 @@ import { EmptyState, ErrorNote, Loading, PageHeader } from '../../components/ui'
 import { useAsync } from '../../hooks/useAsync';
 import type { BookingView, MemberView } from '../../types';
 import { PLAN_LABEL, bkNumber, fmtDate, fmtRange, kzt, membershipState } from '../../utils/format';
+import { bookingWhat } from '../../utils/bookingKind';
 import { useT } from '../../i18n';
 
 export function MembershipBadge({ expires }: { expires: string }) {
@@ -63,7 +64,7 @@ function MemberDetail({ member }: { member: MemberView }) {
           >
             <span className="font-mono text-xs text-ink/50">{bkNumber(b.booking_id)}</span>
             <span className="min-w-0 flex-1">
-              <b>{b.trainer_name ?? b.hall_name}</b> · {fmtRange(b.start_time, b.end_time)}
+              <b>{bookingWhat(b)}</b> · {fmtRange(b.start_time, b.end_time)}
             </span>
             <span className="font-bold">{kzt(b.price_kzt)}</span>
             <PaidBadge status={b.status} />

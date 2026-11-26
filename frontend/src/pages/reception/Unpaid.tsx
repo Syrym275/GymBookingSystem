@@ -9,6 +9,7 @@ import { MAX_PENDING } from '../../config';
 import { useAsync } from '../../hooks/useAsync';
 import type { BookingView } from '../../types';
 import { bkNumber, fmtRange, kzt } from '../../utils/format';
+import { bookingWhat } from '../../utils/bookingKind';
 import { useT } from '../../i18n';
 
 export default function ReceptionUnpaid() {
@@ -50,7 +51,7 @@ export default function ReceptionUnpaid() {
                       <div className="min-w-0 flex-1">
                         <p className="font-bold">
                           <span className="mr-2 font-mono text-xs text-ink/50">{bkNumber(b.booking_id)}</span>
-                          {b.trainer_name ?? b.hall_name}
+                          {bookingWhat(b)}
                         </p>
                         <p className="text-xs text-ink/60">{fmtRange(b.start_time, b.end_time)}</p>
                       </div>
