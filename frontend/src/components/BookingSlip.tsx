@@ -1,3 +1,4 @@
+import { bookingTypeLabel } from '../utils/bookingKind';
 import type { ReactNode } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { listPaymentsForBooking } from '../api/paymentsApi';
@@ -54,10 +55,9 @@ export function BookingSlip({ booking, onClose, footer }: { booking: BookingView
             <PaidBadge status={booking.status} />
           </div>
           <div className="rounded-xl border border-line bg-sun-soft/60 px-4 py-2">
-            <Row label={t('table.type')}>{booking.booking_type === 'training' ? t('slip.training') : t('type.hall')}</Row>
-            <Row label={booking.booking_type === 'training' ? t('role.trainer') : t('table.hall')}>
-              {booking.trainer_name ?? booking.hall_name}
-            </Row>
+            <Row label={t('table.type')}>{booking.booking_type === 'training' ? t('slip.training') : bookingTypeLabel(booking.booking_type)}</Row>
+            {booking.hall_name && <Row label={t('table.hall')}>{booking.hall_name}</Row>}
+            {booking.trainer_name && <Row label={t('role.trainer')}>{booking.trainer_name}</Row>}
             <Row label={t('slip.date')}>{fmtDate(booking.start_time)}</Row>
             <Row label={t('slip.time')}>
               {timeOf(booking.start_time)} – {timeOf(booking.end_time)}

@@ -170,10 +170,18 @@ export default function Payment() {
             <StatusBadge status={b.status} />
           </div>
           <dl className="space-y-2 text-sm">
-            <div className="flex justify-between gap-3">
-              <dt className="text-ink/60">{b.booking_type === 'training' ? t('role.trainer') : t('table.hall')}</dt>
-              <dd className="font-bold">{b.trainer_name ?? b.hall_name}</dd>
-            </div>
+            {b.hall_name && (
+              <div className="flex justify-between gap-3">
+                <dt className="text-ink/60">{t('table.hall')}</dt>
+                <dd className="font-bold">{b.hall_name}</dd>
+              </div>
+            )}
+            {b.trainer_name && (
+              <div className="flex justify-between gap-3">
+                <dt className="text-ink/60">{t('role.trainer')}</dt>
+                <dd className="font-bold">{b.trainer_name}</dd>
+              </div>
+            )}
             <div className="flex justify-between gap-3">
               <dt className="text-ink/60">{t('slip.date')}</dt>
               <dd className="font-bold">{fmtDate(b.start_time)}</dd>

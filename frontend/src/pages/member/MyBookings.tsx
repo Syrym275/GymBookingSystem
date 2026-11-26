@@ -1,3 +1,4 @@
+import { bookingTypeLabel, bookingWhat } from '../../utils/bookingKind';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { cancelBooking, listBookings } from '../../api/bookingsApi';
@@ -77,8 +78,8 @@ export default function MyBookings() {
               <button className="min-w-0 flex-1 basis-full text-left sm:basis-auto" onClick={() => setSlip(b)}>
                 <p className="font-bold">
                   <span className="mr-2 font-mono text-sm text-ink/50">{bkNumber(b.booking_id)}</span>
-                  {b.trainer_name ?? b.hall_name}
-                  <span className="ml-2 text-xs font-normal text-ink/50">{b.booking_type === 'training' ? t('type.training') : t('type.hall')}</span>
+                  {bookingWhat(b)}
+                  <span className="ml-2 text-xs font-normal text-ink/50">{bookingTypeLabel(b.booking_type)}</span>
                 </p>
                 <p className="text-sm text-ink/60">{fmtRange(b.start_time, b.end_time)}</p>
               </button>

@@ -164,7 +164,7 @@ class LoginRequest(BaseModel):
 
 class BookingCreateRequest(BaseModel):
     member_id: int = Field(gt=0)
-    booking_type: Literal["training", "hall_rental"]
+    booking_type: Literal["training", "hall_rental", "combined"]
     trainer_id: int | None = None
     hall_id: int | None = None
     start_time: datetime
@@ -178,6 +178,12 @@ class BookingCreateRequest(BaseModel):
         if self.booking_type == "training":
             if self.trainer_id is None or self.hall_id is not None:
                 raise ValueError("A training booking needs a trainer and no hall.")
+        elif self.booking_type == "combined":
+            if self.trainer_id is None or self.hall_id is None:
+                raise ValueError("A hall + trainer booking needs both a hall and a trainer.")
+            on_the_hour = (self.start_time.minute, self.start_time.second, self.end_time.minute, self.end_time.second) == (0, 0, 0, 0)
+            if not on_the_hour:
+                raise ValueError("A hall + trainer booking must start and end on the hour.")
         elif self.hall_id is None or self.trainer_id is not None:
             raise ValueError("A hall booking needs a hall and no trainer.")
         return self
@@ -186,7 +192,7 @@ class BookingCreateRequest(BaseModel):
 class BookingResponse(BaseModel):
     booking_id: int
     member_id: int
-    booking_type: Literal["training", "hall_rental"]
+    booking_type: Literal["training", "hall_rental", "combined"]
     trainer_id: int | None
     hall_id: int | None
     start_time: datetime

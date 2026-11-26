@@ -153,7 +153,7 @@ def ensure_booking_access(user: CurrentUserResponse, booking_id: int, *, write: 
     allowed = (
         user.role in {"admin", "receptionist"}
         or user.role == "member" and user.member_id == member_id
-        or user.role == "trainer" and booking_type == "training" and user.trainer_id == trainer_id
+        or user.role == "trainer" and booking_type in {"training", "combined"} and user.trainer_id == trainer_id
     )
     if not allowed or (write and user.role == "trainer"):
         raise HTTPException(status_code=403, detail="You are not allowed to access this booking.")

@@ -29,6 +29,7 @@ MIGRATIONS = [
     "trainer_booking_overlap",
     "admin",
     "login_lockout",
+    "combined_booking",
 ]
 
 ROLES_SECTION = "-- 8. ACCESS CONTROL"

@@ -1,3 +1,4 @@
+import { bookingTypeLabel, bookingWhat } from '../utils/bookingKind';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
@@ -96,11 +97,11 @@ export function BookingsTable({ mode }: { mode: 'reception' | 'admin' }) {
     {
       key: 'what',
       header: t('table.trainerHall'),
-      sort: (b) => b.trainer_name ?? b.hall_name ?? '',
+      sort: (b) => bookingWhat(b),
       render: (b) => (
         <div>
-          <div>{b.trainer_name ?? b.hall_name}</div>
-          <div className="text-xs text-ink/50">{b.booking_type === 'training' ? t('type.training') : t('type.hall')}</div>
+          <div>{bookingWhat(b)}</div>
+          <div className="text-xs text-ink/50">{bookingTypeLabel(b.booking_type)}</div>
         </div>
       ),
     },
@@ -210,6 +211,7 @@ export function BookingsTable({ mode }: { mode: 'reception' | 'admin' }) {
               <option value="">{t('table.allTypes')}</option>
               <option value="training">{t('type.training')}</option>
               <option value="hall_rental">{t('type.hall')}</option>
+              <option value="combined">{t('type.combined')}</option>
             </select>
           </div>
           <div>

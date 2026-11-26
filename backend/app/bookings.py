@@ -77,8 +77,7 @@ def booking_availability(
                     FROM generate_series(7, 21) AS h(hour)
                     WHERE EXISTS (
                         SELECT 1 FROM bookings
-                        WHERE ((booking_type = %s
-                                AND CASE WHEN booking_type = 'training' THEN trainer_id ELSE hall_id END = %s)
+                        WHERE ((CASE WHEN %s::text = 'training' THEN trainer_id ELSE hall_id END = %s)
                                OR member_id = COALESCE(%s::integer, -1))
                           AND status NOT IN ('cancelled', 'expired')
                           AND start_time < %s::timestamp + (h.hour + 1) * INTERVAL '1 hour'
@@ -154,7 +153,7 @@ def create_booking(
 
                 cursor.execute("SELECT expire_pending_bookings()")
 
-                if input.booking_type == "training":
+                if input.booking_type in {"training", "combined"}:
                     cursor.execute(
                         """
                         SELECT
@@ -204,8 +203,7 @@ def create_booking(
                         SELECT EXISTS (
                             SELECT 1
                             FROM bookings
-                            WHERE booking_type = 'training'
-                              AND trainer_id = %s
+                            WHERE trainer_id = %s
                               AND status NOT IN ('cancelled', 'expired')
                               AND start_time < %s
                               AND end_time > %s
@@ -218,6 +216,25 @@ def create_booking(
                             status_code=409,
                             detail="This trainer is already booked at that time.",
                         )
+
+                    if input.booking_type == "combined":
+                        # Hall + trainer: the trainer is with the member in the hall for the whole time.
+                        # Price = (trainer price per hour + hall rate per hour) x hours.
+                        cursor.execute(
+                            """
+                            SELECT hourly_rate_kzt
+                            FROM halls
+                            WHERE hall_id = %s
+                              AND is_active = TRUE
+                            """,
+                            (input.hall_id,),
+                        )
+                        hall = cursor.fetchone()
+                        if hall is None:
+                            raise HTTPException(status_code=404, detail="Hall not found.")
+                        hours = Decimal(str((input.end_time - input.start_time).total_seconds())) / Decimal("3600")
+                        price = ((price + hall["hourly_rate_kzt"]) * hours).quantize(Decimal("0.01"))
+                        hall_id = input.hall_id
 
                 else:
                     cursor.execute(
@@ -364,7 +381,7 @@ def list_member_bookings(
                         LIMIT 1
                     ) AS latest_payment ON TRUE
                     WHERE (%s::integer IS NULL OR b.member_id = %s)
-                      AND (%s::integer IS NULL OR (b.booking_type = 'training' AND b.trainer_id = %s))
+                      AND (%s::integer IS NULL OR b.trainer_id = %s)
                     ORDER BY b.start_time DESC, b.booking_id DESC
                     """,
                     (trainer_id, member_id, member_id, trainer_id, trainer_id),
@@ -458,7 +475,7 @@ def cancel_booking(
                         """,
                         (booking_id,),
                     )
-                    if row["booking_type"] == "training":
+                    if row["booking_type"] in {"training", "combined"}:
                         trainer_notice = load_session_notice(cursor, booking_id)
 
         # Queued only after the transaction committed; sent after the response.

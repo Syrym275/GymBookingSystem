@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { listMembers } from '../../api/membersApi';
+import { CombinedBooking } from '../../components/booking/CombinedBooking';
 import { HallBooking } from '../../components/booking/HallBooking';
 import { TrainerBooking } from '../../components/booking/TrainerBooking';
 import { BookingSlip } from '../../components/BookingSlip';
@@ -17,7 +18,7 @@ export default function NewBooking() {
   const toast = useToast();
   const members = useAsync(() => listMembers(), []);
   const [memberId, setMemberId] = useState<number | null>(null);
-  const [kind, setKind] = useState<'training' | 'hall'>('training');
+  const [kind, setKind] = useState<'training' | 'hall' | 'both'>('training');
   const [created, setCreated] = useState<BookingView | null>(null);
   const [slip, setSlip] = useState<BookingView | null>(null);
   const [formKey, setFormKey] = useState(0);
@@ -79,13 +80,13 @@ export default function NewBooking() {
       ) : (
         <>
           <div className="mb-4 inline-flex rounded-xl border border-line bg-white p-1">
-            {(['training', 'hall'] as const).map((k) => (
+            {(['training', 'hall', 'both'] as const).map((k) => (
               <button
                 key={k}
                 onClick={() => setKind(k)}
                 className={`rounded-lg px-4 py-1.5 text-sm font-bold ${kind === k ? 'bg-brand text-onaccent' : 'hover:bg-sun-soft'}`}
               >
-                {k === 'training' ? t('rec.trainerSession') : t('type.hall')}
+                {k === 'training' ? t('rec.trainerSession') : k === 'hall' ? t('type.hall') : t('type.combined')}
               </button>
             ))}
           </div>
@@ -99,9 +100,19 @@ export default function NewBooking() {
                 setFormKey((k) => k + 1);
               }}
             />
-          ) : (
+          ) : kind === 'hall' ? (
             <HallBooking
               key={`h-${formKey}`}
+              memberId={member.member_id}
+              onBooked={(b) => {
+                toast.success(t('rec.created', { id: bkNumber(b.booking_id) }));
+                setCreated(b);
+                setFormKey((k) => k + 1);
+              }}
+            />
+          ) : (
+            <CombinedBooking
+              key={`b-${formKey}`}
               memberId={member.member_id}
               onBooked={(b) => {
                 toast.success(t('rec.created', { id: bkNumber(b.booking_id) }));

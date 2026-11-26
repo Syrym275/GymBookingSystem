@@ -9,11 +9,15 @@ import { PaidBadge, PaymentBadge, StatusBadge } from '../../components/StatusBad
 import { useToast } from '../../components/Toast';
 import { EmptyState, ErrorNote, PageHeader } from '../../components/ui';
 import { useAsync } from '../../hooks/useAsync';
-import { useT } from '../../i18n';
+import { t as tx, useT } from '../../i18n';
 import { msg } from '../../i18n/messages';
 import type { BookingStatus, BookingType, BookingView } from '../../types';
 import { ALL_STATUSES, STATUS_LABEL, bkNumber, dateOf, fmtDate, fmtDay, fmtDateTime, kzt, timeOf } from '../../utils/format';
+import { bookingWhat } from '../../utils/bookingKind';
 import { downloadCsv } from './common';
+
+const adminTypeLabel = (type: BookingType) =>
+  type === 'combined' ? tx('adm.bk.combined') : type === 'training' ? tx('adm.bk.training') : tx('adm.bk.hallRental');
 
 const CHIP_ON: Record<BookingStatus, string> = {
   pending: 'border-ink/40 bg-sun-soft',
@@ -45,8 +49,9 @@ function BookingDetails({ booking, onClose }: { booking: BookingView | null; onC
             <PaidBadge status={booking.status} />
           </div>
           <div className="rounded-lg border border-line bg-sun-soft px-4 py-2">
-            <Row label={t('adm.bk.type')}>{booking.booking_type === 'training' ? t('adm.bk.training') : t('adm.bk.hallRental')}</Row>
-            <Row label={booking.booking_type === 'training' ? t('adm.bk.trainer') : t('adm.bk.hall')}>{booking.trainer_name ?? booking.hall_name}</Row>
+            <Row label={t('adm.bk.type')}>{adminTypeLabel(booking.booking_type)}</Row>
+            {booking.hall_name && <Row label={t('adm.bk.hall')}>{booking.hall_name}</Row>}
+            {booking.trainer_name && <Row label={t('adm.bk.trainer')}>{booking.trainer_name}</Row>}
             <Row label={t('adm.bk.date')}>{fmtDate(booking.start_time)}</Row>
             <Row label={t('adm.bk.time')}>
               {timeOf(booking.start_time)} – {timeOf(booking.end_time)}
@@ -140,7 +145,7 @@ export default function AdminBookings() {
         timeOf(b.start_time),
         timeOf(b.end_time),
         b.member.full_name,
-        b.trainer_name ?? b.hall_name ?? '',
+        bookingWhat(b),
         b.booking_type,
         b.status,
         b.price_kzt,
@@ -164,11 +169,11 @@ export default function AdminBookings() {
     {
       key: 'what',
       header: t('adm.bk.what'),
-      sort: (b) => b.trainer_name ?? b.hall_name ?? '',
+      sort: (b) => bookingWhat(b),
       render: (b) => (
         <div>
-          <div>{b.trainer_name ?? b.hall_name}</div>
-          <div className="text-xs text-ink/50">{b.booking_type === 'training' ? t('adm.bk.training') : t('adm.bk.hallRental')}</div>
+          <div>{bookingWhat(b)}</div>
+          <div className="text-xs text-ink/50">{adminTypeLabel(b.booking_type)}</div>
         </div>
       ),
     },
@@ -264,6 +269,7 @@ export default function AdminBookings() {
               <option value="">{t('adm.bk.allTypes')}</option>
               <option value="training">{t('adm.bk.training')}</option>
               <option value="hall_rental">{t('adm.bk.hallRental')}</option>
+              <option value="combined">{t('adm.bk.combined')}</option>
             </select>
           </div>
           <div>

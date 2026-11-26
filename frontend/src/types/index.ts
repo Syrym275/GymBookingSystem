@@ -2,7 +2,7 @@
 
 export type Role = 'member' | 'trainer' | 'receptionist' | 'admin';
 export type MembershipPlan = 'monthly' | 'quarterly' | 'annual';
-export type BookingType = 'training' | 'hall_rental';
+export type BookingType = 'training' | 'hall_rental' | 'combined'; // combined = hall + trainer together
 export type BookingStatus =
   | 'pending'
   | 'confirmed'
