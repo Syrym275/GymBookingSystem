@@ -18,6 +18,7 @@ from .auth import check_new_password, hash_password
 from .bookings import database_error
 from .db import connect, is_valid_email
 from .trainer_notifications import load_session_notice, send_trainer_cancellation_email
+from .trainer_screening import review_reasons
 from .models import (
     AdminAttention,
     AdminBookingResponse,
@@ -127,7 +128,7 @@ TRAINER_COLUMNS = "trainer_id, full_name, specialization, session_price_kzt, is_
 
 @router.get("/trainers", response_model=list[AdminTrainer])
 def list_trainers(_: Admin) -> list[AdminTrainer]:
-    """Every trainer, active or not. Sign-ups waiting for approval are listed under /admin/trainer-applications."""
+    """Every trainer, active or not. Sign-ups needing review are under /admin/trainer-applications."""
     try:
         with connect(row_factory=dict_row) as connection:
             rows = connection.execute(
@@ -240,7 +241,15 @@ def list_applications(_: Admin) -> list[TrainerApplicationResponse]:
             ).fetchall()
     except psycopg.Error:
         raise unavailable("list trainer applications") from None
-    return [TrainerApplicationResponse(**row) for row in rows]
+    applications = []
+    for row in rows:
+        reasons = review_reasons(row)
+        applications.append(TrainerApplicationResponse(
+            **row,
+            review_status="waiting_email" if "email_unverified" in reasons else "checking",
+            review_reasons=reasons,
+        ))
+    return applications
 
 
 @router.post("/trainer-applications/{trainer_id}/approve", response_model=AdminTrainer)
@@ -254,6 +263,11 @@ def approve_application(trainer_id: Id, admin: Admin) -> AdminTrainer:
                     UPDATE trainers t
                     SET is_active = TRUE, approved_at = CURRENT_TIMESTAMP
                     WHERE t.trainer_id = %s AND {PENDING_TRAINER}
+                      AND EXISTS (
+                          SELECT 1 FROM users au
+                          WHERE au.trainer_id = t.trainer_id AND au.role = 'trainer'
+                            AND au.email_verified = TRUE
+                      )
                     RETURNING {TRAINER_COLUMNS}
                     """,
                     (trainer_id,),

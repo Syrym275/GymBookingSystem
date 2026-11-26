@@ -19,6 +19,7 @@ from pydantic import ValidationError
 from .db import connect
 from .mailer import OutgoingEmail, send_email
 from .models import BookingCreateRequest, ResendVerificationRequest, VerifyEmailRequest, VerifyEmailResponse
+from .trainer_screening import MAX_AUTO_APPROVE_PRICE_KZT, MIN_AUTO_APPROVE_PRICE_KZT
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -144,13 +145,41 @@ def verify_email(input: VerifyEmailRequest) -> VerifyEmailResponse:
                     SET email_verified = TRUE,
                         email_verified_at = CURRENT_TIMESTAMP
                     WHERE user_id = %s
+                    RETURNING role, trainer_id, email
                     """,
                     (user_id,),
                 )
+                verified_user = cursor.fetchone()
                 cursor.execute(
                     "UPDATE email_verification_tokens SET used_at = CURRENT_TIMESTAMP WHERE token_id = %s",
                     (token_id,),
                 )
+                if verified_user and verified_user[0] == "trainer" and verified_user[1] is not None:
+                    cursor.execute(
+                        """
+                        UPDATE trainers
+                        SET is_active = TRUE, approved_at = CURRENT_TIMESTAMP
+                        WHERE trainer_id = %s AND approved_at IS NULL AND is_active = FALSE
+                          AND CHAR_LENGTH(BTRIM(full_name)) BETWEEN 2 AND 100
+                          AND CHAR_LENGTH(BTRIM(specialization)) BETWEEN 2 AND 60
+                          AND session_price_kzt BETWEEN %s AND %s
+                        RETURNING trainer_id, full_name
+                        """,
+                        (verified_user[1], MIN_AUTO_APPROVE_PRICE_KZT, MAX_AUTO_APPROVE_PRICE_KZT),
+                    )
+                    approved_trainer = cursor.fetchone()
+                    if approved_trainer:
+                        from .audit import record
+                        record(
+                            cursor,
+                            "trainer.auto_approved",
+                            actor_user_id=user_id,
+                            actor_email=verified_user[2],
+                            actor_role="trainer",
+                            target_type="trainer",
+                            target_id=approved_trainer[0],
+                            details={"full_name": approved_trainer[1], "checks": "email_verified_and_profile_valid"},
+                        )
     except psycopg.Error:
         raise database_unavailable("Email verification") from None
 

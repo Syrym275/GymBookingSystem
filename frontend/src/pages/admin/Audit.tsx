@@ -25,7 +25,7 @@ const GROUPS: { value: string; label: Key }[] = [
 ];
 
 const KNOWN_ACTIONS = new Set([
-  'auth.login', 'auth.login_failed', 'member.registered', 'trainer.registered', 'trainer.approved', 'trainer.rejected',
+  'auth.login', 'auth.login_failed', 'member.registered', 'trainer.registered', 'trainer.auto_approved', 'trainer.approved', 'trainer.rejected',
   'trainer.created', 'trainer.updated', 'trainer.activated', 'trainer.deactivated', 'trainer.deleted',
   'hall.created', 'hall.updated', 'hall.activated', 'hall.deactivated', 'hall.deleted',
   'member.plan_changed', 'member.membership_extended', 'booking.status_changed',

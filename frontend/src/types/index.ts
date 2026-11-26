@@ -42,6 +42,8 @@ export interface TrainerApplication {
   specialization: string;
   session_price_kzt: number;
   created_at: string; // local "YYYY-MM-DDTHH:mm"
+  review_status: 'waiting_email' | 'checking';
+  review_reasons: ('email_unverified' | 'profile_incomplete' | 'price_out_of_range')[];
 }
 
 export interface Hall {

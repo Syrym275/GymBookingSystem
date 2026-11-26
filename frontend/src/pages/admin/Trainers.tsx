@@ -124,7 +124,14 @@ export default function AdminTrainers() {
                 <div className="min-w-[12rem] flex-1">
                   <p className="font-bold">{a.full_name}</p>
                   <p className="break-all text-xs text-ink/60">{a.email}</p>
-                  {a.email_verified === false && <p className="text-xs font-semibold text-berry">{t('adm.app.unverified')}</p>}
+                  <p className="mt-1 text-xs font-bold text-berry">
+                    {a.review_status === 'waiting_email' ? t('adm.app.waitingEmail') : t('adm.app.checking')}
+                  </p>
+                  {a.review_reasons.filter((reason) => reason !== 'email_unverified').map((reason) => (
+                    <p key={reason} className="text-xs text-ink/60">
+                      {reason === 'price_out_of_range' ? t('adm.app.priceReview') : t('adm.app.profileReview')}
+                    </p>
+                  ))}
                 </div>
                 <div className="min-w-[8rem] text-sm">
                   <p className="text-xs text-ink/50">{t('adm.tr.spec')}</p>
@@ -139,7 +146,7 @@ export default function AdminTrainers() {
                   {fmtDateTime(a.created_at)}
                 </div>
                 <div className="flex gap-2">
-                  <button className="btn-primary btn-sm" onClick={() => setDeciding({ app: a, action: 'approve' })}>
+                  <button className="btn-primary btn-sm" disabled={!a.email_verified} onClick={() => setDeciding({ app: a, action: 'approve' })}>
                     <UserCheck className="h-3 w-3" /> {t('adm.approve')}
                   </button>
                   <button className="btn-danger btn-sm" onClick={() => setDeciding({ app: a, action: 'reject' })}>

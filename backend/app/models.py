@@ -262,6 +262,8 @@ class TrainerApplicationResponse(BaseModel):
     specialization: str
     session_price_kzt: Money
     created_at: datetime
+    review_status: Literal["waiting_email", "checking"]
+    review_reasons: list[str]
 
 
 class AdminHall(BaseModel):
