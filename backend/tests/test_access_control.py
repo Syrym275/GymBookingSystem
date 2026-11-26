@@ -169,9 +169,10 @@ class RequestControlTests(unittest.TestCase):
     def test_trainer_cannot_learn_a_members_busy_hours(self):
         self.cursor.fetchone.side_effect = [("available", None), *[(False,)] * 15]
         booking_availability("training", 5, date(2030, 1, 10), member_id=OTHER_MEMBER_ID, user=TRAINER)
-        slot_queries = [call.args[1] for call in self.cursor.execute.call_args_list if call.args[1:] and len(call.args[1]) == 5]
+        slot_queries = [call.args[1] for call in self.cursor.execute.call_args_list if call.args[1:] and len(call.args[1]) == 6]
         self.assertTrue(slot_queries)
-        self.assertTrue(all(params[2] is None for params in slot_queries))
+        # Neither the member's own bookings nor the group sessions they joined are looked up.
+        self.assertTrue(all(params[2] is None and params[3] is None for params in slot_queries))
 
     def test_trainer_does_not_see_member_phone_on_a_single_booking(self):
         self.cursor.fetchone.return_value = None

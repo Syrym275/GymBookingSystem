@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { cancelBooking, listBookings } from '../../api/bookingsApi';
 import { BookingSlip } from '../../components/BookingSlip';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { GroupDialog } from '../../components/GroupDialog';
 import { PaidBadge, StatusBadge } from '../../components/StatusBadge';
 import { useToast } from '../../components/Toast';
 import { EmptyState, ErrorNote, Loading, PageHeader } from '../../components/ui';
@@ -21,6 +22,7 @@ export default function MyBookings() {
   const [status, setStatus] = useState<BookingStatus | ''>('');
   const [slip, setSlip] = useState<BookingView | null>(null);
   const [toCancel, setToCancel] = useState<BookingView | null>(null);
+  const [group, setGroup] = useState<BookingView | null>(null);
 
   if (error) return <ErrorNote message={error} />;
   if (!data) return <Loading />;
@@ -93,6 +95,11 @@ export default function MyBookings() {
                   </Link>
                 )}
                 {canCancel(b) && (
+                  <button className="btn-ghost btn-sm" onClick={() => setGroup(b)}>
+                    {t('group.manage')}
+                  </button>
+                )}
+                {canCancel(b) && (
                   <button className="btn-danger btn-sm" onClick={() => setToCancel(b)}>
                     {t('mybook.cancel')}
                   </button>
@@ -107,6 +114,7 @@ export default function MyBookings() {
       )}
 
       <BookingSlip booking={slip} onClose={() => setSlip(null)} />
+      <GroupDialog booking={group} onClose={() => setGroup(null)} />
       <ConfirmDialog
         open={!!toCancel}
         danger

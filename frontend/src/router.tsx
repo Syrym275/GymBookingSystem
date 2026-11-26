@@ -17,6 +17,7 @@ import Payment from './pages/member/Payment';
 import Confirmation from './pages/member/Confirmation';
 import MyBookings from './pages/member/MyBookings';
 import Profile from './pages/member/Profile';
+import MemberGroups from './pages/member/Groups';
 import ReceptionToday from './pages/reception/Today';
 import ReceptionBookings from './pages/reception/AllBookings';
 import ReceptionUnpaid from './pages/reception/Unpaid';
@@ -58,6 +59,7 @@ const memberRoutes: RouteObject[] = MEMBER_AREA_ENABLED
           { path: 'pay/:bookingId', element: <Payment /> },
           { path: 'confirmation/:bookingId', element: <Confirmation /> },
           { path: 'bookings', element: <MyBookings /> },
+          { path: 'groups', element: <MemberGroups /> },
           { path: 'profile', element: <Profile /> },
         ],
       },

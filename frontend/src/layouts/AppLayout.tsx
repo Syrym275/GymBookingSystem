@@ -45,6 +45,7 @@ const NAV: Partial<Record<Role, NavItem[]>> = {
     { to: '/member', label: 'common.dashboard', icon: <LayoutDashboard className={i} />, end: true },
     { to: '/member/book', label: 'nav.bookSession', icon: <PlusCircle className={i} /> },
     { to: '/member/bookings', label: 'nav.myBookings', icon: <ListChecks className={i} /> },
+    { to: '/member/groups', label: 'nav.groups', icon: <Users className={i} /> },
     { to: '/member/profile', label: 'nav.profile', icon: <User className={i} /> },
   ],
   trainer: [

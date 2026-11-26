@@ -439,7 +439,7 @@ class BookingWriteTests(unittest.TestCase):
         # The whole day is checked in one query, not one query per hour.
         day_queries = [c for c in self.cursor.execute.call_args_list if "generate_series(7, 21)" in c.args[0]]
         self.assertEqual(len(day_queries), 1)
-        self.assertEqual(day_queries[0].args[1], ("training", 5, 18, datetime(2026, 11, 15), datetime(2026, 11, 15)))
+        self.assertEqual(day_queries[0].args[1], ("training", 5, 18, 18, datetime(2026, 11, 15), datetime(2026, 11, 15)))
 
     def test_availability_merges_booked_hours_and_trainer_break(self):
         from app.bookings import booking_availability

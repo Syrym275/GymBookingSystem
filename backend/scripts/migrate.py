@@ -30,6 +30,7 @@ MIGRATIONS = [
     "admin",
     "login_lockout",
     "combined_booking",
+    "group_sessions",
 ]
 
 ROLES_SECTION = "-- 8. ACCESS CONTROL"

@@ -387,3 +387,48 @@ class TrainerReportRow(BaseModel):
     evening: int
     before_17: int
     no_shows: int
+
+
+# ---- group sessions ----------------------------------------------------------------
+
+GroupStatus = Literal["invited", "accepted", "declined", "left", "removed"]
+
+
+class GroupInviteRequest(BaseModel):
+    email: str = Field(min_length=5, max_length=255)
+
+
+class GroupParticipant(BaseModel):
+    member_id: int
+    full_name: str
+    # Only the owner and staff see emails; other guests and the trainer see names.
+    email: str | None = None
+    status: GroupStatus
+    invited_at: datetime
+    responded_at: datetime | None = None
+
+
+class GroupDetails(BaseModel):
+    booking_id: int
+    owner_member_id: int
+    owner_name: str
+    max_size: int
+    # Owner + accepted guests.
+    size: int
+    participants: list[GroupParticipant]
+
+
+class GroupInvitation(BaseModel):
+    """A group session the signed-in member was invited to or joined."""
+
+    booking_id: int
+    status: GroupStatus
+    invited_at: datetime
+    owner_name: str
+    booking_type: Literal["training", "hall_rental", "combined"]
+    booking_status: str
+    trainer_name: str | None = None
+    hall_name: str | None = None
+    start_time: datetime
+    end_time: datetime
+    size: int

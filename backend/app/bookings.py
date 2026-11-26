@@ -78,13 +78,18 @@ def booking_availability(
                     WHERE EXISTS (
                         SELECT 1 FROM bookings
                         WHERE ((CASE WHEN %s::text = 'training' THEN trainer_id ELSE hall_id END = %s)
-                               OR member_id = COALESCE(%s::integer, -1))
+                               OR member_id = COALESCE(%s::integer, -1)
+                               -- group sessions this member joined as a guest
+                               OR booking_id IN (
+                                   SELECT booking_id FROM booking_participants
+                                   WHERE member_id = COALESCE(%s::integer, -1) AND status = 'accepted'
+                               ))
                           AND status NOT IN ('cancelled', 'expired')
                           AND start_time < %s::timestamp + (h.hour + 1) * INTERVAL '1 hour'
                           AND end_time > %s::timestamp + h.hour * INTERVAL '1 hour'
                     )
                     """,
-                    (booking_type, resource_id, member_id, start_of_day, start_of_day),
+                    (booking_type, resource_id, member_id, member_id, start_of_day, start_of_day),
                 )
                 taken.extend(row[0] for row in cursor.fetchall())
         return {"taken_hours": sorted(set(taken))}
@@ -116,6 +121,12 @@ def database_error(error: psycopg.Error) -> HTTPException:
         return HTTPException(
             status_code=409,
             detail="Your membership is not valid for this date.",
+        )
+
+    if error.sqlstate == "GB003":
+        return HTTPException(
+            status_code=409,
+            detail="You joined a group session during this time. Choose a different time.",
         )
 
     if error.sqlstate in {"23503", "23514"}:

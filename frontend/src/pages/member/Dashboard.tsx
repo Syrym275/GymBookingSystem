@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, Building2, CalendarClock, Dumbbell, Layers } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Building2, CalendarClock, Dumbbell, Layers, Users } from 'lucide-react';
 import { listBookings } from '../../api/bookingsApi';
 import { getMyProfile } from '../../api/membersApi';
+import { listMyInvitations } from '../../api/groupsApi';
 import { useAuth } from '../../auth/AuthContext';
 import { StatusBadge } from '../../components/StatusBadge';
 import { EmptyState, ErrorNote, KpiCard, Loading, PageHeader } from '../../components/ui';
@@ -16,6 +17,8 @@ export default function MemberDashboard() {
   const { user } = useAuth();
   const profile = useAsync(getMyProfile, []);
   const bookings = useAsync(() => listBookings(), []);
+  // Optional: the dashboard still works if this fails.
+  const groups = useAsync(listMyInvitations, []);
 
   if (profile.error) return <ErrorNote message={profile.error} />;
   if (!profile.data || !bookings.data) return <Loading />;
@@ -25,6 +28,7 @@ export default function MemberDashboard() {
   const mine = bookings.data;
   const unpaid = mine.filter((b) => b.status === 'pending');
   const upcoming = mine.filter((b) => b.start_time >= TODAY && (b.status === 'pending' || b.status === 'confirmed'));
+  const waitingInvites = (groups.data ?? []).filter((g) => g.status === 'invited').length;
 
   return (
     <div>
@@ -46,6 +50,16 @@ export default function MemberDashboard() {
                 : t('mdash.endsText')}
             </p>
           </div>
+        </div>
+      )}
+
+      {waitingInvites > 0 && (
+        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-mint-soft p-4 shadow-hard">
+          <Users className="h-5 w-5 shrink-0" />
+          <p className="flex-1 text-sm font-extrabold">{t('group.waiting', { n: waitingInvites })}</p>
+          <Link to="/member/groups" className="btn-primary btn-sm">
+            {t('group.see')}
+          </Link>
         </div>
       )}
 

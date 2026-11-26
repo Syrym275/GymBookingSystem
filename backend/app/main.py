@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from .admin import router as admin_router
 from .auth import router as auth_router
 from .bookings import router as bookings_router
+from .groups import router as groups_router
 from .members import router as members_router
 from .password_reset import router as password_reset_router
 from .payments import router as payments_router
@@ -54,6 +55,7 @@ async def readable_validation_error(_: Request, error: RequestValidationError) -
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(bookings_router)
+app.include_router(groups_router)
 app.include_router(members_router)
 app.include_router(payments_router)
 app.include_router(trainer_status_router)
